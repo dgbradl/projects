@@ -24,6 +24,8 @@ export default defineConfig({
         SUBTICK_INTERVAL_MS: '200',
         PORT: String(SERVER_PORT),
         DB_PATH: ':memory:',
+        FLAVOR_MODE: 'recorded',
+        FLAVOR_WORKER_INTERVAL_MS: '300',
       },
       cwd: '..',
       port: SERVER_PORT,

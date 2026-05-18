@@ -5,6 +5,7 @@ import type {
   ZoneName,
 } from '@shared/types';
 import type { WorldEventBus } from '../events/emitter.ts';
+import type { FlavorCache } from '../llm/cache/manager.ts';
 import type { ThreadRunner } from '../threads/runner.ts';
 import { randomLocation } from '../world/locations.ts';
 import { seededRng, type Rng } from '../world/rng.ts';
@@ -39,6 +40,7 @@ export class InteractionResolver {
   constructor(
     private readonly bus: WorldEventBus,
     private readonly threadRunner: ThreadRunner,
+    private readonly flavorCache?: FlavorCache,
   ) {}
 
   resolve(
@@ -92,6 +94,13 @@ export class InteractionResolver {
       spawnedThreadId = thread.id;
     }
 
+    const overheardText = this.flavorCache
+      ? this.flavorCache.take<{ seed?: string }, string>('fragment', {
+          placeholderInput: { seed: id },
+          gameDay: ctx.gameDay,
+        })
+      : undefined;
+
     const interaction: Interaction = {
       id,
       gameDay: ctx.gameDay,
@@ -100,6 +109,7 @@ export class InteractionResolver {
       participantIds: [aId, bId],
       kind,
       spawnedThreadId,
+      overheardText,
     };
     this.bus.publish({ type: 'interaction', gameDay: ctx.gameDay, interaction });
     return interaction;

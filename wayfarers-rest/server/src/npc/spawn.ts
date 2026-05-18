@@ -87,16 +87,27 @@ function pickName(rng: Rng, used: Set<string>): string {
   throw new Error('placeholderNames exhausted');
 }
 
+/**
+ * Picks one of the 7 canonical archetypes (matches Phase 4's NpcArchetype
+ * union; the LLM arrival pool is keyed by these strings).
+ */
 function pickArchetype(
   rng: Rng,
   opts: { refugeeBoost: boolean; merchantBoost: boolean },
 ): string {
   const r = rng();
   if (opts.refugeeBoost && r < 0.5) return 'refugee';
-  if (opts.merchantBoost && r < 0.3) return 'sour_merchant';
-  if (r < 0.7) return 'traveler';
-  if (r < 0.85) return 'merchant';
-  return 'wanderer';
+  if (opts.merchantBoost && r < 0.3) return 'merchant';
+  // Otherwise pick from the full canonical archetype set.
+  const archetypes = [
+    'wanderer',
+    'merchant',
+    'pilgrim',
+    'soldier',
+    'scholar',
+    'rogue',
+  ];
+  return archetypes[Math.floor(rng() * archetypes.length)];
 }
 
 export function generateDeparture(cfg: DepartureConfig): {

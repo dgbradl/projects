@@ -1,7 +1,14 @@
 import type { FastifyInstance } from 'fastify';
-import type { TavernConfig, WorldSnapshot } from '@shared/types';
+import type {
+  FlavorMode,
+  FlavorPoolStatus,
+  TavernConfig,
+  WorldSnapshot,
+} from '@shared/types';
 import type { WorldEventBus } from '../events/emitter.ts';
 import type { Clock } from '../lib/clock.ts';
+import type { FlavorCache } from '../llm/cache/manager.ts';
+import type { FlavorModeManager } from '../llm/mode.ts';
 import type { NpcManager } from '../npc/manager.ts';
 import type { Persistence } from '../persistence.ts';
 import type { WorldStateManager } from '../state.ts';
@@ -17,6 +24,13 @@ export interface ApiDeps {
   bus: WorldEventBus;
   subTickIntervalMs: number;
   subTicksPerDay: number;
+  flavorCache?: FlavorCache;
+  flavorMode?: FlavorModeManager;
+}
+
+export interface FlavorStatus {
+  mode: FlavorMode;
+  pools: FlavorPoolStatus[];
 }
 
 const SNAPSHOT_WINDOW_DAYS = 7;
@@ -47,6 +61,15 @@ export function registerRoutes(app: FastifyInstance, deps: ApiDeps): void {
   }));
 
   app.get('/world', async (): Promise<WorldSnapshot> => buildWorldSnapshot(deps));
+
+  app.get('/flavor', async (): Promise<FlavorStatus> => buildFlavorStatus(deps));
+}
+
+export function buildFlavorStatus(deps: ApiDeps): FlavorStatus {
+  return {
+    mode: deps.flavorMode?.getMode() ?? 'placeholder',
+    pools: deps.flavorCache?.getStatus() ?? [],
+  };
 }
 
 export function buildWorldSnapshot(deps: ApiDeps): WorldSnapshot {

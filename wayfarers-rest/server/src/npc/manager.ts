@@ -1,14 +1,18 @@
 import { EventEmitter } from 'node:events';
 import type {
+  ArrivalGarnish,
   Npc,
+  NpcArchetype,
   NpcDiff,
+  NpcMood,
   ScheduledArrival,
-  WorldTag,
 } from '@shared/types';
 import type { WorldEventBus } from '../events/emitter.ts';
+import type { FlavorCache } from '../llm/cache/manager.ts';
+import type { ArrivalInput } from '../llm/slots/arrival.ts';
 import type { Persistence } from '../persistence.ts';
-import { randomLocation } from '../world/locations.ts';
-import { seededRng } from '../world/rng.ts';
+import { locationById, randomLocation } from '../world/locations.ts';
+import { rngPick, seededRng } from '../world/rng.ts';
 import type { RumorsManager } from '../world/rumors.ts';
 import type { ThreadRunner } from '../threads/runner.ts';
 import { decideNextState, jitterInsideZone } from './behavior.ts';
@@ -17,6 +21,43 @@ import {
   generateDeparture,
   generateSpawnQueue,
 } from './spawn.ts';
+
+const MOODS: NpcMood[] = [
+  'cheerful',
+  'anxious',
+  'weary',
+  'guarded',
+  'desperate',
+  'smug',
+];
+
+const CANONICAL_ARCHETYPES: ReadonlySet<NpcArchetype> = new Set([
+  'wanderer',
+  'merchant',
+  'refugee',
+  'pilgrim',
+  'soldier',
+  'scholar',
+  'rogue',
+]);
+
+function canonicalizeArchetype(raw?: string): NpcArchetype {
+  if (raw && (CANONICAL_ARCHETYPES as Set<string>).has(raw)) {
+    return raw as NpcArchetype;
+  }
+  // Thread-spawned archetypes get mapped to the closest fit.
+  switch (raw) {
+    case 'returning_traveler':
+    case 'wanderer_returning':
+      return 'wanderer';
+    case 'investigator':
+      return 'rogue';
+    case 'sour_merchant':
+      return 'merchant';
+    default:
+      return 'wanderer';
+  }
+}
 
 export interface RosterSnapshot {
   npcs: Npc[];
@@ -33,6 +74,7 @@ export interface NpcManagerDeps {
   bus?: WorldEventBus;
   rumors?: RumorsManager;
   threadRunner?: ThreadRunner;
+  flavorCache?: FlavorCache;
   /**
    * Called after a sub-tick has applied its NPC changes. Used by index.ts to
    * run interaction detection + resolution. Tests can omit.
@@ -135,6 +177,8 @@ export class NpcManager extends EventEmitter {
           subTicksPerDay,
           worldSeed,
           this.deps.rumors,
+          this.deps.flavorCache,
+          currentGameDay,
         );
         this.roster.set(npc.id, npc);
         diff.added.push(npc);
@@ -218,6 +262,8 @@ function materializeArrival(
   subTicksPerDay: number,
   worldSeed: string,
   rumors: RumorsManager | undefined,
+  flavorCache: FlavorCache | undefined,
+  currentGameDay: number,
 ): Npc {
   const rng = seededRng(worldSeed, 'materialize', arrival.npcId);
   const departure = generateDeparture({
@@ -233,9 +279,46 @@ function materializeArrival(
           arrival,
           seededRng(worldSeed, 'rumor-attach', arrival.npcId),
         ) ?? [];
+
+  // Pick deterministic archetype + mood for this NPC. archetype may already be
+  // set by the spawn queue (tag-modulated) or by a thread-spawned arrival —
+  // the latter sometimes uses non-canonical strings like 'returning_traveler',
+  // which we map to a canonical Phase 4 archetype so the cache lookup works.
+  const archetype = canonicalizeArchetype(arrival.archetype);
+  const mood = rngPick(
+    seededRng(worldSeed, 'mood', arrival.npcId),
+    MOODS,
+  );
+
+  // Flavor garnish: cache.take or fall through to placeholder (which itself
+  // is deterministic given the NPC id).
+  const origin = arrival.originLocationId
+    ? locationById(arrival.originLocationId)
+    : undefined;
+  const placeholderInput: ArrivalInput = {
+    archetype,
+    mood,
+    originLocationDisplayName: origin?.displayName ?? 'the road',
+    originLocationKind: origin?.kind ?? 'road',
+    seed: arrival.npcId,
+  };
+  const garnish: ArrivalGarnish = flavorCache
+    ? flavorCache.take<ArrivalInput, ArrivalGarnish>('arrival', {
+        subKey: archetype,
+        placeholderInput,
+        gameDay: currentGameDay,
+      })
+    : {
+        name: arrival.displayName,
+        tagline: '',
+        item: '',
+      };
+
   return {
     id: arrival.npcId,
-    displayName: arrival.displayName,
+    // Cache-supplied name takes priority over the queue's placeholder name
+    // when the cache is in `llm` mode and a real name is available.
+    displayName: garnish.name || arrival.displayName,
     status: 'arriving',
     position: jitterInsideZone('door', rng),
     zone: 'door',
@@ -246,6 +329,9 @@ function materializeArrival(
     nextDecisionSubTick: absSubTick + 1,
     carriedRumorIds: rumorIds,
     originLocationId: arrival.originLocationId,
-    archetype: arrival.archetype,
+    archetype,
+    tagline: garnish.tagline || undefined,
+    item: garnish.item || undefined,
+    mood,
   };
 }

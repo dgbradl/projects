@@ -92,3 +92,39 @@
 .npc-tooltip-row span {
   color: var(--ink);
 }
+
+.npc-tooltip-tagline {
+  font-style: italic;
+  color: var(--ink-dim);
+  margin-bottom: 0.3rem;
+  max-width: 14rem;
+  white-space: normal;
+}
+
+.interaction-bubble {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translate(-50%, -16px);
+  background: rgba(20, 14, 8, 0.92);
+  border: 1px solid var(--accent);
+  padding: 0.35rem 0.55rem;
+  border-radius: 0.6rem;
+  font-size: 0.75rem;
+  font-style: italic;
+  color: var(--ink);
+  white-space: nowrap;
+  max-width: 18rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  z-index: 3;
+  animation: bubble-fade 3s ease-in-out forwards;
+}
+
+@keyframes bubble-fade {
+  0% { opacity: 0; transform: translate(-50%, -10px); }
+  10% { opacity: 1; transform: translate(-50%, -16px); }
+  80% { opacity: 1; transform: translate(-50%, -16px); }
+  100% { opacity: 0; transform: translate(-50%, -20px); }
+}

@@ -10,8 +10,13 @@ export interface ScheduleArrivalInput {
 }
 
 export interface IntroduceRumorHelperInput {
-  text: string;
+  /** Optional explicit text override. If absent, the rumor cache supplies it. */
+  text?: string;
   originLocationId?: string;
+  /** Hints for the placeholder when the cache is in placeholder mode. */
+  tagKey?: string;
+  tagValue?: string;
+  threadHistoryNote?: string;
 }
 
 export interface SpawnThreadHelperInput {

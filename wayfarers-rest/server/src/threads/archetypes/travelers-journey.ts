@@ -43,8 +43,10 @@ export const TRAVELERS_JOURNEY: ThreadDefinition = {
       case 'arrived_safely': {
         if (rng() < 0.6 && destination) {
           helpers.introduceRumor({
-            text: `Word from ${destination.displayName}: ${payload.displayName} arrived safely.`,
             originLocationId: destination.id,
+            tagKey: 'travel',
+            tagValue: 'safe',
+            threadHistoryNote: `${payload.displayName} reached ${destination.displayName}`,
           });
         }
         return {
@@ -74,8 +76,10 @@ export const TRAVELERS_JOURNEY: ThreadDefinition = {
       case 'met_misfortune': {
         if (destination) {
           helpers.introduceRumor({
-            text: `Did you hear? ${payload.displayName} never made it past ${destination.displayName}.`,
             originLocationId: destination.id,
+            tagKey: 'travel',
+            tagValue: 'ill',
+            threadHistoryNote: `${payload.displayName} never made it past ${destination.displayName}`,
           });
         }
         return {

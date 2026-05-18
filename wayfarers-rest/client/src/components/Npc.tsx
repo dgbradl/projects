@@ -1,5 +1,6 @@
 import type { Npc as NpcT } from '@shared/types';
 import { useStore } from '../state/store.tsx';
+import { InteractionBubble } from './InteractionBubble.tsx';
 
 interface Props {
   npc: NpcT;
@@ -16,7 +17,8 @@ export function Npc({
   subTicksPerDay,
 }: Props) {
   const { interactingNpcs } = useStore();
-  const interacting = (interactingNpcs[npc.id] ?? 0) > Date.now();
+  const flash = interactingNpcs[npc.id];
+  const interacting = !!flash && flash.expiresAt > Date.now();
 
   const style: React.CSSProperties = {
     left: `${npc.position.x}%`,
@@ -43,10 +45,14 @@ export function Npc({
       data-status={npc.status}
       data-interacting={interacting ? 'true' : undefined}
     >
+      <InteractionBubble npc={npc} />
       <span className="npc-dot" aria-hidden />
       <span className="npc-label">{npc.displayName}</span>
       <div className="npc-tooltip" role="tooltip">
         <div className="npc-tooltip-name">{npc.displayName}</div>
+        {npc.tagline && (
+          <div className="npc-tooltip-tagline">{npc.tagline}</div>
+        )}
         <div className="npc-tooltip-row">
           status: <span>{npc.status}</span>
         </div>
@@ -60,9 +66,14 @@ export function Npc({
             from: <span>{npc.originLocationId}</span>
           </div>
         )}
+        {npc.item && (
+          <div className="npc-tooltip-row">
+            carries: <span>{npc.item}</span>
+          </div>
+        )}
         {npc.carriedRumorIds.length > 0 && (
           <div className="npc-tooltip-row">
-            carries: <span>{npc.carriedRumorIds.join(', ')}</span>
+            rumors: <span>{npc.carriedRumorIds.join(', ')}</span>
           </div>
         )}
       </div>

@@ -1,11 +1,24 @@
 import type {
   EventLogEntry,
+  FlavorMode,
+  FlavorPoolStatus,
   Npc,
   NpcDiff,
   TavernConfig,
   WorldSnapshot,
   WorldState,
 } from '@shared/types';
+
+export interface InteractionFlash {
+  npcIds: string[];
+  expiresAt: number;
+  overheardText?: string;
+}
+
+export interface FlavorStatusPayload {
+  mode: FlavorMode;
+  pools: FlavorPoolStatus[];
+}
 
 export type Action =
   | { type: 'INIT_TAVERN'; payload: TavernConfig }
@@ -15,5 +28,6 @@ export type Action =
   | { type: 'NPCS_DIFF'; payload: NpcDiff }
   | { type: 'WORLD_SNAPSHOT'; payload: WorldSnapshot }
   | { type: 'WORLD_EVENT'; payload: EventLogEntry }
-  | { type: 'INTERACTION_FLASH'; payload: { npcIds: string[]; expiresAt: number } }
-  | { type: 'EXPIRE_INTERACTION_FLASHES'; payload: { now: number } };
+  | { type: 'INTERACTION_FLASH'; payload: InteractionFlash }
+  | { type: 'EXPIRE_INTERACTION_FLASHES'; payload: { now: number } }
+  | { type: 'FLAVOR_STATUS'; payload: FlavorStatusPayload };

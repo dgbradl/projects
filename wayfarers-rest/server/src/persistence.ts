@@ -144,6 +144,16 @@ export class Persistence {
         origin_location_id TEXT,
         carried_rumor_ids TEXT
       );
+
+      CREATE TABLE IF NOT EXISTS flavor_cache (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        kind TEXT NOT NULL,
+        sub_key TEXT NOT NULL DEFAULT '',
+        content_json TEXT NOT NULL,
+        generated_at_real_ts TEXT NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_flavor_cache_kind ON flavor_cache(kind, sub_key);
     `);
 
     this.addColumnIfMissing('world_state', 'sub_tick', 'INTEGER NOT NULL DEFAULT 0');
@@ -533,6 +543,53 @@ export class Persistence {
     originLocationId: r.origin_location_id ?? undefined,
     carriedRumorIds: r.carried_rumor_ids ? JSON.parse(r.carried_rumor_ids) : undefined,
   });
+
+  // ---------- flavor_cache ----------
+
+  insertFlavorCacheItem(
+    kind: string,
+    subKey: string,
+    contentJson: string,
+    generatedAtRealTs: string,
+  ): number {
+    const result = this.db
+      .prepare(
+        'INSERT INTO flavor_cache (kind, sub_key, content_json, generated_at_real_ts) VALUES (?, ?, ?, ?)',
+      )
+      .run(kind, subKey, contentJson, generatedAtRealTs);
+    return Number(result.lastInsertRowid);
+  }
+
+  loadFlavorCacheItems(): Array<{
+    id: number;
+    kind: string;
+    subKey: string;
+    contentJson: string;
+    generatedAtRealTs: string;
+  }> {
+    const rows = this.db
+      .prepare(
+        'SELECT id, kind, sub_key, content_json, generated_at_real_ts FROM flavor_cache ORDER BY id ASC',
+      )
+      .all() as Array<{
+      id: number;
+      kind: string;
+      sub_key: string;
+      content_json: string;
+      generated_at_real_ts: string;
+    }>;
+    return rows.map((r) => ({
+      id: r.id,
+      kind: r.kind,
+      subKey: r.sub_key,
+      contentJson: r.content_json,
+      generatedAtRealTs: r.generated_at_real_ts,
+    }));
+  }
+
+  deleteFlavorCacheItem(id: number): void {
+    this.db.prepare('DELETE FROM flavor_cache WHERE id = ?').run(id);
+  }
 
   close(): void {
     this.db.close();

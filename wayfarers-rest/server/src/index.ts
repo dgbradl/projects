@@ -2,18 +2,24 @@ import { mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Fastify from 'fastify';
-import type { Npc } from '@shared/types';
+import type { FlavorMode, Npc } from '@shared/types';
 import { registerRoutes, type ApiDeps } from './api/routes.ts';
 import { registerSSE } from './api/sse.ts';
 import { WorldEventBus } from './events/emitter.ts';
 import { detectInteractions } from './interactions/detector.ts';
 import { InteractionResolver } from './interactions/resolver.ts';
 import { RealClock } from './lib/clock.ts';
+import { FlavorCache } from './llm/cache/manager.ts';
+import { FlavorWorker } from './llm/cache/worker.ts';
+import { FixtureRegistry } from './llm/fixtures.ts';
+import { FlavorModeManager } from './llm/mode.ts';
+import { OllamaClient } from './llm/ollama.ts';
+import { registerAllPools } from './llm/registry.ts';
 import { NpcManager } from './npc/manager.ts';
 import { Persistence } from './persistence.ts';
 import { WorldStateManager } from './state.ts';
 import { SubTickScheduler } from './subtick.ts';
-import './threads/archetypes/index.ts'; // registers archetypes
+import './threads/archetypes/index.ts';
 import { ThreadRunner } from './threads/runner.ts';
 import { TickScheduler } from './tick.ts';
 import { RumorsManager } from './world/rumors.ts';
@@ -23,22 +29,31 @@ import { seedPhase3World } from './world/world-init.ts';
 const SERVER_DIR = fileURLToPath(new URL('.', import.meta.url));
 const WORKSPACE_ROOT = resolve(SERVER_DIR, '../..');
 const DEFAULT_DB_PATH = resolve(WORKSPACE_ROOT, 'data/world.db');
+const DEFAULT_FIXTURES_DIR = resolve(SERVER_DIR, 'llm/fixtures');
 
-const TICK_INTERVAL_MS = parseInt(
-  process.env.TICK_INTERVAL_MS ?? '3600000',
-  10,
-);
-const SCHEDULER_CHECK_MS = parseInt(
-  process.env.SCHEDULER_CHECK_MS ?? '60000',
-  10,
-);
-const SUBTICK_INTERVAL_MS = parseInt(
-  process.env.SUBTICK_INTERVAL_MS ?? '10000',
-  10,
-);
+const TICK_INTERVAL_MS = parseInt(process.env.TICK_INTERVAL_MS ?? '3600000', 10);
+const SCHEDULER_CHECK_MS = parseInt(process.env.SCHEDULER_CHECK_MS ?? '60000', 10);
+const SUBTICK_INTERVAL_MS = parseInt(process.env.SUBTICK_INTERVAL_MS ?? '10000', 10);
 const DB_PATH = process.env.DB_PATH ?? DEFAULT_DB_PATH;
 const PORT = parseInt(process.env.PORT ?? '3000', 10);
 const HOST = process.env.HOST ?? '0.0.0.0';
+
+const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? 'qwen2.5:7b';
+const OLLAMA_REQUEST_TIMEOUT_MS = parseInt(
+  process.env.OLLAMA_REQUEST_TIMEOUT_MS ?? '30000',
+  10,
+);
+const FLAVOR_MODE = (process.env.FLAVOR_MODE ?? 'llm') as FlavorMode;
+const FLAVOR_FIXTURES_DIR = process.env.FLAVOR_FIXTURES_DIR ?? DEFAULT_FIXTURES_DIR;
+const FLAVOR_WORKER_INTERVAL_MS = parseInt(
+  process.env.FLAVOR_WORKER_INTERVAL_MS ?? '2000',
+  10,
+);
+const OLLAMA_HEALTH_CHECK_MS = parseInt(
+  process.env.OLLAMA_HEALTH_CHECK_MS ?? '30000',
+  10,
+);
 
 const SUB_TICKS_PER_DAY = Math.max(
   1,
@@ -60,6 +75,42 @@ async function main(): Promise<void> {
   const rumors = new RumorsManager(persistence, bus);
   const threadRunner = new ThreadRunner(persistence, bus, worldTags, rumors);
 
+  // ----- Phase 4 flavor wiring -----
+  const ollama = new OllamaClient({
+    baseUrl: OLLAMA_BASE_URL,
+    model: OLLAMA_MODEL,
+    requestTimeoutMs: OLLAMA_REQUEST_TIMEOUT_MS,
+  });
+  const mode = new FlavorModeManager({
+    initialMode: FLAVOR_MODE,
+    client: ollama,
+    bus,
+    healthCheckIntervalMs: OLLAMA_HEALTH_CHECK_MS,
+    getGameDay: () => stateManager.getState().gameDay,
+  });
+  const fixtures =
+    FLAVOR_MODE === 'recorded' ? new FixtureRegistry(FLAVOR_FIXTURES_DIR) : null;
+  fixtures?.load();
+
+  const flavorCache = new FlavorCache(persistence, bus, mode);
+  registerAllPools({
+    cache: flavorCache,
+    mode,
+    client: ollama,
+    fixtures,
+    worldSeed: stateManager.getState().seed,
+  });
+  flavorCache.rehydrate();
+
+  rumors.setFlavorCache(flavorCache);
+
+  const flavorWorker = new FlavorWorker(
+    flavorCache,
+    mode,
+    FLAVOR_WORKER_INTERVAL_MS,
+  );
+
+  // ----- NPC + scheduler wiring (reuses Phase 3 surfaces) -----
   const npcManager = new NpcManager(
     {
       worldSeed: stateManager.getState().seed,
@@ -70,15 +121,21 @@ async function main(): Promise<void> {
       bus,
       rumors,
       threadRunner,
+      flavorCache,
     },
   );
   npcManager.hydrate(persistence.loadRoster());
 
-  const interactionResolver = new InteractionResolver(bus, threadRunner);
+  const interactionResolver = new InteractionResolver(
+    bus,
+    threadRunner,
+    flavorCache,
+  );
   const interactionCounter = { value: 0 };
 
-  // Attach the post-sub-tick hook now that the resolver exists.
-  (npcManager as unknown as { deps: { postSubTickHook: typeof postSubTickHook } }).deps.postSubTickHook = postSubTickHook;
+  (npcManager as unknown as {
+    deps: { postSubTickHook: typeof postSubTickHook };
+  }).deps.postSubTickHook = postSubTickHook;
 
   function postSubTickHook(gameDay: number, subTick: number, roster: Npc[]) {
     const candidates = detectInteractions(roster, {
@@ -112,15 +169,11 @@ async function main(): Promise<void> {
     },
     bus,
   );
-
   const subTickScheduler = new SubTickScheduler(
     stateManager,
     npcManager,
     clock,
-    {
-      subTickIntervalMs: SUBTICK_INTERVAL_MS,
-      subTicksPerDay: SUB_TICKS_PER_DAY,
-    },
+    { subTickIntervalMs: SUBTICK_INTERVAL_MS, subTicksPerDay: SUB_TICKS_PER_DAY },
     threadRunner,
   );
 
@@ -135,9 +188,13 @@ async function main(): Promise<void> {
     bus,
     subTickIntervalMs: SUBTICK_INTERVAL_MS,
     subTicksPerDay: SUB_TICKS_PER_DAY,
+    flavorCache,
+    flavorMode: mode,
   };
 
   app.addHook('onClose', async () => {
+    flavorWorker.stop();
+    mode.stop();
     subTickScheduler.stop();
     scheduler.stop();
     persistence.close();
@@ -146,8 +203,7 @@ async function main(): Promise<void> {
   registerRoutes(app, apiDeps);
   registerSSE(app, stateManager, npcManager, bus, apiDeps);
 
-  // First boot under Phase 3: if no world tags exist, seed them and the
-  // starter threads, plus emit the init event.
+  // First boot under Phase 3+: seed world tags and starter threads if absent.
   const isFirstPhase3Boot = persistence.getAllWorldTags().length === 0;
   if (stateManager.isColdStart() || isFirstPhase3Boot) {
     if (stateManager.isColdStart()) {
@@ -163,7 +219,6 @@ async function main(): Promise<void> {
     }
   }
 
-  // Bootstrap today's spawn queue if it wasn't persisted yet.
   if (
     npcManager.getSpawnQueue().length === 0 &&
     npcManager.getRoster().length === 0
@@ -172,8 +227,13 @@ async function main(): Promise<void> {
     persistence.saveRoster(npcManager.snapshot());
   }
 
+  // Phase 4: health-check Ollama and decide initial mode.
+  await mode.runBootHealthCheck();
+  mode.startPeriodicHealthCheck();
+
   scheduler.start();
   subTickScheduler.start();
+  flavorWorker.start();
 
   await app.listen({ port: PORT, host: HOST });
   app.log.info(
@@ -183,6 +243,9 @@ async function main(): Promise<void> {
       subTickIntervalMs: SUBTICK_INTERVAL_MS,
       subTicksPerDay: SUB_TICKS_PER_DAY,
       dbPath: dbPathAbs,
+      flavorMode: mode.getMode(),
+      ollamaBaseUrl: OLLAMA_BASE_URL,
+      ollamaModel: OLLAMA_MODEL,
     },
     'wayfarers-rest server ready',
   );

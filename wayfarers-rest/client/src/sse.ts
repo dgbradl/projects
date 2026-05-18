@@ -57,9 +57,18 @@ export function subscribe(
             npcIds: data.event.interaction.participantIds,
             expiresAt:
               Date.now() + opts.subTickIntervalMs * INTERACTION_FLASH_SUBTICKS,
+            overheardText: data.event.interaction.overheardText,
           },
         });
       }
+    });
+
+    source.addEventListener('flavor_status', (ev: MessageEvent<string>) => {
+      const data = JSON.parse(ev.data) as {
+        mode: import('@shared/types').FlavorMode;
+        pools: import('@shared/types').FlavorPoolStatus[];
+      };
+      dispatch({ type: 'FLAVOR_STATUS', payload: data });
     });
 
     source.onerror = () => {

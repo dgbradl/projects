@@ -1,9 +1,16 @@
 import type {
+  FlavorMode,
+  FlavorPoolStatus,
   Npc,
   TavernConfig,
   WorldSnapshot,
   WorldState,
 } from '@shared/types';
+
+export interface FlavorStatusResponse {
+  mode: FlavorMode;
+  pools: FlavorPoolStatus[];
+}
 
 async function jsonGet<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -16,6 +23,7 @@ export const api = {
   getTavern: () => jsonGet<TavernConfig>('/tavern'),
   getNpcs: () => jsonGet<Npc[]>('/npcs'),
   getWorld: () => jsonGet<WorldSnapshot>('/world'),
+  getFlavor: () => jsonGet<FlavorStatusResponse>('/flavor'),
   postEngagement: async (): Promise<WorldState> => {
     const res = await fetch('/engagement', { method: 'POST' });
     if (!res.ok) throw new Error(`POST /engagement failed: ${res.status}`);

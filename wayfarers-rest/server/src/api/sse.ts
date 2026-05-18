@@ -9,7 +9,7 @@ import type { WorldEventBus } from '../events/emitter.ts';
 import type { NpcManager } from '../npc/manager.ts';
 import type { Persistence } from '../persistence.ts';
 import type { WorldStateManager } from '../state.ts';
-import { buildWorldSnapshot, type ApiDeps } from './routes.ts';
+import { buildFlavorStatus, buildWorldSnapshot, type ApiDeps } from './routes.ts';
 
 const HEARTBEAT_MS = 30_000;
 
@@ -35,6 +35,12 @@ export function registerSSE(
     const onWorldEvent = (entry: EventLogEntry) => {
       writeEvent(reply, 'world_event', entry);
       writeEvent(reply, 'world_snapshot', buildWorldSnapshot(deps));
+      if (
+        entry.event.type === 'flavor_cache_miss' ||
+        entry.event.type === 'flavor_mode_changed'
+      ) {
+        writeEvent(reply, 'flavor_status', buildFlavorStatus(deps));
+      }
     };
 
     stateManager.on('state', onState);
@@ -44,6 +50,7 @@ export function registerSSE(
     writeEvent(reply, 'state', stateManager.getState());
     writeEvent(reply, 'npcs_snapshot', npcManager.getRoster());
     writeEvent(reply, 'world_snapshot', buildWorldSnapshot(deps));
+    writeEvent(reply, 'flavor_status', buildFlavorStatus(deps));
 
     const heartbeat = setInterval(() => {
       try {

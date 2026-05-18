@@ -87,6 +87,27 @@
   font-size: 0.72rem;
 }
 
+.flavor-pools li {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.05rem 0.25rem;
+  border-radius: 0.2rem;
+}
+
+.flavor-pool-ok {
+  background: rgba(136, 198, 155, 0.08);
+}
+
+.flavor-pool-low {
+  background: rgba(231, 198, 106, 0.18);
+  color: #f0d57a;
+}
+
+.flavor-pool-empty {
+  background: rgba(196, 115, 115, 0.22);
+  color: #ffa5a5;
+}
+
 .debug-toggle {
   position: fixed;
   top: 4rem;

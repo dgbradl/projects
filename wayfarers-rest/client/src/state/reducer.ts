@@ -1,5 +1,7 @@
 import type {
   EventLogEntry,
+  FlavorMode,
+  FlavorPoolStatus,
   Npc,
   Rumor,
   ScheduledArrival,
@@ -9,7 +11,7 @@ import type {
   WorldState,
   WorldTag,
 } from '@shared/types';
-import type { Action } from './actions.ts';
+import type { Action, InteractionFlash } from './actions.ts';
 
 const RECENT_EVENT_CAP = 100;
 
@@ -22,8 +24,10 @@ export interface AppState {
   pendingArrivals: ScheduledArrival[];
   rumors: Rumor[];
   recentEvents: EventLogEntry[];
-  /** npcId -> wall-clock expiry timestamp (ms since epoch). */
-  interactingNpcs: Record<string, number>;
+  /** npcId -> { expiry timestamp, overheardText | undefined }. */
+  interactingNpcs: Record<string, InteractionFlash>;
+  flavorMode: FlavorMode;
+  flavorPools: FlavorPoolStatus[];
 }
 
 export const initialState: AppState = {
@@ -36,6 +40,8 @@ export const initialState: AppState = {
   rumors: [],
   recentEvents: [],
   interactingNpcs: {},
+  flavorMode: 'placeholder',
+  flavorPools: [],
 };
 
 export function reducer(state: AppState, action: Action): AppState {
@@ -75,17 +81,23 @@ export function reducer(state: AppState, action: Action): AppState {
     case 'INTERACTION_FLASH': {
       const next = { ...state.interactingNpcs };
       for (const id of action.payload.npcIds) {
-        next[id] = action.payload.expiresAt;
+        next[id] = action.payload;
       }
       return { ...state, interactingNpcs: next };
     }
     case 'EXPIRE_INTERACTION_FLASHES': {
-      const next: Record<string, number> = {};
-      for (const [id, expires] of Object.entries(state.interactingNpcs)) {
-        if (expires > action.payload.now) next[id] = expires;
+      const next: Record<string, InteractionFlash> = {};
+      for (const [id, flash] of Object.entries(state.interactingNpcs)) {
+        if (flash.expiresAt > action.payload.now) next[id] = flash;
       }
       return { ...state, interactingNpcs: next };
     }
+    case 'FLAVOR_STATUS':
+      return {
+        ...state,
+        flavorMode: action.payload.mode,
+        flavorPools: action.payload.pools,
+      };
     default:
       return state;
   }

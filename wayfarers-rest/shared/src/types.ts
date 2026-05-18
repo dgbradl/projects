@@ -57,7 +57,21 @@ export interface Npc {
   carriedRumorIds: string[];
   originLocationId?: string;
   archetype?: string;
+  /** Phase 4: short descriptor of who this person is (LLM or placeholder). */
+  tagline?: string;
+  /** Phase 4: one item in their pack (LLM or placeholder). */
+  item?: string;
+  /** Phase 4: how they were feeling on arrival. */
+  mood?: NpcMood;
 }
+
+export type NpcMood =
+  | 'cheerful'
+  | 'anxious'
+  | 'weary'
+  | 'guarded'
+  | 'desperate'
+  | 'smug';
 
 export interface ScheduledArrival {
   npcId: string;
@@ -149,6 +163,8 @@ export interface Interaction {
   participantIds: string[];
   kind: InteractionKind;
   spawnedThreadId?: string;
+  /** Phase 4: an overheard snippet attached at resolution. */
+  overheardText?: string;
 }
 
 // ---------- Phase 3: Events ----------
@@ -193,7 +209,51 @@ export type WorldEvent =
       oldValue: string | null;
       newValue: string;
     }
-  | { type: 'rumor_introduced'; gameDay: number; rumorId: string };
+  | { type: 'rumor_introduced'; gameDay: number; rumorId: string }
+  | {
+      type: 'flavor_cache_miss';
+      gameDay: number;
+      slot: string;
+      subKey?: string;
+    }
+  | {
+      type: 'flavor_mode_changed';
+      gameDay: number;
+      oldMode: string;
+      newMode: string;
+      reason: string;
+    };
+
+// ---------- Phase 4: Flavor ----------
+
+export type FlavorMode = 'llm' | 'placeholder' | 'recorded';
+
+export type NpcArchetype =
+  | 'wanderer'
+  | 'merchant'
+  | 'refugee'
+  | 'pilgrim'
+  | 'soldier'
+  | 'scholar'
+  | 'rogue';
+
+export interface ArrivalGarnish {
+  name: string;
+  tagline: string;
+  item: string;
+}
+
+export interface FlavorPoolStatus {
+  kind: string;
+  subKey: string;
+  size: number;
+  target: number;
+  refillThreshold: number;
+  /** ISO timestamp of the last successful refill, if any. */
+  lastRefillAt?: string;
+  /** Consecutive failures; non-zero means the pool is in backoff. */
+  recentFailures: number;
+}
 
 export interface EventLogEntry {
   id: number;

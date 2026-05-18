@@ -16,17 +16,19 @@ function Bootstrap() {
     let unsubscribe: (() => void) | null = null;
     (async () => {
       try {
-        const [tavernConfig, state, npcs, world] = await Promise.all([
+        const [tavernConfig, state, npcs, world, flavor] = await Promise.all([
           api.getTavern(),
           api.getState(),
           api.getNpcs(),
           api.getWorld(),
+          api.getFlavor().catch(() => ({ mode: 'placeholder' as const, pools: [] })),
         ]);
         if (cancelled) return;
         dispatch({ type: 'INIT_TAVERN', payload: tavernConfig });
         dispatch({ type: 'INIT_STATE', payload: state });
         dispatch({ type: 'NPCS_SNAPSHOT', payload: npcs });
         dispatch({ type: 'WORLD_SNAPSHOT', payload: world });
+        dispatch({ type: 'FLAVOR_STATUS', payload: flavor });
         unsubscribe = subscribe(dispatch, {
           subTickIntervalMs: tavernConfig.subTickIntervalMs,
         });

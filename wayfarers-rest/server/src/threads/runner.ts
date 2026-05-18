@@ -32,9 +32,12 @@ interface PendingTagOp {
 
 interface PendingRumorOp {
   kind: 'rumor';
-  text: string;
+  text?: string;
   originLocationId?: string;
   sourceThreadId: string;
+  tagKey?: string;
+  tagValue?: string;
+  threadHistoryNote?: string;
 }
 
 interface PendingSpawnOp {
@@ -143,15 +146,17 @@ export class ThreadRunner {
         ops.push({ kind: 'tag', key, value });
       },
       introduceRumor: (input) => {
-        // We don't know the rumor id until persistence; pre-mint based on day + ordinal in this tick.
         ops.push({
           kind: 'rumor',
           text: input.text,
           originLocationId: input.originLocationId,
           sourceThreadId: thread.id,
+          tagKey: input.tagKey,
+          tagValue: input.tagValue,
+          threadHistoryNote: input.threadHistoryNote,
         });
-        // The runner returns the real id from introduce(); but the helper API
-        // is sync. We return a placeholder; threads should not rely on the id.
+        // The helper API is sync; the real id isn't known until applyOp runs.
+        // Threads should not depend on this return value.
         return '';
       },
       spawnThread: (input) => {
@@ -243,6 +248,11 @@ export class ThreadRunner {
             text: op.text,
             sourceThreadId: op.sourceThreadId,
             originLocationId: op.originLocationId,
+            placeholderHint: {
+              tagKey: op.tagKey,
+              tagValue: op.tagValue,
+              threadHistoryNote: op.threadHistoryNote,
+            },
           },
           currentGameDay,
         );
