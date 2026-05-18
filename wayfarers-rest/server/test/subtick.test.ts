@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { WorldEventBus } from '../src/events/emitter.ts';
 import { FakeClock } from '../src/lib/clock.ts';
 import { NpcManager } from '../src/npc/manager.ts';
 import { Persistence } from '../src/persistence.ts';
@@ -19,22 +20,25 @@ function buildHarness() {
     clock,
     () => 'subtick-seed',
   );
-  const npcManager = new NpcManager({
-    worldSeed: stateManager.getState().seed,
-    subTicksPerDay: SUB_TICKS_PER_DAY,
-  });
+  const bus = new WorldEventBus(persistence, clock);
+  const npcManager = new NpcManager(
+    { worldSeed: stateManager.getState().seed, subTicksPerDay: SUB_TICKS_PER_DAY },
+    { persistence, bus },
+  );
   npcManager.onMacroTick(stateManager.getState().gameDay);
-  const tickScheduler = new TickScheduler(stateManager, clock, {
-    tickIntervalMs: TICK_INTERVAL,
-    schedulerCheckMs: 50,
-  });
+  const tickScheduler = new TickScheduler(
+    stateManager,
+    clock,
+    { tickIntervalMs: TICK_INTERVAL, schedulerCheckMs: 50 },
+    bus,
+  );
   const subTickScheduler = new SubTickScheduler(
     stateManager,
     npcManager,
     clock,
     { subTickIntervalMs: SUBTICK_MS, subTicksPerDay: SUB_TICKS_PER_DAY },
   );
-  return { persistence, clock, stateManager, npcManager, tickScheduler, subTickScheduler };
+  return { persistence, clock, stateManager, npcManager, tickScheduler, subTickScheduler, bus };
 }
 
 describe('SubTickScheduler', () => {

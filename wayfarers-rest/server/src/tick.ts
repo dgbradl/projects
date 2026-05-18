@@ -1,4 +1,5 @@
 import type { WorldState } from '@shared/types';
+import type { WorldEventBus } from './events/emitter.ts';
 import type { Clock } from './lib/clock.ts';
 import type { WorldStateManager } from './state.ts';
 
@@ -16,6 +17,7 @@ export class TickScheduler {
     private readonly stateManager: WorldStateManager,
     private readonly clock: Clock,
     private readonly config: TickConfig,
+    private readonly bus: WorldEventBus,
   ) {}
 
   start(): void {
@@ -34,10 +36,6 @@ export class TickScheduler {
     }
   }
 
-  /**
-   * Convenience for tests: advance the clock (if it supports it) and run catch-up.
-   * Returns the number of ticks fired.
-   */
   advance(ms: number): number {
     const maybe = this.clock as Partial<{ advance(ms: number): void }>;
     if (typeof maybe.advance === 'function') {
@@ -46,10 +44,6 @@ export class TickScheduler {
     return this.runCatchUp();
   }
 
-  /**
-   * Fire any ticks whose scheduled time has passed, subject to the unattended cap.
-   * Returns the number of ticks fired.
-   */
   runCatchUp(): number {
     let fired = 0;
     while (this.shouldTickNow()) {
@@ -86,36 +80,19 @@ export class TickScheduler {
       status: newStatus,
     };
 
-    // Append pause event first (if applicable), then the tick event.
     if (willPause && current.status === 'running') {
-      this.stateManager.appendEvent({
-        gameDay: newGameDay,
-        realTimestamp: newLastTickAt,
-        type: 'pause',
-        payload: { reason: 'unattended_cap' },
-      });
+      this.bus.publish({ type: 'pause', gameDay: newGameDay });
     }
 
-    this.stateManager.appendEvent({
-      gameDay: newGameDay,
-      realTimestamp: newLastTickAt,
-      type: 'tick',
-      payload: {},
-    });
-
-    // setState emits the SSE push.
+    this.bus.publish({ type: 'tick', gameDay: newGameDay });
     this.stateManager.setState(next);
   }
 }
 
-/**
- * Player engagement: reset unattended-tick counter and resume if paused.
- * Triggers catch-up after a resume (still subject to the cap).
- */
 export function engage(
   stateManager: WorldStateManager,
   scheduler: TickScheduler,
-  clock: Clock,
+  bus: WorldEventBus,
 ): WorldState {
   const before = stateManager.getState();
   const wasPaused = before.status === 'paused';
@@ -127,12 +104,7 @@ export function engage(
   });
 
   if (wasPaused) {
-    stateManager.appendEvent({
-      gameDay: stateManager.getState().gameDay,
-      realTimestamp: new Date(clock.now()).toISOString(),
-      type: 'resume',
-      payload: {},
-    });
+    bus.publish({ type: 'resume', gameDay: stateManager.getState().gameDay });
     scheduler.runCatchUp();
   }
 

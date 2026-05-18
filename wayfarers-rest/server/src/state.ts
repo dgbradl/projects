@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { randomBytes } from 'node:crypto';
-import type { TickEvent, WorldState } from '@shared/types';
+import type { WorldState } from '@shared/types';
 import type { Clock } from './lib/clock.ts';
 import type { Persistence } from './persistence.ts';
 
@@ -11,6 +11,7 @@ const defaultSeedFactory: SeedFactory = () =>
 
 export class WorldStateManager extends EventEmitter {
   private state: WorldState;
+  private wasColdStart: boolean;
 
   constructor(
     private readonly persistence: Persistence,
@@ -21,6 +22,7 @@ export class WorldStateManager extends EventEmitter {
     const existing = persistence.loadState();
     if (existing) {
       this.state = existing;
+      this.wasColdStart = false;
     } else {
       const nowIso = new Date(clock.now()).toISOString();
       this.state = {
@@ -32,12 +34,7 @@ export class WorldStateManager extends EventEmitter {
         subTick: 0,
       };
       persistence.saveState(this.state);
-      persistence.appendEvent({
-        gameDay: this.state.gameDay,
-        realTimestamp: nowIso,
-        type: 'init',
-        payload: { seed: this.state.seed },
-      });
+      this.wasColdStart = true;
     }
   }
 
@@ -52,7 +49,7 @@ export class WorldStateManager extends EventEmitter {
     return this.getState();
   }
 
-  appendEvent(event: Omit<TickEvent, 'id'>): TickEvent {
-    return this.persistence.appendEvent(event);
+  isColdStart(): boolean {
+    return this.wasColdStart;
   }
 }

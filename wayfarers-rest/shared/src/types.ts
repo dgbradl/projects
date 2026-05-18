@@ -7,8 +7,10 @@ export interface WorldState {
   subTick: number;
 }
 
+/** @deprecated Replaced by EventLogEntry + WorldEvent. Kept for migration. */
 export type TickEventType = 'init' | 'tick' | 'pause' | 'resume';
 
+/** @deprecated Replaced by EventLogEntry + WorldEvent. Kept for migration. */
 export interface TickEvent {
   id: number;
   gameDay: number;
@@ -52,6 +54,9 @@ export interface Npc {
   plannedDepartureGameDay: number;
   plannedDepartureSubTick: number;
   nextDecisionSubTick: number;
+  carriedRumorIds: string[];
+  originLocationId?: string;
+  archetype?: string;
 }
 
 export interface ScheduledArrival {
@@ -59,6 +64,9 @@ export interface ScheduledArrival {
   displayName: string;
   scheduledGameDay: number;
   scheduledSubTick: number;
+  archetype?: string;
+  originLocationId?: string;
+  carriedRumorIds?: string[];
 }
 
 export interface TavernConfig {
@@ -71,4 +79,131 @@ export interface NpcDiff {
   added: Npc[];
   updated: Npc[];
   removed: string[];
+}
+
+// ---------- Phase 3: World ----------
+
+export type LocationKind =
+  | 'village'
+  | 'town'
+  | 'wilderness'
+  | 'road'
+  | 'landmark';
+
+export interface Location {
+  id: string;
+  displayName: string;
+  kind: LocationKind;
+  distanceDays: number;
+}
+
+export interface WorldTag {
+  key: string;
+  value: string;
+  setOnGameDay: number;
+}
+
+export interface Rumor {
+  id: string;
+  text: string;
+  introducedGameDay: number;
+  sourceThreadId?: string;
+  available: boolean;
+  originLocationId?: string;
+}
+
+// ---------- Phase 3: Threads ----------
+
+export type ThreadStatus = 'active' | 'completed' | 'aborted';
+
+export interface ThreadHistoryEntry {
+  gameDay: number;
+  state: string;
+  note: string;
+}
+
+export interface Thread {
+  id: string;
+  type: string;
+  status: ThreadStatus;
+  state: string;
+  startedGameDay: number;
+  nextTickGameDay: number;
+  payload: Record<string, unknown>;
+  history: ThreadHistoryEntry[];
+}
+
+// ---------- Phase 3: Interactions ----------
+
+export type InteractionKind =
+  | 'shared_drink'
+  | 'overheard_argument'
+  | 'whispered_exchange'
+  | 'silent_recognition';
+
+export interface Interaction {
+  id: string;
+  gameDay: number;
+  subTick: number;
+  zone: ZoneName;
+  participantIds: string[];
+  kind: InteractionKind;
+  spawnedThreadId?: string;
+}
+
+// ---------- Phase 3: Events ----------
+
+export type WorldEvent =
+  | { type: 'init'; gameDay: number }
+  | { type: 'tick'; gameDay: number }
+  | { type: 'pause'; gameDay: number }
+  | { type: 'resume'; gameDay: number }
+  | { type: 'npc_arrived'; gameDay: number; npcId: string; displayName: string }
+  | {
+      type: 'npc_departed';
+      gameDay: number;
+      npcId: string;
+      destinationLocationId?: string;
+    }
+  | { type: 'interaction'; gameDay: number; interaction: Interaction }
+  | {
+      type: 'thread_started';
+      gameDay: number;
+      threadId: string;
+      threadType: string;
+    }
+  | {
+      type: 'thread_progressed';
+      gameDay: number;
+      threadId: string;
+      fromState: string;
+      toState: string;
+      note: string;
+    }
+  | {
+      type: 'thread_completed';
+      gameDay: number;
+      threadId: string;
+      outcome: string;
+    }
+  | {
+      type: 'world_tag_changed';
+      gameDay: number;
+      key: string;
+      oldValue: string | null;
+      newValue: string;
+    }
+  | { type: 'rumor_introduced'; gameDay: number; rumorId: string };
+
+export interface EventLogEntry {
+  id: number;
+  realTimestamp: string;
+  event: WorldEvent;
+}
+
+export interface WorldSnapshot {
+  worldTags: WorldTag[];
+  threads: Thread[];
+  pendingArrivals: ScheduledArrival[];
+  rumors: Rumor[];
 }

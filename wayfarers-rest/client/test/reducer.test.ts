@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import type { Npc, TavernConfig, WorldState } from '@shared/types';
+import type {
+  EventLogEntry,
+  Npc,
+  Rumor,
+  ScheduledArrival,
+  TavernConfig,
+  Thread,
+  WorldSnapshot,
+  WorldState,
+  WorldTag,
+} from '@shared/types';
 import { initialState, reducer } from '../src/state/reducer.ts';
 
 const NPC_A: Npc = {
@@ -13,6 +23,7 @@ const NPC_A: Npc = {
   plannedDepartureGameDay: 1,
   plannedDepartureSubTick: 200,
   nextDecisionSubTick: 11,
+  carriedRumorIds: [],
 };
 
 const NPC_B: Npc = { ...NPC_A, id: 'npc_d1_1', displayName: 'Brennan' };
@@ -30,6 +41,37 @@ const WORLD: WorldState = {
   unattendedTicks: 0,
   seed: 'seed',
   subTick: 0,
+};
+
+const TAG: WorldTag = { key: 'season', value: 'spring', setOnGameDay: 1 };
+const THREAD: Thread = {
+  id: 'thread_d1_worldly_event_0',
+  type: 'worldly_event',
+  status: 'active',
+  state: 'cued',
+  startedGameDay: 1,
+  nextTickGameDay: 4,
+  payload: {},
+  history: [],
+};
+const ARRIVAL: ScheduledArrival = {
+  npcId: 'thread_npc_x',
+  displayName: 'Y',
+  scheduledGameDay: 4,
+  scheduledSubTick: 0,
+};
+const RUMOR: Rumor = {
+  id: 'rumor_d1_0',
+  text: 'x',
+  introducedGameDay: 1,
+  available: true,
+};
+
+const WORLD_SNAPSHOT: WorldSnapshot = {
+  worldTags: [TAG],
+  threads: [THREAD],
+  pendingArrivals: [ARRIVAL],
+  rumors: [RUMOR],
 };
 
 describe('reducer', () => {
@@ -100,12 +142,51 @@ describe('reducer', () => {
     expect(Object.keys(after.npcs)).toEqual(['npc_d1_1']);
   });
 
-  it('preserves unrelated slices across each action', () => {
-    let s = reducer(initialState, { type: 'INIT_TAVERN', payload: TAVERN });
-    s = reducer(s, { type: 'INIT_STATE', payload: WORLD });
-    s = reducer(s, { type: 'NPCS_SNAPSHOT', payload: [NPC_A] });
-    expect(s.tavern).toEqual(TAVERN);
-    expect(s.world).toEqual(WORLD);
-    expect(s.npcs['npc_d1_0']).toEqual(NPC_A);
+  it('WORLD_SNAPSHOT replaces tags / threads / arrivals / rumors wholesale', () => {
+    const next = reducer(initialState, {
+      type: 'WORLD_SNAPSHOT',
+      payload: WORLD_SNAPSHOT,
+    });
+    expect(next.worldTags).toEqual([TAG]);
+    expect(next.threads).toEqual([THREAD]);
+    expect(next.pendingArrivals).toEqual([ARRIVAL]);
+    expect(next.rumors).toEqual([RUMOR]);
+
+    const cleared = reducer(next, {
+      type: 'WORLD_SNAPSHOT',
+      payload: { worldTags: [], threads: [], pendingArrivals: [], rumors: [] },
+    });
+    expect(cleared.worldTags).toEqual([]);
+    expect(cleared.threads).toEqual([]);
+  });
+
+  it('WORLD_EVENT pushes entries onto the bounded recent-events buffer', () => {
+    const entry: EventLogEntry = {
+      id: 1,
+      realTimestamp: 't',
+      event: { type: 'init', gameDay: 1 },
+    };
+    const a = reducer(initialState, { type: 'WORLD_EVENT', payload: entry });
+    expect(a.recentEvents).toHaveLength(1);
+    const b = reducer(a, {
+      type: 'WORLD_EVENT',
+      payload: { ...entry, id: 2 },
+    });
+    expect(b.recentEvents[0].id).toBe(2);
+    expect(b.recentEvents[1].id).toBe(1);
+  });
+
+  it('INTERACTION_FLASH adds expiries; EXPIRE_INTERACTION_FLASHES drops expired', () => {
+    const now = 1_000_000;
+    const a = reducer(initialState, {
+      type: 'INTERACTION_FLASH',
+      payload: { npcIds: ['x', 'y'], expiresAt: now + 1000 },
+    });
+    expect(Object.keys(a.interactingNpcs).sort()).toEqual(['x', 'y']);
+    const b = reducer(a, {
+      type: 'EXPIRE_INTERACTION_FLASHES',
+      payload: { now: now + 2000 },
+    });
+    expect(b.interactingNpcs).toEqual({});
   });
 });

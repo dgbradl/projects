@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { NpcStatus } from '@shared/types';
+import { WorldEventBus } from '../src/events/emitter.ts';
 import { FakeClock } from '../src/lib/clock.ts';
 import { NpcManager } from '../src/npc/manager.ts';
 import { Persistence } from '../src/persistence.ts';
@@ -20,16 +21,18 @@ function buildHarness() {
     clock,
     () => 'behavior-seed',
   );
-  const npcManager = new NpcManager({
-    worldSeed: stateManager.getState().seed,
-    subTicksPerDay: SUB_TICKS_PER_DAY,
-  });
-  // Seed today's spawn queue.
+  const bus = new WorldEventBus(persistence, clock);
+  const npcManager = new NpcManager(
+    { worldSeed: stateManager.getState().seed, subTicksPerDay: SUB_TICKS_PER_DAY },
+    { persistence, bus },
+  );
   npcManager.onMacroTick(stateManager.getState().gameDay);
-  const tickScheduler = new TickScheduler(stateManager, clock, {
-    tickIntervalMs: TICK_INTERVAL,
-    schedulerCheckMs: 50,
-  });
+  const tickScheduler = new TickScheduler(
+    stateManager,
+    clock,
+    { tickIntervalMs: TICK_INTERVAL, schedulerCheckMs: 50 },
+    bus,
+  );
   const subTickScheduler = new SubTickScheduler(
     stateManager,
     npcManager,
@@ -43,6 +46,7 @@ function buildHarness() {
     npcManager,
     tickScheduler,
     subTickScheduler,
+    bus,
   };
 }
 

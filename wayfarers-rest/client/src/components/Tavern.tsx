@@ -3,7 +3,7 @@ import { Npc } from './Npc.tsx';
 import { Zone } from './Zone.tsx';
 
 export function Tavern() {
-  const { tavern, npcs } = useStore();
+  const { tavern, npcs, world } = useStore();
   if (!tavern) return <div className="tavern tavern-loading">Loading the tavern…</div>;
 
   const subTickMs = tavern.subTickIntervalMs;
@@ -15,7 +15,13 @@ export function Tavern() {
         <Zone key={z.name} zone={z} />
       ))}
       {Object.values(npcs).map((n) => (
-        <Npc key={n.id} npc={n} />
+        <Npc
+          key={n.id}
+          npc={n}
+          currentGameDay={world?.gameDay}
+          currentSubTick={world?.subTick}
+          subTicksPerDay={tavern.subTicksPerDay}
+        />
       ))}
     </div>
   );

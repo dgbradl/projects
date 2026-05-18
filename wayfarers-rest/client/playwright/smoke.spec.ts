@@ -3,18 +3,15 @@ import { expect, test } from '@playwright/test';
 test('a traveler appears, has a name, and visibly moves', async ({ page }) => {
   await page.goto('/');
 
-  // Status bar renders day + sub-tick.
   const statusBar = page.getByTestId('status-bar');
   await expect(statusBar).toBeVisible({ timeout: 5_000 });
   await expect(page.getByTestId('status-day')).toHaveText(/\d+/);
   await expect(page.getByTestId('status-subtick')).toHaveText(/\d+\s*\/\s*\d+/);
 
-  // At least one NPC sprite appears.
   const firstNpc = page.locator('.npc').first();
   await expect(firstNpc).toBeVisible({ timeout: 5_000 });
   await expect(firstNpc.locator('.npc-label')).not.toHaveText('');
 
-  // Capture position, wait, assert it has changed (proof of motion).
   const beforeId = await firstNpc.getAttribute('data-npc-id');
   const before = await firstNpc.evaluate((el) => {
     const s = (el as HTMLElement).style;
@@ -23,8 +20,6 @@ test('a traveler appears, has a name, and visibly moves', async ({ page }) => {
 
   await page.waitForTimeout(2_500);
 
-  // Re-locate by the original id; it may have been removed if it departed —
-  // in that case, ANY sprite still on screen counts as motion.
   const sameNpc = beforeId
     ? page.locator(`.npc[data-npc-id="${beforeId}"]`).first()
     : firstNpc;
@@ -35,8 +30,32 @@ test('a traveler appears, has a name, and visibly moves', async ({ page }) => {
     });
     expect(after.left !== before.left || after.top !== before.top).toBe(true);
   } else {
-    // Original NPC departed; assert some NPC is still there to prove things
-    // kept moving.
     await expect(page.locator('.npc').first()).toBeVisible();
   }
+});
+
+test('debug panel shows seeded world tags and tooltip appears on NPC hover', async ({
+  page,
+}) => {
+  await page.goto('/');
+
+  const panel = page.getByTestId('debug-panel');
+  await expect(panel).toBeVisible({ timeout: 5_000 });
+
+  // Seeded world tags should appear.
+  const tags = page.getByTestId('debug-tags');
+  await expect(tags).toContainText('season');
+  await expect(tags).toContainText('war_in_north');
+
+  // After ~5s of running, the recent events buffer should have grown.
+  await page.waitForTimeout(5_000);
+  const events = page.getByTestId('debug-events');
+  await expect(events).toContainText(/\(\d+\)/);
+
+  // Hover the first NPC and expect tooltip visibility.
+  const firstNpc = page.locator('.npc').first();
+  await expect(firstNpc).toBeVisible({ timeout: 5_000 });
+  await firstNpc.hover();
+  const tooltip = firstNpc.locator('.npc-tooltip');
+  await expect(tooltip).toHaveCSS('opacity', '1', { timeout: 2_000 });
 });

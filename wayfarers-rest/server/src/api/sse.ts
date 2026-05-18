@@ -1,7 +1,15 @@
 import type { FastifyInstance, FastifyReply } from 'fastify';
-import type { NpcDiff, WorldState } from '@shared/types';
+import type {
+  EventLogEntry,
+  NpcDiff,
+  WorldSnapshot,
+  WorldState,
+} from '@shared/types';
+import type { WorldEventBus } from '../events/emitter.ts';
 import type { NpcManager } from '../npc/manager.ts';
+import type { Persistence } from '../persistence.ts';
 import type { WorldStateManager } from '../state.ts';
+import { buildWorldSnapshot, type ApiDeps } from './routes.ts';
 
 const HEARTBEAT_MS = 30_000;
 
@@ -9,6 +17,8 @@ export function registerSSE(
   app: FastifyInstance,
   stateManager: WorldStateManager,
   npcManager: NpcManager,
+  bus: WorldEventBus,
+  deps: ApiDeps,
 ): void {
   app.get('/stream', (request, reply) => {
     reply.hijack();
@@ -22,18 +32,24 @@ export function registerSSE(
 
     const onState = (state: WorldState) => writeEvent(reply, 'state', state);
     const onDiff = (diff: NpcDiff) => writeEvent(reply, 'npcs_diff', diff);
+    const onWorldEvent = (entry: EventLogEntry) => {
+      writeEvent(reply, 'world_event', entry);
+      writeEvent(reply, 'world_snapshot', buildWorldSnapshot(deps));
+    };
+
     stateManager.on('state', onState);
     npcManager.on('diff', onDiff);
+    bus.on('world_event', onWorldEvent);
 
-    // Initial snapshots for the new subscriber.
     writeEvent(reply, 'state', stateManager.getState());
     writeEvent(reply, 'npcs_snapshot', npcManager.getRoster());
+    writeEvent(reply, 'world_snapshot', buildWorldSnapshot(deps));
 
     const heartbeat = setInterval(() => {
       try {
         reply.raw.write(': heartbeat\n\n');
       } catch {
-        // connection closed; cleanup handler will fire
+        // connection closed
       }
     }, HEARTBEAT_MS);
     heartbeat.unref?.();
@@ -41,6 +57,7 @@ export function registerSSE(
     const cleanup = () => {
       stateManager.off('state', onState);
       npcManager.off('diff', onDiff);
+      bus.off('world_event', onWorldEvent);
       clearInterval(heartbeat);
     };
     request.raw.on('close', cleanup);

@@ -1,0 +1,157 @@
+import { useMemo, useState } from 'react';
+import { useStore } from '../state/store.tsx';
+
+export function DebugPanel() {
+  const { worldTags, threads, pendingArrivals, recentEvents } = useStore();
+  const [collapsed, setCollapsed] = useState(false);
+
+  const arrivalsByDay = useMemo(() => {
+    const groups = new Map<number, typeof pendingArrivals>();
+    for (const a of pendingArrivals) {
+      const list = groups.get(a.scheduledGameDay) ?? [];
+      list.push(a);
+      groups.set(a.scheduledGameDay, list);
+    }
+    return [...groups.entries()].sort(([a], [b]) => a - b);
+  }, [pendingArrivals]);
+
+  if (collapsed) {
+    return (
+      <button
+        type="button"
+        className="debug-toggle"
+        onClick={() => setCollapsed(false)}
+        data-testid="debug-toggle"
+      >
+        debug ▸
+      </button>
+    );
+  }
+
+  return (
+    <aside className="debug-panel" data-testid="debug-panel">
+      <header className="debug-panel-header">
+        <span>debug</span>
+        <button
+          type="button"
+          onClick={() => setCollapsed(true)}
+          className="debug-panel-close"
+          data-testid="debug-collapse"
+        >
+          ×
+        </button>
+      </header>
+
+      <details open data-testid="debug-tags">
+        <summary>world tags ({worldTags.length})</summary>
+        <ul className="debug-list">
+          {worldTags.map((t) => (
+            <li key={t.key}>
+              <span className="debug-key">{t.key}</span>: {t.value}{' '}
+              <span className="debug-dim">(day {t.setOnGameDay})</span>
+            </li>
+          ))}
+        </ul>
+      </details>
+
+      <details open data-testid="debug-threads">
+        <summary>active threads ({threads.length})</summary>
+        <ul className="debug-list">
+          {threads.map((t) => (
+            <ThreadRow key={t.id} thread={t} />
+          ))}
+        </ul>
+      </details>
+
+      <details data-testid="debug-arrivals">
+        <summary>pending arrivals ({pendingArrivals.length})</summary>
+        {arrivalsByDay.length === 0 ? (
+          <div className="debug-dim">(none in window)</div>
+        ) : (
+          arrivalsByDay.map(([day, list]) => (
+            <div key={day}>
+              <div className="debug-key">day {day}</div>
+              <ul className="debug-list">
+                {list.map((a) => (
+                  <li key={a.npcId}>
+                    {a.displayName}{' '}
+                    <span className="debug-dim">
+                      ({a.archetype ?? 'traveler'}
+                      {a.originLocationId ? ` from ${a.originLocationId}` : ''})
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))
+        )}
+      </details>
+
+      <details data-testid="debug-events">
+        <summary>recent events ({recentEvents.length})</summary>
+        <ul className="debug-list debug-events">
+          {recentEvents.slice(0, 30).map((e) => (
+            <li key={e.id}>
+              <span className="debug-dim">#{e.id}</span> {e.event.type}
+              {' '}
+              <span className="debug-dim">
+                {summarize(e.event)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </details>
+    </aside>
+  );
+}
+
+function ThreadRow({ thread }: { thread: import('@shared/types').Thread }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <li>
+      <button
+        type="button"
+        className="debug-thread-toggle"
+        onClick={() => setOpen((v) => !v)}
+        data-testid={`debug-thread-${thread.id}`}
+      >
+        <span className="debug-key">{thread.type}</span> · {thread.state}
+        {' '}
+        <span className="debug-dim">→ day {thread.nextTickGameDay}</span>
+      </button>
+      {open && (
+        <ul className="debug-thread-history" data-testid={`debug-thread-history-${thread.id}`}>
+          {thread.history.map((h, i) => (
+            <li key={i}>
+              <span className="debug-dim">day {h.gameDay}</span> {h.state}
+              {h.note ? <span className="debug-dim"> — {h.note}</span> : null}
+            </li>
+          ))}
+        </ul>
+      )}
+    </li>
+  );
+}
+
+function summarize(event: import('@shared/types').WorldEvent): string {
+  switch (event.type) {
+    case 'npc_arrived':
+      return event.displayName;
+    case 'npc_departed':
+      return event.destinationLocationId ?? '';
+    case 'world_tag_changed':
+      return `${event.key} ${event.oldValue ?? '∅'}→${event.newValue}`;
+    case 'thread_started':
+      return event.threadType;
+    case 'thread_progressed':
+      return `${event.fromState}→${event.toState}`;
+    case 'thread_completed':
+      return event.outcome;
+    case 'interaction':
+      return `${event.interaction.kind} @ ${event.interaction.zone}`;
+    case 'rumor_introduced':
+      return event.rumorId;
+    default:
+      return '';
+  }
+}

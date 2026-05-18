@@ -47,3 +47,48 @@
   background: #7a5a3a;
   opacity: 0.7;
 }
+
+.npc[data-interacting='true'] .npc-dot {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+  box-shadow: 0 0 12px rgba(239, 183, 102, 0.6);
+}
+
+.npc-tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translate(-50%, -8px);
+  background: rgba(15, 12, 8, 0.96);
+  border: 1px solid #3a2a1c;
+  padding: 0.4rem 0.6rem;
+  border-radius: 0.25rem;
+  font-size: 0.7rem;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 120ms ease-out;
+  z-index: 4;
+}
+
+.npc {
+  pointer-events: auto;
+}
+
+.npc:hover .npc-tooltip {
+  opacity: 1;
+}
+
+.npc-tooltip-name {
+  font-weight: bold;
+  color: var(--accent-strong);
+  margin-bottom: 0.2rem;
+}
+
+.npc-tooltip-row {
+  color: var(--ink-dim);
+}
+
+.npc-tooltip-row span {
+  color: var(--ink);
+}

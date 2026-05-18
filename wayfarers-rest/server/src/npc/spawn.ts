@@ -1,4 +1,4 @@
-import type { ScheduledArrival } from '@shared/types';
+import type { ScheduledArrival, WorldTag } from '@shared/types';
 import { PLACEHOLDER_NAMES } from '../data/placeholderNames.ts';
 import { rngFloat, rngInt, seededRng, type Rng } from '../world/rng.ts';
 
@@ -6,6 +6,7 @@ export interface SpawnConfig {
   worldSeed: string;
   gameDay: number;
   subTicksPerDay: number;
+  worldTags?: WorldTag[];
 }
 
 export interface DepartureConfig {
@@ -17,25 +18,41 @@ export interface DepartureConfig {
 
 const MIN_ARRIVALS = 4;
 const MAX_ARRIVALS = 10;
-const EVENING_BIAS = 0.6; // probability that an arrival is sampled from the second half of the day
+const EVENING_BIAS = 0.6;
 const MIN_STAY = 40;
 const MAX_STAY = 200;
 
 export function generateSpawnQueue(cfg: SpawnConfig): ScheduledArrival[] {
   const { worldSeed, gameDay, subTicksPerDay } = cfg;
-  const rng = seededRng(worldSeed, 'spawn', gameDay);
-  const count = rngInt(rng, MIN_ARRIVALS, MAX_ARRIVALS + 1); // 4..10 inclusive
-  const usedNames = new Set<string>();
+  const tags = new Map(
+    (cfg.worldTags ?? []).map((t): [string, string] => [t.key, t.value]),
+  );
 
+  const rng = seededRng(worldSeed, 'spawn', gameDay);
+  const baseCount = rngInt(rng, MIN_ARRIVALS, MAX_ARRIVALS + 1);
+
+  // Tag effects on count.
+  let count = baseCount;
+  if (tags.get('war_in_north') === 'escalating') count += 2;
+  if (tags.get('road_safety_south') === 'poor') count -= 1;
+  count = Math.max(1, count);
+
+  // Tag-driven archetype injection.
+  const refugeeBoost = tags.get('war_in_north') === 'escalating';
+  const merchantBoost = tags.get('harvest') === 'poor';
+
+  const usedNames = new Set<string>();
   const arrivals: ScheduledArrival[] = [];
   for (let i = 0; i < count; i += 1) {
     const subTick = sampleArrivalSubTick(rng, subTicksPerDay);
     const displayName = pickName(rng, usedNames);
+    const archetype = pickArchetype(rng, { refugeeBoost, merchantBoost });
     arrivals.push({
       npcId: `npc_d${gameDay}_${i}`,
       displayName,
       scheduledGameDay: gameDay,
       scheduledSubTick: subTick,
+      archetype,
     });
   }
 
@@ -46,15 +63,12 @@ export function generateSpawnQueue(cfg: SpawnConfig): ScheduledArrival[] {
 function sampleArrivalSubTick(rng: Rng, subTicksPerDay: number): number {
   const half = Math.floor(subTicksPerDay / 2);
   const evening = rng() < EVENING_BIAS;
-  if (evening) {
-    return rngInt(rng, half, subTicksPerDay);
-  }
+  if (evening) return rngInt(rng, half, subTicksPerDay);
   return rngInt(rng, 0, half);
 }
 
 function pickName(rng: Rng, used: Set<string>): string {
   const total = PLACEHOLDER_NAMES.length;
-  // Try up to `total` random picks before falling back to a linear scan.
   for (let attempt = 0; attempt < total; attempt += 1) {
     const candidate = PLACEHOLDER_NAMES[Math.floor(rng() * total)];
     if (!used.has(candidate)) {
@@ -62,7 +76,6 @@ function pickName(rng: Rng, used: Set<string>): string {
       return candidate;
     }
   }
-  // Fallback: deterministic linear scan from a random offset.
   const offset = Math.floor(rng() * total);
   for (let i = 0; i < total; i += 1) {
     const candidate = PLACEHOLDER_NAMES[(offset + i) % total];
@@ -71,8 +84,19 @@ function pickName(rng: Rng, used: Set<string>): string {
       return candidate;
     }
   }
-  // Should be unreachable while count <= PLACEHOLDER_NAMES.length.
   throw new Error('placeholderNames exhausted');
+}
+
+function pickArchetype(
+  rng: Rng,
+  opts: { refugeeBoost: boolean; merchantBoost: boolean },
+): string {
+  const r = rng();
+  if (opts.refugeeBoost && r < 0.5) return 'refugee';
+  if (opts.merchantBoost && r < 0.3) return 'sour_merchant';
+  if (r < 0.7) return 'traveler';
+  if (r < 0.85) return 'merchant';
+  return 'wanderer';
 }
 
 export function generateDeparture(cfg: DepartureConfig): {

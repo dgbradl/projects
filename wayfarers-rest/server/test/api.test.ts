@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
-import { registerRoutes } from '../src/api/routes.ts';
+import { registerRoutes, type ApiDeps } from '../src/api/routes.ts';
 import { registerSSE } from '../src/api/sse.ts';
+import { WorldEventBus } from '../src/events/emitter.ts';
 import { FakeClock } from '../src/lib/clock.ts';
 import { NpcManager } from '../src/npc/manager.ts';
 import { Persistence } from '../src/persistence.ts';
@@ -21,29 +22,36 @@ function buildApp() {
     clock,
     () => 'api-test-seed',
   );
-  const npcManager = new NpcManager({
-    worldSeed: stateManager.getState().seed,
-    subTicksPerDay: SUB_TICKS_PER_DAY,
-  });
-  const scheduler = new TickScheduler(stateManager, clock, {
-    tickIntervalMs: TICK_INTERVAL,
-    schedulerCheckMs: 100,
-  });
+  const bus = new WorldEventBus(persistence, clock);
+  const npcManager = new NpcManager(
+    { worldSeed: stateManager.getState().seed, subTicksPerDay: SUB_TICKS_PER_DAY },
+    { persistence, bus },
+  );
+  const scheduler = new TickScheduler(
+    stateManager,
+    clock,
+    { tickIntervalMs: TICK_INTERVAL, schedulerCheckMs: 100 },
+    bus,
+  );
   const app = Fastify();
   app.addHook('onClose', async () => {
     persistence.close();
   });
-  registerRoutes(app, {
+  const deps: ApiDeps = {
     stateManager,
     scheduler,
     persistence,
     clock,
     npcManager,
+    bus,
     subTickIntervalMs: SUBTICK_MS,
     subTicksPerDay: SUB_TICKS_PER_DAY,
-  });
-  registerSSE(app, stateManager, npcManager);
-  return { app, persistence, clock, stateManager, scheduler, npcManager };
+  };
+  // Emit the init event so /events?since=0 has something on cold start.
+  bus.publish({ type: 'init', gameDay: stateManager.getState().gameDay });
+  registerRoutes(app, deps);
+  registerSSE(app, stateManager, npcManager, bus, deps);
+  return { app, persistence, clock, stateManager, scheduler, npcManager, bus };
 }
 
 const openApps: FastifyInstance[] = [];
@@ -68,11 +76,31 @@ describe('REST API', () => {
     expect(body.seed).toBe('api-test-seed');
   });
 
+  it('GET /tavern returns the zones and sub-tick config', async () => {
+    const { app } = buildApp();
+    openApps.push(app);
+    const res = await app.inject({ method: 'GET', url: '/tavern' });
+    const body = res.json();
+    expect(body.zones).toHaveLength(6);
+    expect(body.subTicksPerDay).toBe(SUB_TICKS_PER_DAY);
+    expect(body.subTickIntervalMs).toBe(SUBTICK_MS);
+  });
+
+  it('GET /world returns the world snapshot shape', async () => {
+    const { app } = buildApp();
+    openApps.push(app);
+    const res = await app.inject({ method: 'GET', url: '/world' });
+    const body = res.json();
+    expect(body).toHaveProperty('worldTags');
+    expect(body).toHaveProperty('threads');
+    expect(body).toHaveProperty('pendingArrivals');
+    expect(body).toHaveProperty('rumors');
+  });
+
   it('POST /engagement resets unattendedTicks, resumes if paused, and logs a resume event', async () => {
     const { app, clock, scheduler, persistence } = buildApp();
     openApps.push(app);
 
-    // Drive to paused.
     for (let i = 0; i < 7; i += 1) {
       clock.advance(TICK_INTERVAL);
       scheduler.runCatchUp();
@@ -85,7 +113,7 @@ describe('REST API', () => {
     expect(body.unattendedTicks).toBe(0);
 
     const events = persistence.getEventsSince(0);
-    expect(events.some((e) => e.type === 'resume')).toBe(true);
+    expect(events.some((e) => e.event.type === 'resume')).toBe(true);
   });
 
   it('POST /engagement on a running state resets unattendedTicks without writing resume', async () => {
@@ -94,17 +122,17 @@ describe('REST API', () => {
 
     clock.advance(TICK_INTERVAL * 2);
     scheduler.runCatchUp();
-    expect(persistence.getEventsSince(0).some((e) => e.type === 'resume')).toBe(
-      false,
-    );
+    expect(
+      persistence.getEventsSince(0).some((e) => e.event.type === 'resume'),
+    ).toBe(false);
 
     const res = await app.inject({ method: 'POST', url: '/engagement' });
     const body = res.json();
     expect(body.status).toBe('running');
     expect(body.unattendedTicks).toBe(0);
-    expect(persistence.getEventsSince(0).some((e) => e.type === 'resume')).toBe(
-      false,
-    );
+    expect(
+      persistence.getEventsSince(0).some((e) => e.event.type === 'resume'),
+    ).toBe(false);
   });
 
   it('GET /events?since=N filters correctly', async () => {
@@ -118,7 +146,7 @@ describe('REST API', () => {
 
     const allRes = await app.inject({ method: 'GET', url: '/events?since=0' });
     const all = allRes.json() as Array<{ id: number }>;
-    expect(all.length).toBeGreaterThanOrEqual(3); // init + 2 ticks
+    expect(all.length).toBeGreaterThanOrEqual(3);
 
     const firstId = all[0].id;
     const filteredRes = await app.inject({
@@ -136,12 +164,12 @@ describe('REST API', () => {
     expect(emptyRes.json()).toEqual([]);
   });
 
-  it('GET /events with no `since` defaults to 0', async () => {
+  it('GET /events with no `since` defaults to 0 and returns EventLogEntry shape', async () => {
     const { app } = buildApp();
     openApps.push(app);
     const res = await app.inject({ method: 'GET', url: '/events' });
-    const events = res.json() as Array<{ type: string }>;
-    expect(events[0].type).toBe('init');
+    const events = res.json() as Array<{ id: number; event: { type: string } }>;
+    expect(events[0].event.type).toBe('init');
   });
 });
 
@@ -188,7 +216,6 @@ describe('SSE /stream', () => {
       }
     })();
 
-    // Trigger a tick after the subscriber has had a chance to attach.
     await new Promise((r) => setTimeout(r, 20));
     clock.advance(TICK_INTERVAL);
     scheduler.runCatchUp();

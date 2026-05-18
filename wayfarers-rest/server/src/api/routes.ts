@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
-import type { TavernConfig } from '@shared/types';
+import type { TavernConfig, WorldSnapshot } from '@shared/types';
+import type { WorldEventBus } from '../events/emitter.ts';
 import type { Clock } from '../lib/clock.ts';
 import type { NpcManager } from '../npc/manager.ts';
 import type { Persistence } from '../persistence.ts';
@@ -13,15 +14,18 @@ export interface ApiDeps {
   persistence: Persistence;
   clock: Clock;
   npcManager: NpcManager;
+  bus: WorldEventBus;
   subTickIntervalMs: number;
   subTicksPerDay: number;
 }
+
+const SNAPSHOT_WINDOW_DAYS = 7;
 
 export function registerRoutes(app: FastifyInstance, deps: ApiDeps): void {
   app.get('/state', async () => deps.stateManager.getState());
 
   app.post('/engagement', async () =>
-    engage(deps.stateManager, deps.scheduler, deps.clock),
+    engage(deps.stateManager, deps.scheduler, deps.bus),
   );
 
   app.get<{ Querystring: { since?: string } }>(
@@ -41,4 +45,19 @@ export function registerRoutes(app: FastifyInstance, deps: ApiDeps): void {
     subTickIntervalMs: deps.subTickIntervalMs,
     subTicksPerDay: deps.subTicksPerDay,
   }));
+
+  app.get('/world', async (): Promise<WorldSnapshot> => buildWorldSnapshot(deps));
+}
+
+export function buildWorldSnapshot(deps: ApiDeps): WorldSnapshot {
+  const today = deps.stateManager.getState().gameDay;
+  return {
+    worldTags: deps.persistence.getAllWorldTags(),
+    threads: deps.persistence.loadActiveThreads(),
+    pendingArrivals: deps.persistence.loadUpcomingScheduledArrivals(
+      today,
+      SNAPSHOT_WINDOW_DAYS,
+    ),
+    rumors: deps.persistence.loadAllRumors(),
+  };
 }

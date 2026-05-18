@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
-import { registerRoutes } from '../src/api/routes.ts';
+import { registerRoutes, type ApiDeps } from '../src/api/routes.ts';
 import { registerSSE } from '../src/api/sse.ts';
+import { WorldEventBus } from '../src/events/emitter.ts';
 import { FakeClock } from '../src/lib/clock.ts';
 import { NpcManager } from '../src/npc/manager.ts';
 import { Persistence } from '../src/persistence.ts';
@@ -18,15 +19,18 @@ function buildApp() {
   const persistence = new Persistence(':memory:');
   const clock = new FakeClock(START);
   const stateManager = new WorldStateManager(persistence, clock, () => 'sse-seed');
-  const npcManager = new NpcManager({
-    worldSeed: stateManager.getState().seed,
-    subTicksPerDay: SUB_TICKS_PER_DAY,
-  });
+  const bus = new WorldEventBus(persistence, clock);
+  const npcManager = new NpcManager(
+    { worldSeed: stateManager.getState().seed, subTicksPerDay: SUB_TICKS_PER_DAY },
+    { persistence, bus },
+  );
   npcManager.onMacroTick(stateManager.getState().gameDay);
-  const tickScheduler = new TickScheduler(stateManager, clock, {
-    tickIntervalMs: TICK_INTERVAL,
-    schedulerCheckMs: 50,
-  });
+  const tickScheduler = new TickScheduler(
+    stateManager,
+    clock,
+    { tickIntervalMs: TICK_INTERVAL, schedulerCheckMs: 50 },
+    bus,
+  );
   const subTickScheduler = new SubTickScheduler(stateManager, npcManager, clock, {
     subTickIntervalMs: SUBTICK_MS,
     subTicksPerDay: SUB_TICKS_PER_DAY,
@@ -35,17 +39,19 @@ function buildApp() {
   app.addHook('onClose', async () => {
     persistence.close();
   });
-  registerRoutes(app, {
+  const deps: ApiDeps = {
     stateManager,
     scheduler: tickScheduler,
     persistence,
     clock,
     npcManager,
+    bus,
     subTickIntervalMs: SUBTICK_MS,
     subTicksPerDay: SUB_TICKS_PER_DAY,
-  });
-  registerSSE(app, stateManager, npcManager);
-  return { app, clock, stateManager, npcManager, tickScheduler, subTickScheduler };
+  };
+  registerRoutes(app, deps);
+  registerSSE(app, stateManager, npcManager, bus, deps);
+  return { app, clock, stateManager, npcManager, tickScheduler, subTickScheduler, bus };
 }
 
 const openApps: FastifyInstance[] = [];

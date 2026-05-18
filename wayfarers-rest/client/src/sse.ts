@@ -1,13 +1,24 @@
 import type { Dispatch } from 'react';
-import type { Npc, NpcDiff, WorldState } from '@shared/types';
+import type {
+  EventLogEntry,
+  Npc,
+  NpcDiff,
+  WorldSnapshot,
+  WorldState,
+} from '@shared/types';
 import { api } from './api.ts';
 import type { Action } from './state/actions.ts';
 
-/**
- * Subscribe to /stream. On disconnect, refetch /state and /npcs to recover
- * cleanly and reconnect. Returns an unsubscribe.
- */
-export function subscribe(dispatch: Dispatch<Action>): () => void {
+const INTERACTION_FLASH_SUBTICKS = 3;
+
+export interface SubscribeOptions {
+  subTickIntervalMs: number;
+}
+
+export function subscribe(
+  dispatch: Dispatch<Action>,
+  opts: SubscribeOptions,
+): () => void {
   let stopped = false;
   let source: EventSource | null = null;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -31,22 +42,43 @@ export function subscribe(dispatch: Dispatch<Action>): () => void {
       dispatch({ type: 'NPCS_DIFF', payload: data });
     });
 
+    source.addEventListener('world_snapshot', (ev: MessageEvent<string>) => {
+      const data = JSON.parse(ev.data) as WorldSnapshot;
+      dispatch({ type: 'WORLD_SNAPSHOT', payload: data });
+    });
+
+    source.addEventListener('world_event', (ev: MessageEvent<string>) => {
+      const data = JSON.parse(ev.data) as EventLogEntry;
+      dispatch({ type: 'WORLD_EVENT', payload: data });
+      if (data.event.type === 'interaction') {
+        dispatch({
+          type: 'INTERACTION_FLASH',
+          payload: {
+            npcIds: data.event.interaction.participantIds,
+            expiresAt:
+              Date.now() + opts.subTickIntervalMs * INTERACTION_FLASH_SUBTICKS,
+          },
+        });
+      }
+    });
+
     source.onerror = () => {
       if (stopped) return;
       source?.close();
       source = null;
-      // Re-bootstrap: refetch authoritative state, then reconnect.
       reconnectTimer = setTimeout(async () => {
         try {
-          const [state, npcs] = await Promise.all([
+          const [state, npcs, world] = await Promise.all([
             api.getState(),
             api.getNpcs(),
+            api.getWorld(),
           ]);
           if (stopped) return;
           dispatch({ type: 'INIT_STATE', payload: state });
           dispatch({ type: 'NPCS_SNAPSHOT', payload: npcs });
+          dispatch({ type: 'WORLD_SNAPSHOT', payload: world });
         } catch {
-          // ignore — open() will retry the SSE connection anyway
+          // open() retries the SSE connection anyway
         }
         open();
       }, 1_000);

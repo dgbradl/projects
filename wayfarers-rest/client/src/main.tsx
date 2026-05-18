@@ -4,6 +4,7 @@ import { App } from './App.tsx';
 import './styles/app.css';
 import './styles/tavern.css';
 import './styles/npc.css';
+import './styles/debug.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

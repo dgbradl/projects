@@ -1,36 +1,51 @@
 import { useEffect } from 'react';
 import { api } from './api.ts';
+import { DebugPanel } from './components/DebugPanel.tsx';
 import { PauseOverlay } from './components/PauseOverlay.tsx';
 import { StatusBar } from './components/StatusBar.tsx';
 import { Tavern } from './components/Tavern.tsx';
 import { subscribe } from './sse.ts';
-import { StoreProvider, useDispatch } from './state/store.tsx';
+import { StoreProvider, useDispatch, useStore } from './state/store.tsx';
 
 function Bootstrap() {
   const dispatch = useDispatch();
+  const { tavern } = useStore();
 
   useEffect(() => {
     let cancelled = false;
+    let unsubscribe: (() => void) | null = null;
     (async () => {
       try {
-        const [tavern, state, npcs] = await Promise.all([
+        const [tavernConfig, state, npcs, world] = await Promise.all([
           api.getTavern(),
           api.getState(),
           api.getNpcs(),
+          api.getWorld(),
         ]);
         if (cancelled) return;
-        dispatch({ type: 'INIT_TAVERN', payload: tavern });
+        dispatch({ type: 'INIT_TAVERN', payload: tavernConfig });
         dispatch({ type: 'INIT_STATE', payload: state });
         dispatch({ type: 'NPCS_SNAPSHOT', payload: npcs });
+        dispatch({ type: 'WORLD_SNAPSHOT', payload: world });
+        unsubscribe = subscribe(dispatch, {
+          subTickIntervalMs: tavernConfig.subTickIntervalMs,
+        });
       } catch (err) {
         console.error('bootstrap failed', err);
       }
     })();
-    const unsubscribe = subscribe(dispatch);
     return () => {
       cancelled = true;
-      unsubscribe();
+      unsubscribe?.();
     };
+  }, [dispatch]);
+
+  // Expire interaction flashes once per second.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      dispatch({ type: 'EXPIRE_INTERACTION_FLASHES', payload: { now: Date.now() } });
+    }, 1_000);
+    return () => clearInterval(interval);
   }, [dispatch]);
 
   return (
@@ -42,6 +57,7 @@ function Bootstrap() {
       <main className="app-main">
         <Tavern />
         <PauseOverlay />
+        {tavern && <DebugPanel />}
       </main>
     </div>
   );

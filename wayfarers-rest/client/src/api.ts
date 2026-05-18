@@ -1,4 +1,9 @@
-import type { Npc, TavernConfig, WorldState } from '@shared/types';
+import type {
+  Npc,
+  TavernConfig,
+  WorldSnapshot,
+  WorldState,
+} from '@shared/types';
 
 async function jsonGet<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -10,6 +15,7 @@ export const api = {
   getState: () => jsonGet<WorldState>('/state'),
   getTavern: () => jsonGet<TavernConfig>('/tavern'),
   getNpcs: () => jsonGet<Npc[]>('/npcs'),
+  getWorld: () => jsonGet<WorldSnapshot>('/world'),
   postEngagement: async (): Promise<WorldState> => {
     const res = await fetch('/engagement', { method: 'POST' });
     if (!res.ok) throw new Error(`POST /engagement failed: ${res.status}`);

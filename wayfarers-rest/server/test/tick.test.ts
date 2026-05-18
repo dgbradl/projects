@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { WorldEventBus } from '../src/events/emitter.ts';
 import { FakeClock } from '../src/lib/clock.ts';
 import { Persistence } from '../src/persistence.ts';
 import { WorldStateManager } from '../src/state.ts';
@@ -15,11 +16,14 @@ function buildHarness(opts?: { startTime?: number; seed?: string }) {
     clock,
     () => opts?.seed ?? 'seed-fixed',
   );
-  const scheduler = new TickScheduler(stateManager, clock, {
-    tickIntervalMs: TICK_INTERVAL,
-    schedulerCheckMs: 100,
-  });
-  return { persistence, clock, stateManager, scheduler };
+  const bus = new WorldEventBus(persistence, clock);
+  const scheduler = new TickScheduler(
+    stateManager,
+    clock,
+    { tickIntervalMs: TICK_INTERVAL, schedulerCheckMs: 100 },
+    bus,
+  );
+  return { persistence, clock, stateManager, scheduler, bus };
 }
 
 describe('TickScheduler', () => {
@@ -42,7 +46,6 @@ describe('TickScheduler', () => {
     expect(paused.unattendedTicks).toBe(7);
     expect(paused.gameDay).toBe(8);
 
-    // Advancing further should NOT fire another tick.
     const fired = h.scheduler.advance(TICK_INTERVAL * 5);
     expect(fired).toBe(0);
     expect(h.stateManager.getState().gameDay).toBe(8);
@@ -53,13 +56,13 @@ describe('TickScheduler', () => {
     h.scheduler.advance(TICK_INTERVAL * 7);
     expect(h.stateManager.getState().status).toBe('paused');
 
-    engage(h.stateManager, h.scheduler, h.clock);
+    engage(h.stateManager, h.scheduler, h.bus);
     const s = h.stateManager.getState();
     expect(s.status).toBe('running');
     expect(s.unattendedTicks).toBe(0);
 
     const events = h.persistence.getEventsSince(0);
-    expect(events.some((e) => e.type === 'resume')).toBe(true);
+    expect(events.some((e) => e.event.type === 'resume')).toBe(true);
   });
 
   it('catch-up: if 4 tick intervals elapse before boot, 4 ticks fire on boot', () => {
@@ -89,8 +92,6 @@ describe('TickScheduler', () => {
     b.scheduler.advance(TICK_INTERVAL * 3);
     expect(a.stateManager.getState()).toEqual(b.stateManager.getState());
 
-    // Test catch-up versus piecewise: advancing all at once vs step-by-step
-    // should produce the same lastTickAt thanks to scheduled-time math.
     const c = buildHarness();
     const d = buildHarness();
     c.scheduler.advance(TICK_INTERVAL * 4);
@@ -107,8 +108,8 @@ describe('TickScheduler', () => {
     const h = buildHarness();
     h.scheduler.advance(TICK_INTERVAL * 7);
     const all = h.persistence.getEventsSince(0);
-    const pauseIdx = all.findIndex((e) => e.type === 'pause');
-    const lastTickIdx = all.map((e) => e.type).lastIndexOf('tick');
+    const pauseIdx = all.findIndex((e) => e.event.type === 'pause');
+    const lastTickIdx = all.map((e) => e.event.type).lastIndexOf('tick');
     expect(pauseIdx).toBeGreaterThan(-1);
     expect(pauseIdx).toBeLessThan(lastTickIdx);
   });
