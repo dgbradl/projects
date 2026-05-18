@@ -1,5 +1,6 @@
 import type { Dispatch } from 'react';
 import type {
+  DailyChronicle,
   EventLogEntry,
   Npc,
   NpcDiff,
@@ -69,6 +70,11 @@ export function subscribe(
         pools: import('@shared/types').FlavorPoolStatus[];
       };
       dispatch({ type: 'FLAVOR_STATUS', payload: data });
+    });
+
+    source.addEventListener('chronicle_ready', (ev: MessageEvent<string>) => {
+      const data = JSON.parse(ev.data) as DailyChronicle;
+      dispatch({ type: 'CHRONICLE_FILLED', payload: data });
     });
 
     source.onerror = () => {

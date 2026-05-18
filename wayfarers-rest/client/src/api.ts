@@ -1,4 +1,6 @@
 import type {
+  ChroniclesSinceResponse,
+  DailyChronicleWithLedger,
   FlavorMode,
   FlavorPoolStatus,
   Npc,
@@ -24,9 +26,21 @@ export const api = {
   getNpcs: () => jsonGet<Npc[]>('/npcs'),
   getWorld: () => jsonGet<WorldSnapshot>('/world'),
   getFlavor: () => jsonGet<FlavorStatusResponse>('/flavor'),
+  getChroniclesSince: () => jsonGet<ChroniclesSinceResponse>('/chronicles/since'),
+  getChronicle: (day: number) =>
+    jsonGet<DailyChronicleWithLedger>(`/chronicles/${day}`),
   postEngagement: async (): Promise<WorldState> => {
     const res = await fetch('/engagement', { method: 'POST' });
     if (!res.ok) throw new Error(`POST /engagement failed: ${res.status}`);
+    return (await res.json()) as WorldState;
+  },
+  postAcknowledge: async (acknowledgedGameDay: number): Promise<WorldState> => {
+    const res = await fetch('/chronicles/acknowledge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ acknowledgedGameDay }),
+    });
+    if (!res.ok) throw new Error(`POST /chronicles/acknowledge failed: ${res.status}`);
     return (await res.json()) as WorldState;
   },
 };

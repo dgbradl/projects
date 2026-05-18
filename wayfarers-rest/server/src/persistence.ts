@@ -1,5 +1,7 @@
 import Database from 'better-sqlite3';
 import type {
+  ChroniclePrologue,
+  DailyChronicle,
   EventLogEntry,
   Rumor,
   ScheduledArrival,
@@ -20,6 +22,28 @@ interface WorldStateRow {
   seed: string;
   sub_tick: number;
   roster: string;
+  last_acknowledged_game_day: number;
+}
+
+interface ChronicleRow {
+  game_day: number;
+  generated_at_real_ts: string | null;
+  status: string;
+  headlines_json: string;
+  footnotes_json: string;
+  model_used: string | null;
+  prompt_char_count: number | null;
+  completion_char_count: number | null;
+  generation_duration_ms: number | null;
+  failure_reason: string | null;
+}
+
+interface PrologueRow {
+  from_game_day: number;
+  to_game_day: number;
+  text: string;
+  generated_at_real_ts: string;
+  status: string;
 }
 
 interface EventRow {
@@ -154,6 +178,30 @@ export class Persistence {
       );
 
       CREATE INDEX IF NOT EXISTS idx_flavor_cache_kind ON flavor_cache(kind, sub_key);
+
+      CREATE TABLE IF NOT EXISTS chronicles (
+        game_day INTEGER PRIMARY KEY,
+        generated_at_real_ts TEXT,
+        status TEXT NOT NULL,
+        headlines_json TEXT NOT NULL,
+        footnotes_json TEXT NOT NULL,
+        model_used TEXT,
+        prompt_char_count INTEGER,
+        completion_char_count INTEGER,
+        generation_duration_ms INTEGER,
+        failure_reason TEXT
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_chronicles_status ON chronicles(status, game_day);
+
+      CREATE TABLE IF NOT EXISTS chronicle_prologues (
+        from_game_day INTEGER NOT NULL,
+        to_game_day INTEGER NOT NULL,
+        text TEXT NOT NULL,
+        generated_at_real_ts TEXT NOT NULL,
+        status TEXT NOT NULL,
+        PRIMARY KEY (from_game_day, to_game_day)
+      );
     `);
 
     this.addColumnIfMissing('world_state', 'sub_tick', 'INTEGER NOT NULL DEFAULT 0');
@@ -161,6 +209,11 @@ export class Persistence {
       'world_state',
       'roster',
       `TEXT NOT NULL DEFAULT '${DEFAULT_ROSTER_JSON}'`,
+    );
+    this.addColumnIfMissing(
+      'world_state',
+      'last_acknowledged_game_day',
+      'INTEGER NOT NULL DEFAULT 0',
     );
   }
 
@@ -238,21 +291,23 @@ export class Persistence {
       unattendedTicks: row.unattended_ticks,
       seed: row.seed,
       subTick: row.sub_tick,
+      lastAcknowledgedGameDay: row.last_acknowledged_game_day ?? 0,
     };
   }
 
   saveState(state: WorldState): void {
     this.db
       .prepare(
-        `INSERT INTO world_state (id, game_day, last_tick_at, status, unattended_ticks, seed, sub_tick)
-         VALUES (1, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO world_state (id, game_day, last_tick_at, status, unattended_ticks, seed, sub_tick, last_acknowledged_game_day)
+         VALUES (1, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET
            game_day = excluded.game_day,
            last_tick_at = excluded.last_tick_at,
            status = excluded.status,
            unattended_ticks = excluded.unattended_ticks,
            seed = excluded.seed,
-           sub_tick = excluded.sub_tick`,
+           sub_tick = excluded.sub_tick,
+           last_acknowledged_game_day = excluded.last_acknowledged_game_day`,
       )
       .run(
         state.gameDay,
@@ -261,6 +316,7 @@ export class Persistence {
         state.unattendedTicks,
         state.seed,
         state.subTick,
+        state.lastAcknowledgedGameDay,
       );
   }
 
@@ -591,7 +647,137 @@ export class Persistence {
     this.db.prepare('DELETE FROM flavor_cache WHERE id = ?').run(id);
   }
 
+  // ---------- chronicles ----------
+
+  upsertChronicle(chronicle: DailyChronicle): void {
+    this.db
+      .prepare(
+        `INSERT INTO chronicles
+          (game_day, generated_at_real_ts, status, headlines_json, footnotes_json,
+           model_used, prompt_char_count, completion_char_count, generation_duration_ms, failure_reason)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(game_day) DO UPDATE SET
+           generated_at_real_ts = excluded.generated_at_real_ts,
+           status = excluded.status,
+           headlines_json = excluded.headlines_json,
+           footnotes_json = excluded.footnotes_json,
+           model_used = excluded.model_used,
+           prompt_char_count = excluded.prompt_char_count,
+           completion_char_count = excluded.completion_char_count,
+           generation_duration_ms = excluded.generation_duration_ms,
+           failure_reason = excluded.failure_reason`,
+      )
+      .run(
+        chronicle.gameDay,
+        chronicle.generatedAtRealTs,
+        chronicle.status,
+        JSON.stringify(chronicle.headlines),
+        JSON.stringify(chronicle.footnotes),
+        chronicle.modelUsed,
+        chronicle.promptCharCount,
+        chronicle.completionCharCount,
+        chronicle.generationDurationMs,
+        chronicle.failureReason,
+      );
+  }
+
+  loadChronicle(gameDay: number): DailyChronicle | null {
+    const row = this.db
+      .prepare('SELECT * FROM chronicles WHERE game_day = ?')
+      .get(gameDay) as ChronicleRow | undefined;
+    if (!row) return null;
+    return this.rowToChronicle(row);
+  }
+
+  loadChroniclesBetween(fromDay: number, toDay: number): DailyChronicle[] {
+    const rows = this.db
+      .prepare(
+        'SELECT * FROM chronicles WHERE game_day >= ? AND game_day <= ? ORDER BY game_day ASC',
+      )
+      .all(fromDay, toDay) as ChronicleRow[];
+    return rows.map((r) => this.rowToChronicle(r));
+  }
+
+  loadPendingChronicleGameDays(): number[] {
+    const rows = this.db
+      .prepare(
+        "SELECT game_day FROM chronicles WHERE status IN ('pending','in_progress') ORDER BY game_day ASC",
+      )
+      .all() as Array<{ game_day: number }>;
+    return rows.map((r) => r.game_day);
+  }
+
+  loadAllChronicleGameDays(): number[] {
+    const rows = this.db
+      .prepare('SELECT game_day FROM chronicles ORDER BY game_day ASC')
+      .all() as Array<{ game_day: number }>;
+    return rows.map((r) => r.game_day);
+  }
+
+  private rowToChronicle = (r: ChronicleRow): DailyChronicle => ({
+    gameDay: r.game_day,
+    generatedAtRealTs: r.generated_at_real_ts,
+    status: r.status as DailyChronicle['status'],
+    headlines: safeParseArray(r.headlines_json),
+    footnotes: safeParseArray(r.footnotes_json),
+    modelUsed: r.model_used,
+    promptCharCount: r.prompt_char_count,
+    completionCharCount: r.completion_char_count,
+    generationDurationMs: r.generation_duration_ms,
+    failureReason: r.failure_reason,
+  });
+
+  // ---------- chronicle prologues ----------
+
+  upsertChroniclePrologue(prologue: ChroniclePrologue): void {
+    this.db
+      .prepare(
+        `INSERT INTO chronicle_prologues
+          (from_game_day, to_game_day, text, generated_at_real_ts, status)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(from_game_day, to_game_day) DO UPDATE SET
+           text = excluded.text,
+           generated_at_real_ts = excluded.generated_at_real_ts,
+           status = excluded.status`,
+      )
+      .run(
+        prologue.fromGameDay,
+        prologue.toGameDay,
+        prologue.text,
+        prologue.generatedAtRealTs,
+        prologue.status,
+      );
+  }
+
+  loadChroniclePrologue(
+    fromGameDay: number,
+    toGameDay: number,
+  ): ChroniclePrologue | null {
+    const row = this.db
+      .prepare(
+        'SELECT * FROM chronicle_prologues WHERE from_game_day = ? AND to_game_day = ?',
+      )
+      .get(fromGameDay, toGameDay) as PrologueRow | undefined;
+    if (!row) return null;
+    return {
+      fromGameDay: row.from_game_day,
+      toGameDay: row.to_game_day,
+      text: row.text,
+      generatedAtRealTs: row.generated_at_real_ts,
+      status: row.status as ChroniclePrologue['status'],
+    };
+  }
+
   close(): void {
     this.db.close();
+  }
+}
+
+function safeParseArray(json: string): string[] {
+  try {
+    const parsed = JSON.parse(json);
+    return Array.isArray(parsed) ? parsed.filter((x) => typeof x === 'string') : [];
+  } catch {
+    return [];
   }
 }

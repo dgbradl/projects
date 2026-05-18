@@ -1,4 +1,5 @@
 import type { z } from 'zod';
+import { RequestGate, type RequestPriority } from './gate.ts';
 import { LlmError, type LlmConfig } from './types.ts';
 
 export interface GenerateStructuredInput<T> {
@@ -10,6 +11,14 @@ export interface GenerateStructuredInput<T> {
   modelOverride?: string;
   temperature?: number;
   timeoutMs?: number;
+  /** Phase 5: serialization priority. `'high'` jumps ahead of `'normal'`. */
+  priority?: RequestPriority;
+}
+
+export interface OllamaGenerateResult<T> {
+  data: T;
+  /** Length of the model's raw response string (for chronicle metrics). */
+  completionCharCount: number;
 }
 
 interface OllamaResponseBody {
@@ -18,9 +27,30 @@ interface OllamaResponseBody {
 }
 
 export class OllamaClient {
-  constructor(private readonly config: LlmConfig) {}
+  constructor(
+    private readonly config: LlmConfig,
+    private readonly gate: RequestGate = new RequestGate(),
+  ) {}
 
   async generateStructured<T>(input: GenerateStructuredInput<T>): Promise<T> {
+    const result = await this.generateStructuredDetailed(input);
+    return result.data;
+  }
+
+  async generateStructuredDetailed<T>(
+    input: GenerateStructuredInput<T>,
+  ): Promise<OllamaGenerateResult<T>> {
+    const release = await this.gate.acquire(input.priority ?? 'normal');
+    try {
+      return await this.callOnce(input);
+    } finally {
+      release();
+    }
+  }
+
+  private async callOnce<T>(
+    input: GenerateStructuredInput<T>,
+  ): Promise<OllamaGenerateResult<T>> {
     const controller = new AbortController();
     const timeoutMs = input.timeoutMs ?? this.config.requestTimeoutMs;
     const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -80,7 +110,7 @@ export class OllamaClient {
         `schema validation failed: ${validation.error.message}`,
       );
     }
-    return validation.data;
+    return { data: validation.data, completionCharCount: body.response.length };
   }
 
   async healthCheck(timeoutMs = 3000): Promise<boolean> {

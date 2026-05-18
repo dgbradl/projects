@@ -76,6 +76,7 @@ const WORLD: WorldState = {
   unattendedTicks: 0,
   seed: 's',
   subTick: 0,
+  lastAcknowledgedGameDay: 0,
 };
 
 function Seeded({ children }: { children: React.ReactNode }) {

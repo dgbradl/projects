@@ -4,19 +4,20 @@ import { DebugPanel } from './components/DebugPanel.tsx';
 import { PauseOverlay } from './components/PauseOverlay.tsx';
 import { StatusBar } from './components/StatusBar.tsx';
 import { Tavern } from './components/Tavern.tsx';
+import { Welcome } from './components/Welcome.tsx';
 import { subscribe } from './sse.ts';
 import { StoreProvider, useDispatch, useStore } from './state/store.tsx';
 
 function Bootstrap() {
   const dispatch = useDispatch();
-  const { tavern } = useStore();
+  const { tavern, world, welcome } = useStore();
 
   useEffect(() => {
     let cancelled = false;
     let unsubscribe: (() => void) | null = null;
     (async () => {
       try {
-        const [tavernConfig, state, npcs, world, flavor] = await Promise.all([
+        const [tavernConfig, state, npcs, worldSnap, flavor] = await Promise.all([
           api.getTavern(),
           api.getState(),
           api.getNpcs(),
@@ -27,8 +28,21 @@ function Bootstrap() {
         dispatch({ type: 'INIT_TAVERN', payload: tavernConfig });
         dispatch({ type: 'INIT_STATE', payload: state });
         dispatch({ type: 'NPCS_SNAPSHOT', payload: npcs });
-        dispatch({ type: 'WORLD_SNAPSHOT', payload: world });
+        dispatch({ type: 'WORLD_SNAPSHOT', payload: worldSnap });
         dispatch({ type: 'FLAVOR_STATUS', payload: flavor });
+
+        // Phase 5: decide whether to show the welcome view.
+        if (state.lastAcknowledgedGameDay < state.gameDay - 1) {
+          try {
+            const since = await api.getChroniclesSince();
+            if (!cancelled) {
+              dispatch({ type: 'WELCOME_OPENED', payload: since });
+            }
+          } catch (err) {
+            console.error('failed to load chronicles', err);
+          }
+        }
+
         unsubscribe = subscribe(dispatch, {
           subTickIntervalMs: tavernConfig.subTickIntervalMs,
         });
@@ -42,13 +56,17 @@ function Bootstrap() {
     };
   }, [dispatch]);
 
-  // Expire interaction flashes once per second.
   useEffect(() => {
     const interval = setInterval(() => {
       dispatch({ type: 'EXPIRE_INTERACTION_FLASHES', payload: { now: Date.now() } });
     }, 1_000);
     return () => clearInterval(interval);
   }, [dispatch]);
+
+  // Show Welcome while it's open; the live view sits behind it.
+  if (welcome?.show) {
+    return <Welcome />;
+  }
 
   return (
     <div className="app">

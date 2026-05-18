@@ -5,6 +5,8 @@ import type {
   TavernConfig,
   WorldSnapshot,
 } from '@shared/types';
+import type { ChroniclePipeline } from '../chronicle/pipeline.ts';
+import type { PrologueGenerator } from '../chronicle/prologue.ts';
 import type { WorldEventBus } from '../events/emitter.ts';
 import type { Clock } from '../lib/clock.ts';
 import type { FlavorCache } from '../llm/cache/manager.ts';
@@ -14,6 +16,7 @@ import type { Persistence } from '../persistence.ts';
 import type { WorldStateManager } from '../state.ts';
 import { engage, TickScheduler } from '../tick.ts';
 import { TAVERN_ZONES } from '../world/tavern.ts';
+import { registerChronicleRoutes } from './chronicle-routes.ts';
 
 export interface ApiDeps {
   stateManager: WorldStateManager;
@@ -26,6 +29,9 @@ export interface ApiDeps {
   subTicksPerDay: number;
   flavorCache?: FlavorCache;
   flavorMode?: FlavorModeManager;
+  chroniclePipeline?: ChroniclePipeline;
+  prologueGenerator?: PrologueGenerator;
+  chronicleMaxEvents?: number;
 }
 
 export interface FlavorStatus {
@@ -63,6 +69,18 @@ export function registerRoutes(app: FastifyInstance, deps: ApiDeps): void {
   app.get('/world', async (): Promise<WorldSnapshot> => buildWorldSnapshot(deps));
 
   app.get('/flavor', async (): Promise<FlavorStatus> => buildFlavorStatus(deps));
+
+  if (deps.chroniclePipeline && deps.prologueGenerator) {
+    registerChronicleRoutes(app, {
+      persistence: deps.persistence,
+      stateManager: deps.stateManager,
+      npcManager: deps.npcManager,
+      pipeline: deps.chroniclePipeline,
+      prologue: deps.prologueGenerator,
+      bus: deps.bus,
+      maxEvents: deps.chronicleMaxEvents ?? 25,
+    });
+  }
 }
 
 export function buildFlavorStatus(deps: ApiDeps): FlavorStatus {

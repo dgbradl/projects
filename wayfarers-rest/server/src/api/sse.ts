@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import type {
+  DailyChronicle,
   EventLogEntry,
   NpcDiff,
   WorldSnapshot,
@@ -43,9 +44,13 @@ export function registerSSE(
       }
     };
 
+    const onChronicleReady = (chronicle: DailyChronicle) =>
+      writeEvent(reply, 'chronicle_ready', chronicle);
+
     stateManager.on('state', onState);
     npcManager.on('diff', onDiff);
     bus.on('world_event', onWorldEvent);
+    deps.chroniclePipeline?.on('ready', onChronicleReady);
 
     writeEvent(reply, 'state', stateManager.getState());
     writeEvent(reply, 'npcs_snapshot', npcManager.getRoster());
@@ -65,6 +70,7 @@ export function registerSSE(
       stateManager.off('state', onState);
       npcManager.off('diff', onDiff);
       bus.off('world_event', onWorldEvent);
+      deps.chroniclePipeline?.off('ready', onChronicleReady);
       clearInterval(heartbeat);
     };
     request.raw.on('close', cleanup);

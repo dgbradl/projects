@@ -5,6 +5,9 @@ import Fastify from 'fastify';
 import type { FlavorMode, Npc } from '@shared/types';
 import { registerRoutes, type ApiDeps } from './api/routes.ts';
 import { registerSSE } from './api/sse.ts';
+import { ChronicleGenerator } from './chronicle/generator.ts';
+import { ChroniclePipeline } from './chronicle/pipeline.ts';
+import { PrologueGenerator } from './chronicle/prologue.ts';
 import { WorldEventBus } from './events/emitter.ts';
 import { detectInteractions } from './interactions/detector.ts';
 import { InteractionResolver } from './interactions/resolver.ts';
@@ -12,6 +15,7 @@ import { RealClock } from './lib/clock.ts';
 import { FlavorCache } from './llm/cache/manager.ts';
 import { FlavorWorker } from './llm/cache/worker.ts';
 import { FixtureRegistry } from './llm/fixtures.ts';
+import { RequestGate } from './llm/gate.ts';
 import { FlavorModeManager } from './llm/mode.ts';
 import { OllamaClient } from './llm/ollama.ts';
 import { registerAllPools } from './llm/registry.ts';
@@ -54,6 +58,23 @@ const OLLAMA_HEALTH_CHECK_MS = parseInt(
   process.env.OLLAMA_HEALTH_CHECK_MS ?? '30000',
   10,
 );
+const CHRONICLE_MODEL = process.env.CHRONICLE_MODEL;
+const CHRONICLE_MAX_EVENTS = parseInt(
+  process.env.CHRONICLE_MAX_EVENTS ?? '25',
+  10,
+);
+const CHRONICLE_TIMEOUT_MS = parseInt(
+  process.env.CHRONICLE_TIMEOUT_MS ?? '60000',
+  10,
+);
+const PROLOGUE_TIMEOUT_MS = parseInt(
+  process.env.PROLOGUE_TIMEOUT_MS ?? '30000',
+  10,
+);
+const CHRONICLE_WORKER_INTERVAL_MS = parseInt(
+  process.env.CHRONICLE_WORKER_INTERVAL_MS ?? '1000',
+  10,
+);
 
 const SUB_TICKS_PER_DAY = Math.max(
   1,
@@ -75,12 +96,16 @@ async function main(): Promise<void> {
   const rumors = new RumorsManager(persistence, bus);
   const threadRunner = new ThreadRunner(persistence, bus, worldTags, rumors);
 
-  // ----- Phase 4 flavor wiring -----
-  const ollama = new OllamaClient({
-    baseUrl: OLLAMA_BASE_URL,
-    model: OLLAMA_MODEL,
-    requestTimeoutMs: OLLAMA_REQUEST_TIMEOUT_MS,
-  });
+  // ----- Phase 4 flavor wiring (Phase 5: shared request gate) -----
+  const requestGate = new RequestGate();
+  const ollama = new OllamaClient(
+    {
+      baseUrl: OLLAMA_BASE_URL,
+      model: OLLAMA_MODEL,
+      requestTimeoutMs: OLLAMA_REQUEST_TIMEOUT_MS,
+    },
+    requestGate,
+  );
   const mode = new FlavorModeManager({
     initialMode: FLAVOR_MODE,
     client: ollama,
@@ -177,6 +202,45 @@ async function main(): Promise<void> {
     threadRunner,
   );
 
+  // ----- Phase 5: chronicle pipeline -----
+  const chronicleGenerator = new ChronicleGenerator(
+    {
+      persistence,
+      bus,
+      clock,
+      client: ollama,
+      mode,
+      npcManager,
+      fixtures,
+    },
+    {
+      model: OLLAMA_MODEL,
+      chronicleModel: CHRONICLE_MODEL,
+      maxEvents: CHRONICLE_MAX_EVENTS,
+      timeoutMs: CHRONICLE_TIMEOUT_MS,
+    },
+  );
+  const prologueGenerator = new PrologueGenerator(
+    {
+      persistence,
+      clock,
+      client: ollama,
+      mode,
+      fixtures,
+    },
+    {
+      model: OLLAMA_MODEL,
+      chronicleModel: CHRONICLE_MODEL,
+      timeoutMs: PROLOGUE_TIMEOUT_MS,
+    },
+  );
+  const chroniclePipeline = new ChroniclePipeline(
+    persistence,
+    stateManager,
+    chronicleGenerator,
+    { workerIntervalMs: CHRONICLE_WORKER_INTERVAL_MS },
+  );
+
   const app = Fastify({ logger: true });
 
   const apiDeps: ApiDeps = {
@@ -190,9 +254,13 @@ async function main(): Promise<void> {
     subTicksPerDay: SUB_TICKS_PER_DAY,
     flavorCache,
     flavorMode: mode,
+    chroniclePipeline,
+    prologueGenerator,
+    chronicleMaxEvents: CHRONICLE_MAX_EVENTS,
   };
 
   app.addHook('onClose', async () => {
+    chroniclePipeline.stop();
     flavorWorker.stop();
     mode.stop();
     subTickScheduler.stop();
@@ -231,9 +299,13 @@ async function main(): Promise<void> {
   await mode.runBootHealthCheck();
   mode.startPeriodicHealthCheck();
 
+  // Phase 5: catch up any missed chronicles before starting the worker loop.
+  chroniclePipeline.runCatchUp();
+
   scheduler.start();
   subTickScheduler.start();
   flavorWorker.start();
+  chroniclePipeline.start();
 
   await app.listen({ port: PORT, host: HOST });
   app.log.info(

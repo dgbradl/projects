@@ -32,6 +32,7 @@ export class WorldStateManager extends EventEmitter {
         unattendedTicks: 0,
         seed: seedFactory(),
         subTick: 0,
+        lastAcknowledgedGameDay: 0,
       };
       persistence.saveState(this.state);
       this.wasColdStart = true;

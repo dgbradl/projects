@@ -17,6 +17,7 @@ const FAKE_WORLD: WorldState = {
   unattendedTicks: 0,
   seed: 'test-seed',
   subTick: 0,
+  lastAcknowledgedGameDay: 0,
 };
 
 function build() {

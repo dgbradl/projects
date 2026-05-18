@@ -5,6 +5,8 @@ export interface WorldState {
   unattendedTicks: number;
   seed: string;
   subTick: number;
+  /** Last game day whose chronicle the player has acknowledged. Default 0. */
+  lastAcknowledgedGameDay: number;
 }
 
 /** @deprecated Replaced by EventLogEntry + WorldEvent. Kept for migration. */
@@ -222,7 +224,68 @@ export type WorldEvent =
       oldMode: string;
       newMode: string;
       reason: string;
+    }
+  | {
+      type: 'chronicle_generated';
+      gameDay: number;
+      status: ChronicleGenerationStatus;
+      durationMs: number;
+    }
+  | {
+      type: 'chronicle_acknowledged';
+      gameDay: number;
+      acknowledgedUpTo: number;
     };
+
+// ---------- Phase 5: Chronicle ----------
+
+export type ChronicleGenerationStatus =
+  | 'pending'
+  | 'in_progress'
+  | 'complete'
+  | 'fallback'
+  | 'failed';
+
+export interface DailyChronicle {
+  gameDay: number;
+  generatedAtRealTs: string | null;
+  status: ChronicleGenerationStatus;
+  headlines: string[];
+  footnotes: string[];
+  modelUsed: string | null;
+  promptCharCount: number | null;
+  completionCharCount: number | null;
+  generationDurationMs: number | null;
+  failureReason: string | null;
+}
+
+export interface ChroniclePrologue {
+  fromGameDay: number;
+  toGameDay: number;
+  text: string;
+  generatedAtRealTs: string;
+  status: 'complete' | 'fallback' | 'failed';
+}
+
+export interface ChronicleLedgerEntry {
+  eventId: number;
+  realTimestamp: string;
+  event: WorldEvent;
+  score: number;
+}
+
+export interface DailyChronicleWithLedger {
+  chronicle: DailyChronicle;
+  ledger: ChronicleLedgerEntry[];
+}
+
+export interface ChroniclesSinceResponse {
+  fromGameDay: number;
+  toGameDay: number;
+  chronicles: DailyChronicle[];
+  prologue: ChroniclePrologue | null;
+  pendingDays: number[];
+}
 
 // ---------- Phase 4: Flavor ----------
 

@@ -41,6 +41,7 @@ const WORLD: WorldState = {
   unattendedTicks: 0,
   seed: 'seed',
   subTick: 0,
+  lastAcknowledgedGameDay: 0,
 };
 
 const TAG: WorldTag = { key: 'season', value: 'spring', setOnGameDay: 1 };

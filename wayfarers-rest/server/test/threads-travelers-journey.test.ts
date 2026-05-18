@@ -18,6 +18,7 @@ function fakeWorld(gameDay: number): WorldState {
     unattendedTicks: 0,
     seed: 'tj-seed',
     subTick: 0,
+    lastAcknowledgedGameDay: 0,
   };
 }
 

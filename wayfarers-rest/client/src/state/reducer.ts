@@ -1,4 +1,7 @@
 import type {
+  ChroniclePrologue,
+  ChroniclesSinceResponse,
+  DailyChronicle,
   EventLogEntry,
   FlavorMode,
   FlavorPoolStatus,
@@ -12,6 +15,14 @@ import type {
   WorldTag,
 } from '@shared/types';
 import type { Action, InteractionFlash } from './actions.ts';
+
+export interface WelcomeSlice {
+  fromGameDay: number;
+  toGameDay: number;
+  chronicles: Record<number, DailyChronicle | 'pending'>;
+  prologue: ChroniclePrologue | null;
+  show: boolean;
+}
 
 const RECENT_EVENT_CAP = 100;
 
@@ -28,6 +39,7 @@ export interface AppState {
   interactingNpcs: Record<string, InteractionFlash>;
   flavorMode: FlavorMode;
   flavorPools: FlavorPoolStatus[];
+  welcome: WelcomeSlice | null;
 }
 
 export const initialState: AppState = {
@@ -42,7 +54,21 @@ export const initialState: AppState = {
   interactingNpcs: {},
   flavorMode: 'placeholder',
   flavorPools: [],
+  welcome: null,
 };
+
+function buildWelcome(payload: ChroniclesSinceResponse): WelcomeSlice {
+  const map: Record<number, DailyChronicle | 'pending'> = {};
+  for (const c of payload.chronicles) map[c.gameDay] = c;
+  for (const d of payload.pendingDays) map[d] = 'pending';
+  return {
+    fromGameDay: payload.fromGameDay,
+    toGameDay: payload.toGameDay,
+    chronicles: map,
+    prologue: payload.prologue,
+    show: payload.fromGameDay <= payload.toGameDay,
+  };
+}
 
 export function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -98,6 +124,25 @@ export function reducer(state: AppState, action: Action): AppState {
         flavorMode: action.payload.mode,
         flavorPools: action.payload.pools,
       };
+    case 'WELCOME_OPENED':
+      return { ...state, welcome: buildWelcome(action.payload) };
+    case 'CHRONICLE_FILLED': {
+      if (!state.welcome) return state;
+      const day = action.payload.gameDay;
+      if (day < state.welcome.fromGameDay || day > state.welcome.toGameDay) {
+        return state;
+      }
+      return {
+        ...state,
+        welcome: {
+          ...state.welcome,
+          chronicles: { ...state.welcome.chronicles, [day]: action.payload },
+        },
+      };
+    }
+    case 'WELCOME_DISMISSED':
+      if (!state.welcome) return state;
+      return { ...state, welcome: { ...state.welcome, show: false } };
     default:
       return state;
   }

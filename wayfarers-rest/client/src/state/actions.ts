@@ -1,4 +1,6 @@
 import type {
+  ChroniclesSinceResponse,
+  DailyChronicle,
   EventLogEntry,
   FlavorMode,
   FlavorPoolStatus,
@@ -30,4 +32,7 @@ export type Action =
   | { type: 'WORLD_EVENT'; payload: EventLogEntry }
   | { type: 'INTERACTION_FLASH'; payload: InteractionFlash }
   | { type: 'EXPIRE_INTERACTION_FLASHES'; payload: { now: number } }
-  | { type: 'FLAVOR_STATUS'; payload: FlavorStatusPayload };
+  | { type: 'FLAVOR_STATUS'; payload: FlavorStatusPayload }
+  | { type: 'WELCOME_OPENED'; payload: ChroniclesSinceResponse }
+  | { type: 'CHRONICLE_FILLED'; payload: DailyChronicle }
+  | { type: 'WELCOME_DISMISSED' };

@@ -12,6 +12,7 @@ const WORLD: WorldState = {
   unattendedTicks: 0,
   seed: 's',
   subTick: 0,
+  lastAcknowledgedGameDay: 0,
 };
 
 const EMPTY_SNAPSHOT: WorldSnapshot = {

@@ -14,6 +14,7 @@ describe('Persistence', () => {
       unattendedTicks: 7,
       seed: 'abc123',
       subTick: 42,
+      lastAcknowledgedGameDay: 0,
     };
     p.saveState(state);
     expect(p.loadState()).toEqual(state);
@@ -88,6 +89,7 @@ describe('Persistence', () => {
       unattendedTicks: 2,
       seed: 'persisted',
       subTick: 0,
+      lastAcknowledgedGameDay: 0,
     };
     p.saveState(existing);
 
