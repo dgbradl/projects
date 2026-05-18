@@ -29,6 +29,7 @@ export class WorldStateManager extends EventEmitter {
         status: 'running',
         unattendedTicks: 0,
         seed: seedFactory(),
+        subTick: 0,
       };
       persistence.saveState(this.state);
       persistence.appendEvent({

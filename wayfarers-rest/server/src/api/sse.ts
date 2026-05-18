@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyReply } from 'fastify';
-import type { WorldState } from '@shared/types';
+import type { NpcDiff, WorldState } from '@shared/types';
+import type { NpcManager } from '../npc/manager.ts';
 import type { WorldStateManager } from '../state.ts';
 
 const HEARTBEAT_MS = 30_000;
@@ -7,6 +8,7 @@ const HEARTBEAT_MS = 30_000;
 export function registerSSE(
   app: FastifyInstance,
   stateManager: WorldStateManager,
+  npcManager: NpcManager,
 ): void {
   app.get('/stream', (request, reply) => {
     reply.hijack();
@@ -18,13 +20,14 @@ export function registerSSE(
       'X-Accel-Buffering': 'no',
     });
 
-    const onState = (state: WorldState) => {
-      writeEvent(reply, 'state', state);
-    };
+    const onState = (state: WorldState) => writeEvent(reply, 'state', state);
+    const onDiff = (diff: NpcDiff) => writeEvent(reply, 'npcs_diff', diff);
     stateManager.on('state', onState);
+    npcManager.on('diff', onDiff);
 
-    // Send the current state to the new subscriber immediately.
+    // Initial snapshots for the new subscriber.
     writeEvent(reply, 'state', stateManager.getState());
+    writeEvent(reply, 'npcs_snapshot', npcManager.getRoster());
 
     const heartbeat = setInterval(() => {
       try {
@@ -37,6 +40,7 @@ export function registerSSE(
 
     const cleanup = () => {
       stateManager.off('state', onState);
+      npcManager.off('diff', onDiff);
       clearInterval(heartbeat);
     };
     request.raw.on('close', cleanup);

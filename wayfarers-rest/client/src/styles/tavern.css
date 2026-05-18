@@ -1,0 +1,42 @@
+.tavern {
+  position: relative;
+  width: min(96vw, 1100px);
+  aspect-ratio: 5 / 3;
+  background:
+    radial-gradient(circle at 50% 30%, #4a3320 0%, #2c1d11 60%, #1d130a 100%);
+  border: 1px solid #4a3320;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.tavern-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-dim);
+  font-style: italic;
+}
+
+.zone {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border: 1px dashed rgba(243, 228, 197, 0.25);
+  border-radius: 50%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.zone-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  transform: translateY(110%);
+  white-space: nowrap;
+}
+
+.zone-door {
+  border-color: rgba(210, 156, 84, 0.4);
+}

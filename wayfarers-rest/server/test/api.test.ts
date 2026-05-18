@@ -3,11 +3,14 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import { registerRoutes } from '../src/api/routes.ts';
 import { registerSSE } from '../src/api/sse.ts';
 import { FakeClock } from '../src/lib/clock.ts';
+import { NpcManager } from '../src/npc/manager.ts';
 import { Persistence } from '../src/persistence.ts';
 import { WorldStateManager } from '../src/state.ts';
 import { TickScheduler } from '../src/tick.ts';
 
 const TICK_INTERVAL = 1000;
+const SUB_TICKS_PER_DAY = 10;
+const SUBTICK_MS = TICK_INTERVAL / SUB_TICKS_PER_DAY;
 const START = Date.parse('2026-01-01T00:00:00.000Z');
 
 function buildApp() {
@@ -18,6 +21,10 @@ function buildApp() {
     clock,
     () => 'api-test-seed',
   );
+  const npcManager = new NpcManager({
+    worldSeed: stateManager.getState().seed,
+    subTicksPerDay: SUB_TICKS_PER_DAY,
+  });
   const scheduler = new TickScheduler(stateManager, clock, {
     tickIntervalMs: TICK_INTERVAL,
     schedulerCheckMs: 100,
@@ -26,9 +33,17 @@ function buildApp() {
   app.addHook('onClose', async () => {
     persistence.close();
   });
-  registerRoutes(app, { stateManager, scheduler, persistence, clock });
-  registerSSE(app, stateManager);
-  return { app, persistence, clock, stateManager, scheduler };
+  registerRoutes(app, {
+    stateManager,
+    scheduler,
+    persistence,
+    clock,
+    npcManager,
+    subTickIntervalMs: SUBTICK_MS,
+    subTicksPerDay: SUB_TICKS_PER_DAY,
+  });
+  registerSSE(app, stateManager, npcManager);
+  return { app, persistence, clock, stateManager, scheduler, npcManager };
 }
 
 const openApps: FastifyInstance[] = [];
@@ -148,8 +163,9 @@ describe('SSE /stream', () => {
     const received: Array<{ event: string; data: unknown }> = [];
     let buffer = '';
 
-    const readUntilTwo = (async () => {
-      while (received.length < 2) {
+    const readUntilTwoStates = (async () => {
+      let stateCount = 0;
+      while (stateCount < 2) {
         const { done, value } = await reader.read();
         if (done) return;
         buffer += decoder.decode(value, { stream: true });
@@ -164,7 +180,10 @@ describe('SSE /stream', () => {
             if (line.startsWith('event:')) event = line.slice(6).trim();
             else if (line.startsWith('data:')) data = line.slice(5).trim();
           }
-          if (data) received.push({ event, data: JSON.parse(data) });
+          if (data) {
+            received.push({ event, data: JSON.parse(data) });
+            if (event === 'state') stateCount += 1;
+          }
         }
       }
     })();
@@ -174,14 +193,13 @@ describe('SSE /stream', () => {
     clock.advance(TICK_INTERVAL);
     scheduler.runCatchUp();
 
-    await readUntilTwo;
+    await readUntilTwoStates;
     controller.abort();
     await reader.cancel().catch(() => {});
 
-    expect(received.length).toBeGreaterThanOrEqual(2);
-    expect(received[0].event).toBe('state');
-    expect((received[0].data as { gameDay: number }).gameDay).toBe(1);
-    expect(received[1].event).toBe('state');
-    expect((received[1].data as { gameDay: number }).gameDay).toBe(2);
+    const stateEvents = received.filter((e) => e.event === 'state');
+    expect(stateEvents.length).toBeGreaterThanOrEqual(2);
+    expect((stateEvents[0].data as { gameDay: number }).gameDay).toBe(1);
+    expect((stateEvents[1].data as { gameDay: number }).gameDay).toBe(2);
   });
 });

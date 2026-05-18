@@ -13,6 +13,7 @@ describe('Persistence', () => {
       status: 'paused',
       unattendedTicks: 7,
       seed: 'abc123',
+      subTick: 42,
     };
     p.saveState(state);
     expect(p.loadState()).toEqual(state);
@@ -113,6 +114,7 @@ describe('Persistence', () => {
       status: 'running',
       unattendedTicks: 2,
       seed: 'persisted',
+      subTick: 0,
     };
     p.saveState(existing);
 

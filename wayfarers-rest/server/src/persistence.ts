@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
 import type { TickEvent, WorldState } from '@shared/types';
+import type { RosterSnapshot } from './npc/manager.ts';
 
 interface WorldStateRow {
   id: number;
@@ -8,6 +9,8 @@ interface WorldStateRow {
   status: string;
   unattended_ticks: number;
   seed: string;
+  sub_tick: number;
+  roster: string;
 }
 
 interface TickEventRow {
@@ -17,6 +20,8 @@ interface TickEventRow {
   type: string;
   payload: string;
 }
+
+const DEFAULT_ROSTER_JSON = '{"npcs":[],"spawnQueue":[]}';
 
 export class Persistence {
   private db: Database.Database;
@@ -36,7 +41,9 @@ export class Persistence {
         last_tick_at TEXT NOT NULL,
         status TEXT NOT NULL,
         unattended_ticks INTEGER NOT NULL,
-        seed TEXT NOT NULL
+        seed TEXT NOT NULL,
+        sub_tick INTEGER NOT NULL DEFAULT 0,
+        roster TEXT NOT NULL DEFAULT '${DEFAULT_ROSTER_JSON}'
       );
 
       CREATE TABLE IF NOT EXISTS tick_events (
@@ -47,6 +54,23 @@ export class Persistence {
         payload TEXT NOT NULL
       );
     `);
+
+    // Phase-2 column adds for Phase-1 DBs. SQLite has no `IF NOT EXISTS` on
+    // ALTER TABLE — swallow the duplicate-column error.
+    this.addColumnIfMissing('world_state', 'sub_tick', 'INTEGER NOT NULL DEFAULT 0');
+    this.addColumnIfMissing(
+      'world_state',
+      'roster',
+      `TEXT NOT NULL DEFAULT '${DEFAULT_ROSTER_JSON}'`,
+    );
+  }
+
+  private addColumnIfMissing(table: string, column: string, decl: string): void {
+    const cols = this.db.prepare(`PRAGMA table_info(${table})`).all() as Array<{
+      name: string;
+    }>;
+    if (cols.some((c) => c.name === column)) return;
+    this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${decl}`);
   }
 
   loadState(): WorldState | null {
@@ -63,20 +87,22 @@ export class Persistence {
       status: row.status,
       unattendedTicks: row.unattended_ticks,
       seed: row.seed,
+      subTick: row.sub_tick,
     };
   }
 
   saveState(state: WorldState): void {
     this.db
       .prepare(
-        `INSERT INTO world_state (id, game_day, last_tick_at, status, unattended_ticks, seed)
-         VALUES (1, ?, ?, ?, ?, ?)
+        `INSERT INTO world_state (id, game_day, last_tick_at, status, unattended_ticks, seed, sub_tick)
+         VALUES (1, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET
            game_day = excluded.game_day,
            last_tick_at = excluded.last_tick_at,
            status = excluded.status,
            unattended_ticks = excluded.unattended_ticks,
-           seed = excluded.seed`,
+           seed = excluded.seed,
+           sub_tick = excluded.sub_tick`,
       )
       .run(
         state.gameDay,
@@ -84,7 +110,30 @@ export class Persistence {
         state.status,
         state.unattendedTicks,
         state.seed,
+        state.subTick,
       );
+  }
+
+  loadRoster(): RosterSnapshot {
+    const row = this.db
+      .prepare('SELECT roster FROM world_state WHERE id = 1')
+      .get() as { roster: string } | undefined;
+    if (!row) return { npcs: [], spawnQueue: [] };
+    try {
+      const parsed = JSON.parse(row.roster) as RosterSnapshot;
+      return {
+        npcs: Array.isArray(parsed.npcs) ? parsed.npcs : [],
+        spawnQueue: Array.isArray(parsed.spawnQueue) ? parsed.spawnQueue : [],
+      };
+    } catch {
+      return { npcs: [], spawnQueue: [] };
+    }
+  }
+
+  saveRoster(snapshot: RosterSnapshot): void {
+    this.db
+      .prepare('UPDATE world_state SET roster = ? WHERE id = 1')
+      .run(JSON.stringify(snapshot));
   }
 
   appendEvent(event: Omit<TickEvent, 'id'>): TickEvent {

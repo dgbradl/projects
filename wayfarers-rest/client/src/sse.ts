@@ -1,0 +1,63 @@
+import type { Dispatch } from 'react';
+import type { Npc, NpcDiff, WorldState } from '@shared/types';
+import { api } from './api.ts';
+import type { Action } from './state/actions.ts';
+
+/**
+ * Subscribe to /stream. On disconnect, refetch /state and /npcs to recover
+ * cleanly and reconnect. Returns an unsubscribe.
+ */
+export function subscribe(dispatch: Dispatch<Action>): () => void {
+  let stopped = false;
+  let source: EventSource | null = null;
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const open = () => {
+    if (stopped) return;
+    source = new EventSource('/stream');
+
+    source.addEventListener('state', (ev: MessageEvent<string>) => {
+      const data = JSON.parse(ev.data) as WorldState;
+      dispatch({ type: 'STATE_UPDATE', payload: data });
+    });
+
+    source.addEventListener('npcs_snapshot', (ev: MessageEvent<string>) => {
+      const data = JSON.parse(ev.data) as Npc[];
+      dispatch({ type: 'NPCS_SNAPSHOT', payload: data });
+    });
+
+    source.addEventListener('npcs_diff', (ev: MessageEvent<string>) => {
+      const data = JSON.parse(ev.data) as NpcDiff;
+      dispatch({ type: 'NPCS_DIFF', payload: data });
+    });
+
+    source.onerror = () => {
+      if (stopped) return;
+      source?.close();
+      source = null;
+      // Re-bootstrap: refetch authoritative state, then reconnect.
+      reconnectTimer = setTimeout(async () => {
+        try {
+          const [state, npcs] = await Promise.all([
+            api.getState(),
+            api.getNpcs(),
+          ]);
+          if (stopped) return;
+          dispatch({ type: 'INIT_STATE', payload: state });
+          dispatch({ type: 'NPCS_SNAPSHOT', payload: npcs });
+        } catch {
+          // ignore — open() will retry the SSE connection anyway
+        }
+        open();
+      }, 1_000);
+    };
+  };
+
+  open();
+
+  return () => {
+    stopped = true;
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    source?.close();
+  };
+}

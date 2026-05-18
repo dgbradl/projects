@@ -1,0 +1,49 @@
+.npc {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+  transition:
+    top var(--subtick-ms, 1s) linear,
+    left var(--subtick-ms, 1s) linear;
+}
+
+.npc-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid #1d130a;
+  box-shadow: 0 0 6px rgba(210, 156, 84, 0.5);
+}
+
+.npc-label {
+  margin-top: 0.2rem;
+  font-size: 0.7rem;
+  white-space: nowrap;
+  color: var(--ink);
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+}
+
+.npc-arriving .npc-dot {
+  background: #88c69b;
+}
+
+.npc-at_bar .npc-dot {
+  background: #e7c66a;
+}
+
+.npc-seated .npc-dot {
+  background: #d29c54;
+}
+
+.npc-wandering .npc-dot {
+  background: #c08bd8;
+}
+
+.npc-leaving .npc-dot {
+  background: #7a5a3a;
+  opacity: 0.7;
+}

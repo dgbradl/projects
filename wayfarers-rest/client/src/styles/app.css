@@ -1,0 +1,122 @@
+:root {
+  color-scheme: dark;
+  --bg: #1d160e;
+  --panel: #2a1f15;
+  --ink: #f3e4c5;
+  --ink-dim: #b3a085;
+  --accent: #d29c54;
+  --accent-strong: #efb766;
+  --danger: #c47373;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.app-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #3a2a1c;
+  background: linear-gradient(180deg, #261b12, #1d160e);
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  letter-spacing: 0.06em;
+  color: var(--accent-strong);
+}
+
+.app-main {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.status-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  font-size: 0.95rem;
+  color: var(--ink-dim);
+}
+
+.status-item strong {
+  color: var(--ink);
+}
+
+.status-running {
+  color: var(--accent-strong);
+}
+
+.status-paused {
+  color: var(--danger);
+}
+
+.pause-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 14, 8, 0.7);
+  backdrop-filter: blur(2px);
+  z-index: 10;
+}
+
+.pause-card {
+  background: var(--panel);
+  border: 1px solid #3a2a1c;
+  border-radius: 0.5rem;
+  padding: 2rem 2.5rem;
+  max-width: 28rem;
+  text-align: center;
+}
+
+.pause-card h2 {
+  margin-top: 0;
+  color: var(--accent-strong);
+}
+
+.pause-card p {
+  color: var(--ink-dim);
+}
+
+.pause-continue {
+  margin-top: 1rem;
+  padding: 0.6rem 1.5rem;
+  font-size: 1rem;
+  font-family: inherit;
+  color: var(--bg);
+  background: var(--accent-strong);
+  border: none;
+  border-radius: 0.3rem;
+  cursor: pointer;
+}
+
+.pause-continue:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
