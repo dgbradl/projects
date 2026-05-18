@@ -1,0 +1,15 @@
+{
+  "name": "wayfarers-rest",
+  "private": true,
+  "version": "0.1.0",
+  "description": "The Wayfarer's Rest — a persistent fantasy tavern simulation",
+  "workspaces": [
+    "shared",
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @wayfarers/server",
+    "test": "npm test -w @wayfarers/server"
+  }
+}
