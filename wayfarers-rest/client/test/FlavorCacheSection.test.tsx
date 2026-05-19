@@ -13,6 +13,9 @@ const WORLD: WorldState = {
   seed: 's',
   subTick: 0,
   lastAcknowledgedGameDay: 0,
+  favors: 3,
+  favorsLastRegenGameDay: 0,
+  markedNpcIds: [],
 };
 
 const EMPTY_SNAPSHOT: WorldSnapshot = {

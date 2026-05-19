@@ -63,10 +63,15 @@ export class PrologueGenerator {
       for (const h of c.headlines) headlines.push(h);
     }
 
+    const interventionCount = this.deps.persistence.countInterventionsBetween(
+      fromGameDay,
+      toGameDay,
+    );
     const prompt = buildProloguePrompt({
       fromGameDay,
       toGameDay,
       allHeadlines: headlines,
+      interventionCount,
     });
     const nowIso = new Date(this.deps.clock.now()).toISOString();
 

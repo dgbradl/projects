@@ -14,9 +14,13 @@ import type { FlavorModeManager } from '../llm/mode.ts';
 import type { NpcManager } from '../npc/manager.ts';
 import type { Persistence } from '../persistence.ts';
 import type { WorldStateManager } from '../state.ts';
+import type { ThreadRunner } from '../threads/runner.ts';
 import { engage, TickScheduler } from '../tick.ts';
 import { TAVERN_ZONES } from '../world/tavern.ts';
+import type { RumorsManager } from '../world/rumors.ts';
+import type { WorldTagsManager } from '../world/tags.ts';
 import { registerChronicleRoutes } from './chronicle-routes.ts';
+import { registerInterventionRoutes } from './intervention-routes.ts';
 
 export interface ApiDeps {
   stateManager: WorldStateManager;
@@ -32,6 +36,10 @@ export interface ApiDeps {
   chroniclePipeline?: ChroniclePipeline;
   prologueGenerator?: PrologueGenerator;
   chronicleMaxEvents?: number;
+  threadRunner?: ThreadRunner;
+  worldTags?: WorldTagsManager;
+  rumors?: RumorsManager;
+  favorsMax?: number;
 }
 
 export interface FlavorStatus {
@@ -79,6 +87,20 @@ export function registerRoutes(app: FastifyInstance, deps: ApiDeps): void {
       prologue: deps.prologueGenerator,
       bus: deps.bus,
       maxEvents: deps.chronicleMaxEvents ?? 25,
+    });
+  }
+
+  if (deps.threadRunner && deps.worldTags && deps.rumors) {
+    registerInterventionRoutes(app, {
+      persistence: deps.persistence,
+      stateManager: deps.stateManager,
+      npcManager: deps.npcManager,
+      bus: deps.bus,
+      clock: deps.clock,
+      threadRunner: deps.threadRunner,
+      worldTags: deps.worldTags,
+      rumors: deps.rumors,
+      favorsMax: deps.favorsMax ?? 5,
     });
   }
 }

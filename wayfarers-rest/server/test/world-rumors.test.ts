@@ -64,10 +64,12 @@ describe('RumorsManager', () => {
       const nearAttached = rumors.rollAttachmentsForArrival(
         nearArrival,
         seededRng('seed', 'near', i),
+        2,
       );
       const farAttached = rumors.rollAttachmentsForArrival(
         farArrival,
         seededRng('seed', 'far', i),
+        2,
       );
       if (nearAttached.length > 0) nearMatches += 1;
       if (farAttached.length > 0) farMatches += 1;

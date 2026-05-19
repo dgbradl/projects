@@ -42,6 +42,9 @@ const WORLD: WorldState = {
   seed: 'seed',
   subTick: 0,
   lastAcknowledgedGameDay: 0,
+  favors: 3,
+  favorsLastRegenGameDay: 0,
+  markedNpcIds: [],
 };
 
 const TAG: WorldTag = { key: 'season', value: 'spring', setOnGameDay: 1 };

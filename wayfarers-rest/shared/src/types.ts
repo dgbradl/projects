@@ -7,6 +7,12 @@ export interface WorldState {
   subTick: number;
   /** Last game day whose chronicle the player has acknowledged. Default 0. */
   lastAcknowledgedGameDay: number;
+  /** Phase 6: current favor pool, [0, FAVORS_MAX]. */
+  favors: number;
+  /** Phase 6: gameDay on which a favor was last added by regen. */
+  favorsLastRegenGameDay: number;
+  /** Phase 6: NPCs currently marked for the keeper's attention. */
+  markedNpcIds: string[];
 }
 
 /** @deprecated Replaced by EventLogEntry + WorldEvent. Kept for migration. */
@@ -65,6 +71,8 @@ export interface Npc {
   item?: string;
   /** Phase 4: how they were feeling on arrival. */
   mood?: NpcMood;
+  /** Phase 6: true if summoned by a `beckon` intervention. */
+  wasBeckoned?: boolean;
 }
 
 export type NpcMood =
@@ -83,6 +91,8 @@ export interface ScheduledArrival {
   archetype?: string;
   originLocationId?: string;
   carriedRumorIds?: string[];
+  /** Phase 6: true if originated from a `beckon` intervention. */
+  wasBeckoned?: boolean;
 }
 
 export interface TavernConfig {
@@ -119,6 +129,8 @@ export interface WorldTag {
   setOnGameDay: number;
 }
 
+export type RumorTone = 'foreboding' | 'curious' | 'mundane' | 'urgent';
+
 export interface Rumor {
   id: string;
   text: string;
@@ -126,6 +138,10 @@ export interface Rumor {
   sourceThreadId?: string;
   available: boolean;
   originLocationId?: string;
+  /** Phase 6: rumor was seeded by a player intervention (carries 2× for 3 days). */
+  playerOrigin?: boolean;
+  /** Phase 6: tone hint from the player. */
+  tone?: RumorTone;
 }
 
 // ---------- Phase 3: Threads ----------
@@ -235,7 +251,93 @@ export type WorldEvent =
       type: 'chronicle_acknowledged';
       gameDay: number;
       acknowledgedUpTo: number;
+    }
+  | {
+      type: 'intervention_used';
+      gameDay: number;
+      intervention: InterventionRecord;
+    }
+  | { type: 'favor_regenerated'; gameDay: number; newTotal: number }
+  | { type: 'npc_marked'; gameDay: number; npcId: string }
+  | {
+      type: 'npc_unmarked';
+      gameDay: number;
+      npcId: string;
+      reason: 'departed' | 'manual';
     };
+
+// ---------- Phase 6: Interventions ----------
+
+export type InterventionKind =
+  | 'plant_rumor'
+  | 'beckon'
+  | 'sway_thread'
+  | 'stir_world'
+  | 'mark_npc';
+
+export type SwayDirection = 'bless' | 'curse';
+
+export interface InterventionEffect {
+  spawnedThreadId?: string;
+  introducedRumorId?: string;
+  changedTag?: { key: string; oldValue: string; newValue: string };
+  markedNpcId?: string;
+  swayedThreadId?: string;
+}
+
+export interface InterventionRecord {
+  id: string;
+  kind: InterventionKind;
+  gameDay: number;
+  realTimestamp: string;
+  cost: number;
+  payload: Record<string, unknown>;
+  effect: InterventionEffect;
+}
+
+export interface InterventionKindStatus {
+  kind: InterventionKind;
+  cost: number;
+  available: boolean;
+  unavailableReason?: string;
+}
+
+export interface InterventionTargets {
+  locations: Array<{ id: string; displayName: string; kind: string }>;
+  archetypes: NpcArchetype[];
+  activeThreads: Array<{
+    id: string;
+    type: string;
+    state: string;
+    describable: string;
+    canSway: boolean;
+  }>;
+  worldTags: Array<{
+    key: string;
+    currentValue: string;
+    permittedValues: string[];
+  }>;
+  npcsInTavern: Array<{
+    id: string;
+    displayName: string;
+    archetype: string;
+    status: NpcStatus;
+    isMarked: boolean;
+  }>;
+}
+
+export interface InterventionOptionsResponse {
+  favors: number;
+  favorsMax: number;
+  kinds: InterventionKindStatus[];
+  targets: InterventionTargets;
+  rumorsForBeckoning: Array<{ id: string; text: string }>;
+}
+
+export interface InterventionExecuteResponse {
+  intervention: InterventionRecord;
+  state: WorldState;
+}
 
 // ---------- Phase 5: Chronicle ----------
 

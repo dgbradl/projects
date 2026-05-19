@@ -5,6 +5,9 @@ import type {
   Npc,
 } from '@shared/types';
 import type { WorldEventBus } from '../events/emitter.ts';
+import * as interventionRegistry from '../interventions/registry.ts';
+import type { InterventionOptions } from '../interventions/types.ts';
+import { LOCATIONS } from '../world/locations.ts';
 import type { Clock } from '../lib/clock.ts';
 import type { FixtureRegistry } from '../llm/fixtures.ts';
 import type { FlavorModeManager } from '../llm/mode.ts';
@@ -12,8 +15,13 @@ import type { OllamaClient } from '../llm/ollama.ts';
 import { LlmError } from '../llm/types.ts';
 import type { NpcManager } from '../npc/manager.ts';
 import type { Persistence } from '../persistence.ts';
+import type { WorldStateManager } from '../state.ts';
 import { buildFallbackChronicle } from './fallback.ts';
-import { buildDailyPrompt, reconstructWorldTagsAt } from './prompt.ts';
+import {
+  buildDailyPrompt,
+  reconstructWorldTagsAt,
+  type InterventionDescription,
+} from './prompt.ts';
 import { select } from './salience.ts';
 import { DEFAULT_ALARMING_VALUES } from './types.ts';
 
@@ -46,6 +54,8 @@ export interface ChronicleGeneratorDeps {
   mode: FlavorModeManager;
   npcManager: NpcManager;
   fixtures: FixtureRegistry | null;
+  /** Phase 6: used to read `markedNpcIds` for salience. Optional for older tests. */
+  stateManager?: WorldStateManager;
 }
 
 const RETRY_DELAY_MS = 3_000;
@@ -110,10 +120,14 @@ export class ChronicleGenerator {
       this.deps.persistence.loadAllThreads().map((t) => [t.id, t]),
     );
 
+    const markedNpcIds = new Set(
+      this.deps.stateManager?.getState().markedNpcIds ?? [],
+    );
     const ctx = {
       npcsById,
       threadsById,
       alarmingValues: DEFAULT_ALARMING_VALUES,
+      markedNpcIds,
     };
     const salient = select(dayEvents, ctx, { maxEvents: this.config.maxEvents });
 
@@ -127,6 +141,14 @@ export class ChronicleGenerator {
       .loadActiveThreads()
       .slice(0, 5);
 
+    // Phase 6: build the "By your hand today" prompt slot.
+    const interventionDescriptions = buildInterventionDescriptions(
+      this.deps.persistence,
+      gameDay,
+      this.deps.npcManager,
+      this.deps.stateManager,
+    );
+
     const prompt = buildDailyPrompt({
       gameDay,
       salientEvents: salient,
@@ -135,6 +157,7 @@ export class ChronicleGenerator {
       yesterdayHeadlines,
       activeThreads,
       npcsById,
+      interventionDescriptions,
     });
 
     const mode = this.deps.mode.getMode();
@@ -279,4 +302,79 @@ function delay(ms: number): Promise<void> {
 function describeError(err: unknown): string {
   if (err instanceof LlmError) return `${err.kind}: ${err.message}`;
   return (err as Error)?.message ?? String(err);
+}
+
+/**
+ * Phase 6: for each intervention performed on this day, look up its definition
+ * and call describe() to produce the "By your hand today" prompt slot.
+ */
+function buildInterventionDescriptions(
+  persistence: Persistence,
+  gameDay: number,
+  npcManager: NpcManager,
+  stateManager: WorldStateManager | undefined,
+): InterventionDescription[] {
+  const records = persistence.loadInterventionsForDay(gameDay);
+  if (records.length === 0) return [];
+
+  // Lightweight options shape for describe(); we only need the lookups.
+  const state = stateManager?.getState();
+  const npcsInTavern = npcManager.getRoster().map((n) => ({
+    id: n.id,
+    displayName: n.displayName,
+    archetype: n.archetype ?? 'wanderer',
+    status: n.status,
+    isMarked: !!state?.markedNpcIds.includes(n.id),
+  }));
+
+  const optionsShape: InterventionOptions = {
+    state: state ?? ({} as never),
+    targets: {
+      locations: LOCATIONS.map((l) => ({
+        id: l.id,
+        displayName: l.displayName,
+        kind: l.kind,
+      })),
+      archetypes: [
+        'wanderer',
+        'merchant',
+        'refugee',
+        'pilgrim',
+        'soldier',
+        'scholar',
+        'rogue',
+      ],
+      activeThreads: persistence.loadAllThreads().map((t) => ({
+        id: t.id,
+        type: t.type,
+        state: t.state,
+        describable: '',
+        canSway: (t.payload as Record<string, unknown>).swayBias === undefined,
+      })),
+      worldTags: persistence.getAllWorldTags().map((tag) => ({
+        key: tag.key,
+        currentValue: tag.value,
+        permittedValues: [],
+      })),
+      npcsInTavern,
+    },
+    availableRumors: persistence.loadAvailableRumors(),
+  };
+
+  const out: InterventionDescription[] = [];
+  for (const record of records) {
+    const def = interventionRegistry.get(record.kind);
+    if (!def) {
+      out.push({ text: `(unknown intervention: ${record.kind})` });
+      continue;
+    }
+    try {
+      out.push({
+        text: def.describe(record.payload as never, optionsShape),
+      });
+    } catch {
+      out.push({ text: `(intervention: ${record.kind})` });
+    }
+  }
+  return out;
 }

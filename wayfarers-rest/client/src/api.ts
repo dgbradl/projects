@@ -3,6 +3,9 @@ import type {
   DailyChronicleWithLedger,
   FlavorMode,
   FlavorPoolStatus,
+  InterventionExecuteResponse,
+  InterventionKind,
+  InterventionOptionsResponse,
   Npc,
   TavernConfig,
   WorldSnapshot,
@@ -42,5 +45,24 @@ export const api = {
     });
     if (!res.ok) throw new Error(`POST /chronicles/acknowledge failed: ${res.status}`);
     return (await res.json()) as WorldState;
+  },
+  getInterventionOptions: () =>
+    jsonGet<InterventionOptionsResponse>('/interventions/options'),
+  postIntervention: async (
+    kind: InterventionKind,
+    payload: Record<string, unknown>,
+  ): Promise<InterventionExecuteResponse> => {
+    const res = await fetch('/interventions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind, payload }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(
+        (body as { error?: string }).error ?? `POST /interventions failed: ${res.status}`,
+      );
+    }
+    return (await res.json()) as InterventionExecuteResponse;
   },
 };

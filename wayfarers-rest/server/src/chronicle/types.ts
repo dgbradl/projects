@@ -4,6 +4,8 @@ export interface SalienceContext {
   npcsById: Map<string, Npc>;
   threadsById: Map<string, Thread>;
   alarmingValues: ReadonlySet<string>;
+  /** Phase 6: NPC ids the player has marked; participant events get +5. */
+  markedNpcIds?: ReadonlySet<string>;
 }
 
 export interface ScoredEvent {

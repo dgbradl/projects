@@ -15,6 +15,9 @@ describe('Persistence', () => {
       seed: 'abc123',
       subTick: 42,
       lastAcknowledgedGameDay: 0,
+      favors: 3,
+      favorsLastRegenGameDay: 0,
+      markedNpcIds: [],
     };
     p.saveState(state);
     expect(p.loadState()).toEqual(state);
@@ -90,6 +93,9 @@ describe('Persistence', () => {
       seed: 'persisted',
       subTick: 0,
       lastAcknowledgedGameDay: 0,
+      favors: 3,
+      favorsLastRegenGameDay: 0,
+      markedNpcIds: [],
     };
     p.saveState(existing);
 

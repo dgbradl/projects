@@ -235,6 +235,7 @@ export class ThreadRunner {
           archetype: op.input.archetype,
           originLocationId: op.input.originLocationId,
           carriedRumorIds: op.input.carriedRumorIds,
+          wasBeckoned: op.input.wasBeckoned,
         };
         this.persistence.saveScheduledArrival(arrival);
         break;
@@ -313,4 +314,14 @@ export class ThreadRunner {
     }
     return PLACEHOLDER_NAMES[h % PLACEHOLDER_NAMES.length];
   }
+}
+
+/**
+ * Phase 6: roll a "lower-is-better" outcome with a player-applied bias.
+ * `swayBias > 0` ("bless") lowers the roll; `swayBias < 0` ("curse") raises it.
+ * Tick functions compare against an upper bound so that a low roll avoids the
+ * bad branch and a high roll selects it.
+ */
+export function biasedRoll(rng: () => number, swayBias = 0): number {
+  return Math.max(0, Math.min(1, rng() - swayBias));
 }

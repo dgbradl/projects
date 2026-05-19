@@ -7,6 +7,7 @@ interface StrangerPayload {
   originLocationId: string;
   archetype?: string;
   carriedRumorIds?: string[];
+  wasBeckoned?: boolean;
 }
 
 export const APPROACHING_STRANGER: ThreadDefinition = {
@@ -23,6 +24,7 @@ export const APPROACHING_STRANGER: ThreadDefinition = {
       originLocationId: payload.originLocationId,
       archetype: payload.archetype,
       carriedRumorIds: payload.carriedRumorIds,
+      wasBeckoned: payload.wasBeckoned,
     });
     return {
       nextState: 'arrived',

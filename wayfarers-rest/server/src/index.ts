@@ -19,6 +19,17 @@ import { RequestGate } from './llm/gate.ts';
 import { FlavorModeManager } from './llm/mode.ts';
 import { OllamaClient } from './llm/ollama.ts';
 import { registerAllPools } from './llm/registry.ts';
+import {
+  FAVORS_MAX_DEFAULT,
+  regenerateForDayTick,
+} from './interventions/favor.ts';
+import './interventions/kinds/index.ts';
+import {
+  buildMarkNpc,
+  buildStirWorld,
+  buildSwayThread,
+} from './interventions/kinds/index.ts';
+import * as interventionRegistry from './interventions/registry.ts';
 import { NpcManager } from './npc/manager.ts';
 import { Persistence } from './persistence.ts';
 import { WorldStateManager } from './state.ts';
@@ -194,12 +205,38 @@ async function main(): Promise<void> {
     },
     bus,
   );
+  // Phase 6: register the three intervention kinds that need runtime deps.
+  // (plant_rumor + beckon self-register on import.)
+  interventionRegistry.register(buildSwayThread({ persistence }));
+  interventionRegistry.register(buildStirWorld({ persistence }));
+  interventionRegistry.register(buildMarkNpc({ npcManager, stateManager, bus }));
+
+  // Phase 6: marked-NPC cleanup on departure.
+  bus.on('world_event', (entry: { event: unknown }) => {
+    const ev = entry.event as { type: string; npcId?: string; gameDay?: number };
+    if (ev.type !== 'npc_departed' || !ev.npcId) return;
+    const s = stateManager.getState();
+    if (!s.markedNpcIds.includes(ev.npcId)) return;
+    stateManager.setState({
+      ...s,
+      markedNpcIds: s.markedNpcIds.filter((id) => id !== ev.npcId),
+    });
+    bus.publish({
+      type: 'npc_unmarked',
+      gameDay: ev.gameDay ?? s.gameDay,
+      npcId: ev.npcId,
+      reason: 'departed',
+    });
+  });
+
   const subTickScheduler = new SubTickScheduler(
     stateManager,
     npcManager,
     clock,
     { subTickIntervalMs: SUBTICK_INTERVAL_MS, subTicksPerDay: SUB_TICKS_PER_DAY },
     threadRunner,
+    // Phase 6: regenerate one favor at the start of each new game day.
+    (newGameDay) => regenerateForDayTick(stateManager, bus, newGameDay),
   );
 
   // ----- Phase 5: chronicle pipeline -----
@@ -212,6 +249,7 @@ async function main(): Promise<void> {
       mode,
       npcManager,
       fixtures,
+      stateManager,
     },
     {
       model: OLLAMA_MODEL,
@@ -257,6 +295,10 @@ async function main(): Promise<void> {
     chroniclePipeline,
     prologueGenerator,
     chronicleMaxEvents: CHRONICLE_MAX_EVENTS,
+    threadRunner,
+    worldTags,
+    rumors,
+    favorsMax: FAVORS_MAX_DEFAULT,
   };
 
   app.addHook('onClose', async () => {

@@ -6,6 +6,7 @@ import './styles/tavern.css';
 import './styles/npc.css';
 import './styles/debug.css';
 import './styles/welcome.css';
+import './styles/intervention.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

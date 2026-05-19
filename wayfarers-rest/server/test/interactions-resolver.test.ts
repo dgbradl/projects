@@ -20,6 +20,9 @@ function fakeWorld(gameDay: number): WorldState {
     seed: 'res-seed',
     subTick: 0,
     lastAcknowledgedGameDay: 0,
+    favors: 3,
+    favorsLastRegenGameDay: 0,
+    markedNpcIds: [],
   };
 }
 

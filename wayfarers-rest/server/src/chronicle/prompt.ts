@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type {
   EventLogEntry,
+  InterventionRecord,
   Npc,
   Thread,
   WorldEvent,
@@ -20,6 +21,11 @@ const PROLOGUE_TEMPLATE = readFileSync(
   'utf8',
 );
 
+export interface InterventionDescription {
+  /** Pre-rendered "by your hand" description. */
+  text: string;
+}
+
 export interface BuildDailyPromptInput {
   gameDay: number;
   salientEvents: EventLogEntry[];
@@ -28,6 +34,8 @@ export interface BuildDailyPromptInput {
   yesterdayHeadlines: string[];
   activeThreads: Thread[];
   npcsById: Map<string, Npc>;
+  /** Phase 6: descriptions of player interventions performed on this day. */
+  interventionDescriptions?: InterventionDescription[];
 }
 
 export function buildDailyPrompt(input: BuildDailyPromptInput): string {
@@ -41,9 +49,18 @@ export function buildDailyPrompt(input: BuildDailyPromptInput): string {
       formatActiveThreads(input.activeThreads),
     )
     .replace(
+      '{interventionDescriptions}',
+      formatInterventions(input.interventionDescriptions ?? []),
+    )
+    .replace(
       '{eventList}',
       formatEventList(input.salientEvents, input.npcsById),
     );
+}
+
+function formatInterventions(items: InterventionDescription[]): string {
+  if (items.length === 0) return '(you did not intervene)';
+  return items.map((i) => `- ${i.text}`).join('\n');
 }
 
 export interface BuildProloguePromptInput {
@@ -51,6 +68,8 @@ export interface BuildProloguePromptInput {
   toGameDay: number;
   /** Headlines from each chronicle in the range, in order. */
   allHeadlines: string[];
+  /** Phase 6: number of interventions performed during the span. */
+  interventionCount?: number;
 }
 
 export function buildProloguePrompt(input: BuildProloguePromptInput): string {
@@ -58,9 +77,14 @@ export function buildProloguePrompt(input: BuildProloguePromptInput): string {
   const lines = input.allHeadlines.length
     ? input.allHeadlines.map((h) => `- ${h}`).join('\n')
     : '(no notable headlines)';
+  const hint =
+    input.interventionCount && input.interventionCount > 0
+      ? `Across these days you exercised ${input.interventionCount} of your favors.`
+      : '';
   return PROLOGUE_TEMPLATE
     .replace('{dayCount}', String(dayCount))
-    .replace('{allHeadlinesConcatenated}', lines);
+    .replace('{allHeadlinesConcatenated}', lines)
+    .replace('{playerActionHint}', hint);
 }
 
 function formatTags(tags: WorldTag[]): string {

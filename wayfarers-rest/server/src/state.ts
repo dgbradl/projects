@@ -33,6 +33,9 @@ export class WorldStateManager extends EventEmitter {
         seed: seedFactory(),
         subTick: 0,
         lastAcknowledgedGameDay: 0,
+        favors: 3,
+        favorsLastRegenGameDay: 0,
+        markedNpcIds: [],
       };
       persistence.saveState(this.state);
       this.wasColdStart = true;

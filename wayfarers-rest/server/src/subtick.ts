@@ -8,6 +8,8 @@ export interface SubTickConfig {
   subTicksPerDay: number;
 }
 
+export type OnDayChange = (newGameDay: number) => void;
+
 export class SubTickScheduler {
   private interval: NodeJS.Timeout | null = null;
   private lastGameDay: number;
@@ -19,12 +21,15 @@ export class SubTickScheduler {
     private readonly clock: Clock,
     private readonly config: SubTickConfig,
     private readonly threadRunner?: ThreadRunner,
+    /** Phase 6: invoked before npcManager.onMacroTick on each day change. */
+    private readonly onDayChange?: OnDayChange,
   ) {
     this.lastGameDay = stateManager.getState().gameDay;
     this.nextDueAtMs = clock.now() + config.subTickIntervalMs;
 
     stateManager.on('state', (state) => {
       if (state.gameDay !== this.lastGameDay) {
+        this.onDayChange?.(state.gameDay);
         this.npcManager.onMacroTick(state.gameDay);
         this.threadRunner?.runDay(state.gameDay, state, state.seed);
         this.lastGameDay = state.gameDay;

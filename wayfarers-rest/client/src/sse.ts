@@ -62,6 +62,12 @@ export function subscribe(
           },
         });
       }
+      if (data.event.type === 'intervention_used') {
+        dispatch({
+          type: 'INTERVENTION_LANDED',
+          payload: data.event.intervention,
+        });
+      }
     });
 
     source.addEventListener('flavor_status', (ev: MessageEvent<string>) => {

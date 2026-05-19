@@ -7,6 +7,8 @@ export interface ScheduleArrivalInput {
   archetype?: string;
   originLocationId?: string;
   carriedRumorIds?: string[];
+  /** Phase 6: flag set by `beckon` intervention; carried onto the spawned NPC. */
+  wasBeckoned?: boolean;
 }
 
 export interface IntroduceRumorHelperInput {

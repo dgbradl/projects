@@ -3,6 +3,7 @@ import type {
   ChroniclePrologue,
   DailyChronicle,
   EventLogEntry,
+  InterventionRecord,
   Rumor,
   ScheduledArrival,
   Thread,
@@ -23,6 +24,19 @@ interface WorldStateRow {
   sub_tick: number;
   roster: string;
   last_acknowledged_game_day: number;
+  favors: number;
+  favors_last_regen_game_day: number;
+  marked_npc_ids: string;
+}
+
+interface InterventionRow {
+  id: string;
+  kind: string;
+  game_day: number;
+  real_timestamp: string;
+  cost: number;
+  payload: string;
+  effect: string;
 }
 
 interface ChronicleRow {
@@ -76,6 +90,8 @@ interface RumorRow {
   source_thread_id: string | null;
   available: number;
   origin_location_id: string | null;
+  player_origin: number | null;
+  tone: string | null;
 }
 
 interface ScheduledArrivalRow {
@@ -86,6 +102,7 @@ interface ScheduledArrivalRow {
   archetype: string | null;
   origin_location_id: string | null;
   carried_rumor_ids: string | null;
+  was_beckoned: number | null;
 }
 
 const DEFAULT_ROSTER_JSON = '{"npcs":[],"spawnQueue":[]}';
@@ -166,7 +183,8 @@ export class Persistence {
         scheduled_sub_tick INTEGER NOT NULL,
         archetype TEXT,
         origin_location_id TEXT,
-        carried_rumor_ids TEXT
+        carried_rumor_ids TEXT,
+        was_beckoned INTEGER NOT NULL DEFAULT 0
       );
 
       CREATE TABLE IF NOT EXISTS flavor_cache (
@@ -202,6 +220,18 @@ export class Persistence {
         status TEXT NOT NULL,
         PRIMARY KEY (from_game_day, to_game_day)
       );
+
+      CREATE TABLE IF NOT EXISTS interventions (
+        id TEXT PRIMARY KEY,
+        kind TEXT NOT NULL,
+        game_day INTEGER NOT NULL,
+        real_timestamp TEXT NOT NULL,
+        cost INTEGER NOT NULL,
+        payload TEXT NOT NULL,
+        effect TEXT NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_interventions_game_day ON interventions(game_day);
     `);
 
     this.addColumnIfMissing('world_state', 'sub_tick', 'INTEGER NOT NULL DEFAULT 0');
@@ -213,6 +243,24 @@ export class Persistence {
     this.addColumnIfMissing(
       'world_state',
       'last_acknowledged_game_day',
+      'INTEGER NOT NULL DEFAULT 0',
+    );
+    this.addColumnIfMissing('world_state', 'favors', 'INTEGER NOT NULL DEFAULT 3');
+    this.addColumnIfMissing(
+      'world_state',
+      'favors_last_regen_game_day',
+      'INTEGER NOT NULL DEFAULT 0',
+    );
+    this.addColumnIfMissing(
+      'world_state',
+      'marked_npc_ids',
+      "TEXT NOT NULL DEFAULT '[]'",
+    );
+    this.addColumnIfMissing('rumors', 'player_origin', 'INTEGER NOT NULL DEFAULT 0');
+    this.addColumnIfMissing('rumors', 'tone', 'TEXT');
+    this.addColumnIfMissing(
+      'scheduled_arrivals',
+      'was_beckoned',
       'INTEGER NOT NULL DEFAULT 0',
     );
   }
@@ -284,6 +332,15 @@ export class Persistence {
     if (row.status !== 'running' && row.status !== 'paused') {
       throw new Error(`Invalid status in DB: ${row.status}`);
     }
+    let markedNpcIds: string[] = [];
+    try {
+      const parsed = JSON.parse(row.marked_npc_ids ?? '[]');
+      if (Array.isArray(parsed)) {
+        markedNpcIds = parsed.filter((x): x is string => typeof x === 'string');
+      }
+    } catch {
+      markedNpcIds = [];
+    }
     return {
       gameDay: row.game_day,
       lastTickAt: row.last_tick_at,
@@ -292,14 +349,17 @@ export class Persistence {
       seed: row.seed,
       subTick: row.sub_tick,
       lastAcknowledgedGameDay: row.last_acknowledged_game_day ?? 0,
+      favors: row.favors ?? 0,
+      favorsLastRegenGameDay: row.favors_last_regen_game_day ?? 0,
+      markedNpcIds,
     };
   }
 
   saveState(state: WorldState): void {
     this.db
       .prepare(
-        `INSERT INTO world_state (id, game_day, last_tick_at, status, unattended_ticks, seed, sub_tick, last_acknowledged_game_day)
-         VALUES (1, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO world_state (id, game_day, last_tick_at, status, unattended_ticks, seed, sub_tick, last_acknowledged_game_day, favors, favors_last_regen_game_day, marked_npc_ids)
+         VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET
            game_day = excluded.game_day,
            last_tick_at = excluded.last_tick_at,
@@ -307,7 +367,10 @@ export class Persistence {
            unattended_ticks = excluded.unattended_ticks,
            seed = excluded.seed,
            sub_tick = excluded.sub_tick,
-           last_acknowledged_game_day = excluded.last_acknowledged_game_day`,
+           last_acknowledged_game_day = excluded.last_acknowledged_game_day,
+           favors = excluded.favors,
+           favors_last_regen_game_day = excluded.favors_last_regen_game_day,
+           marked_npc_ids = excluded.marked_npc_ids`,
       )
       .run(
         state.gameDay,
@@ -317,6 +380,9 @@ export class Persistence {
         state.seed,
         state.subTick,
         state.lastAcknowledgedGameDay,
+        state.favors,
+        state.favorsLastRegenGameDay,
+        JSON.stringify(state.markedNpcIds ?? []),
       );
   }
 
@@ -489,14 +555,16 @@ export class Persistence {
   saveRumor(rumor: Rumor): void {
     this.db
       .prepare(
-        `INSERT INTO rumors (id, text, introduced_game_day, source_thread_id, available, origin_location_id)
-         VALUES (?, ?, ?, ?, ?, ?)
+        `INSERT INTO rumors (id, text, introduced_game_day, source_thread_id, available, origin_location_id, player_origin, tone)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET
            text = excluded.text,
            introduced_game_day = excluded.introduced_game_day,
            source_thread_id = excluded.source_thread_id,
            available = excluded.available,
-           origin_location_id = excluded.origin_location_id`,
+           origin_location_id = excluded.origin_location_id,
+           player_origin = excluded.player_origin,
+           tone = excluded.tone`,
       )
       .run(
         rumor.id,
@@ -505,6 +573,8 @@ export class Persistence {
         rumor.sourceThreadId ?? null,
         rumor.available ? 1 : 0,
         rumor.originLocationId ?? null,
+        rumor.playerOrigin ? 1 : 0,
+        rumor.tone ?? null,
       );
   }
 
@@ -538,22 +608,33 @@ export class Persistence {
     sourceThreadId: r.source_thread_id ?? undefined,
     available: r.available === 1,
     originLocationId: r.origin_location_id ?? undefined,
+    playerOrigin: r.player_origin === 1 ? true : undefined,
+    tone: (r.tone as Rumor['tone']) ?? undefined,
   });
+
+  loadRumorById(id: string): Rumor | null {
+    const row = this.db
+      .prepare('SELECT * FROM rumors WHERE id = ?')
+      .get(id) as RumorRow | undefined;
+    if (!row) return null;
+    return this.rowToRumor(row);
+  }
 
   // ---------- scheduled_arrivals ----------
 
   saveScheduledArrival(arrival: ScheduledArrival): void {
     this.db
       .prepare(
-        `INSERT INTO scheduled_arrivals (npc_id, display_name, scheduled_game_day, scheduled_sub_tick, archetype, origin_location_id, carried_rumor_ids)
-         VALUES (?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO scheduled_arrivals (npc_id, display_name, scheduled_game_day, scheduled_sub_tick, archetype, origin_location_id, carried_rumor_ids, was_beckoned)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(npc_id) DO UPDATE SET
            display_name = excluded.display_name,
            scheduled_game_day = excluded.scheduled_game_day,
            scheduled_sub_tick = excluded.scheduled_sub_tick,
            archetype = excluded.archetype,
            origin_location_id = excluded.origin_location_id,
-           carried_rumor_ids = excluded.carried_rumor_ids`,
+           carried_rumor_ids = excluded.carried_rumor_ids,
+           was_beckoned = excluded.was_beckoned`,
       )
       .run(
         arrival.npcId,
@@ -563,6 +644,7 @@ export class Persistence {
         arrival.archetype ?? null,
         arrival.originLocationId ?? null,
         arrival.carriedRumorIds ? JSON.stringify(arrival.carriedRumorIds) : null,
+        arrival.wasBeckoned ? 1 : 0,
       );
   }
 
@@ -598,6 +680,7 @@ export class Persistence {
     archetype: r.archetype ?? undefined,
     originLocationId: r.origin_location_id ?? undefined,
     carriedRumorIds: r.carried_rumor_ids ? JSON.parse(r.carried_rumor_ids) : undefined,
+    wasBeckoned: r.was_beckoned === 1 ? true : undefined,
   });
 
   // ---------- flavor_cache ----------
@@ -747,6 +830,78 @@ export class Persistence {
         prologue.generatedAtRealTs,
         prologue.status,
       );
+  }
+
+  // ---------- interventions ----------
+
+  insertIntervention(record: InterventionRecord): void {
+    this.db
+      .prepare(
+        `INSERT INTO interventions (id, kind, game_day, real_timestamp, cost, payload, effect)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        record.id,
+        record.kind,
+        record.gameDay,
+        record.realTimestamp,
+        record.cost,
+        JSON.stringify(record.payload),
+        JSON.stringify(record.effect),
+      );
+  }
+
+  loadInterventionsForDay(gameDay: number): InterventionRecord[] {
+    const rows = this.db
+      .prepare(
+        'SELECT * FROM interventions WHERE game_day = ? ORDER BY real_timestamp ASC, id ASC',
+      )
+      .all(gameDay) as InterventionRow[];
+    return rows.map(this.rowToIntervention);
+  }
+
+  loadRecentInterventions(limit: number): InterventionRecord[] {
+    const rows = this.db
+      .prepare(
+        'SELECT * FROM interventions ORDER BY game_day DESC, real_timestamp DESC LIMIT ?',
+      )
+      .all(limit) as InterventionRow[];
+    return rows.map(this.rowToIntervention);
+  }
+
+  countInterventionsOnDay(gameDay: number): number {
+    const row = this.db
+      .prepare('SELECT COUNT(*) AS n FROM interventions WHERE game_day = ?')
+      .get(gameDay) as { n: number };
+    return row.n;
+  }
+
+  countInterventionsBetween(fromGameDay: number, toGameDay: number): number {
+    const row = this.db
+      .prepare(
+        'SELECT COUNT(*) AS n FROM interventions WHERE game_day >= ? AND game_day <= ?',
+      )
+      .get(fromGameDay, toGameDay) as { n: number };
+    return row.n;
+  }
+
+  private rowToIntervention = (r: InterventionRow): InterventionRecord => ({
+    id: r.id,
+    kind: r.kind as InterventionRecord['kind'],
+    gameDay: r.game_day,
+    realTimestamp: r.real_timestamp,
+    cost: r.cost,
+    payload: JSON.parse(r.payload),
+    effect: JSON.parse(r.effect),
+  });
+
+  /**
+   * Returns a function that runs `fn` inside a SQLite transaction.
+   * The function is synchronous (better-sqlite3 transactions are sync).
+   */
+  transaction<T>(fn: () => T): T {
+    const wrapped = this.db.transaction(fn);
+    return wrapped();
   }
 
   loadChroniclePrologue(

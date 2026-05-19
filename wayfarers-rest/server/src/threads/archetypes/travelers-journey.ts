@@ -1,5 +1,6 @@
 import { locationById } from '../../world/locations.ts';
 import { registerThread } from '../registry.ts';
+import { biasedRoll } from '../runner.ts';
 import type { ThreadDefinition, ThreadTickResult } from '../types.ts';
 
 interface JourneyPayload {
@@ -26,7 +27,10 @@ export const TRAVELERS_JOURNEY: ThreadDefinition = {
           | undefined;
         const misfortuneChance =
           roadSafetyTag === 'poor' ? 0.18 : roadSafetyTag === 'good' ? 0.02 : 0.05;
-        if (rng() < misfortuneChance) {
+        // Phase 6: a sway intervention can bias this outcome.
+        // Convention: lower roll = better outcome (avoids misfortune).
+        const sway = ((thread.payload as Record<string, unknown>).swayBias as number) ?? 0;
+        if (biasedRoll(rng, sway) > 1 - misfortuneChance) {
           return {
             nextState: 'met_misfortune',
             nextTickDelay: 1,

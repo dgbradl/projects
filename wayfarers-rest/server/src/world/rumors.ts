@@ -93,8 +93,14 @@ export class RumorsManager {
   /**
    * Roll which available rumors to attach to a fresh arrival. Probability rises
    * with distance from the rumor's origin. Hard cap of 2 carried per arrival.
+   *
+   * Phase 6: player-seeded rumors carry 2× weight for their first 3 game days.
    */
-  rollAttachmentsForArrival(arrival: ScheduledArrival, rng: Rng): string[] {
+  rollAttachmentsForArrival(
+    arrival: ScheduledArrival,
+    rng: Rng,
+    currentGameDay: number,
+  ): string[] {
     const attached: string[] = [];
     const arrivalOrigin = arrival.originLocationId
       ? locationById(arrival.originLocationId)
@@ -106,18 +112,30 @@ export class RumorsManager {
       const rumorOrigin = rumor.originLocationId
         ? locationById(rumor.originLocationId)
         : undefined;
+      const boost =
+        rumor.playerOrigin && currentGameDay - rumor.introducedGameDay < 3
+          ? 2
+          : 1;
       if (rumorOrigin && rumorOrigin.id === arrival.originLocationId) {
-        // Same-origin: very likely to carry.
-        if (rng() < 0.7) attached.push(rumor.id);
+        if (rng() < Math.min(1, 0.7 * boost)) attached.push(rumor.id);
         continue;
       }
       const rumorDistance = rumorOrigin?.distanceDays ?? 5;
-      // Distant travelers know distant news: prob = (arrivalDistance / 10) * 0.5.
-      // Closer rumors are less interesting to faraway travelers.
       const base = Math.min(1, arrivalDistance / 10);
-      const prob = base * 0.5 * Math.min(1, rumorDistance / 10);
+      const prob = Math.min(1, base * 0.5 * Math.min(1, rumorDistance / 10) * boost);
       if (rng() < prob) attached.push(rumor.id);
     }
     return attached;
+  }
+
+  /**
+   * Phase 6: mark a rumor row as player-seeded and stamp its tone.
+   * Used by `plant_rumor.apply` after the regular `introduce` call so that
+   * the carry-weight boost and chronicle hints take effect.
+   */
+  markPlayerOrigin(rumorId: string, tone: import('@shared/types').RumorTone): void {
+    const rumor = this.persistence.loadRumorById(rumorId);
+    if (!rumor) return;
+    this.persistence.saveRumor({ ...rumor, playerOrigin: true, tone });
   }
 }

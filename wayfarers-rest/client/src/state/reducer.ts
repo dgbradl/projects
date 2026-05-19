@@ -5,6 +5,8 @@ import type {
   EventLogEntry,
   FlavorMode,
   FlavorPoolStatus,
+  InterventionOptionsResponse,
+  InterventionRecord,
   Npc,
   Rumor,
   ScheduledArrival,
@@ -40,6 +42,12 @@ export interface AppState {
   flavorMode: FlavorMode;
   flavorPools: FlavorPoolStatus[];
   welcome: WelcomeSlice | null;
+  /** Phase 6: intervention UI + history. */
+  interventionPickerOpen: boolean;
+  interventionOptions: InterventionOptionsResponse | null;
+  recentInterventions: InterventionRecord[];
+  /** Wall-clock ms timestamp until which the landing animation should show. */
+  landingAnimationUntil: number | null;
 }
 
 export const initialState: AppState = {
@@ -55,7 +63,13 @@ export const initialState: AppState = {
   flavorMode: 'placeholder',
   flavorPools: [],
   welcome: null,
+  interventionPickerOpen: false,
+  interventionOptions: null,
+  recentInterventions: [],
+  landingAnimationUntil: null,
 };
+
+const LANDING_ANIMATION_MS = 1_500;
 
 function buildWelcome(payload: ChroniclesSinceResponse): WelcomeSlice {
   const map: Record<number, DailyChronicle | 'pending'> = {};
@@ -143,6 +157,20 @@ export function reducer(state: AppState, action: Action): AppState {
     case 'WELCOME_DISMISSED':
       if (!state.welcome) return state;
       return { ...state, welcome: { ...state.welcome, show: false } };
+    case 'INTERVENTION_OPTIONS_LOADED':
+      return { ...state, interventionOptions: action.payload };
+    case 'INTERVENTION_PICKER_OPENED':
+      return { ...state, interventionPickerOpen: true };
+    case 'INTERVENTION_PICKER_CLOSED':
+      return { ...state, interventionPickerOpen: false };
+    case 'INTERVENTION_LANDED': {
+      const recent = [action.payload, ...state.recentInterventions].slice(0, 20);
+      return {
+        ...state,
+        recentInterventions: recent,
+        landingAnimationUntil: Date.now() + LANDING_ANIMATION_MS,
+      };
+    }
     default:
       return state;
   }

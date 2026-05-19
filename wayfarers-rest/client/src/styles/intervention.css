@@ -1,0 +1,232 @@
+.favor-indicator {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.75rem;
+  background: rgba(15, 12, 8, 0.92);
+  border: 1px solid #3a2a1c;
+  border-radius: 0.5rem;
+  color: var(--ink);
+  font-family: 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  font-size: 0.85rem;
+  cursor: pointer;
+  z-index: 6;
+}
+
+.favor-indicator:hover {
+  border-color: var(--accent);
+}
+
+.favor-glyphs {
+  display: inline-flex;
+  gap: 0.3rem;
+}
+
+.favor-glyph {
+  width: 0.6rem;
+  height: 0.95rem;
+  border-radius: 0.1rem 0.1rem 0.3rem 0.3rem;
+  background: #2a1f15;
+  border: 1px solid #5a4a32;
+  position: relative;
+}
+
+.favor-glyph::before {
+  content: '';
+  position: absolute;
+  top: -0.18rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0.18rem;
+  height: 0.32rem;
+  background: #1d130a;
+  border-radius: 50%;
+}
+
+.favor-lit {
+  background: linear-gradient(180deg, #efb766, #b07730);
+  border-color: var(--accent-strong);
+  box-shadow: 0 0 6px rgba(239, 183, 102, 0.4);
+}
+
+.favor-lit::before {
+  background: #fff5c2;
+  box-shadow: 0 0 6px #f0d57a;
+}
+
+.favor-count {
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.intervention-picker {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 24rem;
+  max-width: 50vw;
+  padding: 1rem 1.2rem;
+  background: rgba(15, 12, 8, 0.97);
+  border-left: 1px solid #3a2a1c;
+  color: var(--ink);
+  font-family: 'Iowan Old Style', Georgia, serif;
+  z-index: 7;
+  overflow-y: auto;
+}
+
+.intervention-picker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #3a2a1c;
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.intervention-picker-header span {
+  font-size: 1.05rem;
+  color: var(--accent-strong);
+}
+
+.intervention-picker-close {
+  background: none;
+  border: none;
+  color: var(--ink-dim);
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.intervention-kinds {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.intervention-kind {
+  width: 100%;
+  text-align: left;
+  padding: 0.6rem 0.75rem;
+  background: rgba(243, 228, 197, 0.05);
+  border: 1px solid #3a2a1c;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.25rem 1rem;
+}
+
+.intervention-kind:hover:not(:disabled) {
+  background: rgba(243, 228, 197, 0.09);
+  border-color: var(--accent);
+}
+
+.intervention-kind:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.intervention-kind-cost {
+  color: var(--accent-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.intervention-kind-reason {
+  grid-column: 1 / -1;
+  color: var(--ink-dim);
+  font-size: 0.78rem;
+  font-style: italic;
+}
+
+.intervention-target,
+.intervention-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.intervention-target label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  color: var(--ink-dim);
+  font-size: 0.9rem;
+}
+
+.intervention-target select {
+  background: #1d130a;
+  color: var(--ink);
+  border: 1px solid #3a2a1c;
+  padding: 0.35rem 0.5rem;
+  font-family: inherit;
+  font-size: 0.92rem;
+}
+
+.intervention-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.intervention-actions button {
+  background: none;
+  border: 1px solid #3a2a1c;
+  color: var(--ink);
+  padding: 0.4rem 0.9rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.intervention-actions button:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
+
+.intervention-actions button:last-child {
+  border-color: var(--accent-strong);
+  color: var(--accent-strong);
+}
+
+.intervention-summary {
+  font-size: 1rem;
+  color: var(--ink);
+}
+
+.intervention-error {
+  color: var(--danger);
+  font-size: 0.88rem;
+}
+
+.landing-pulse {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 28rem;
+  height: 28rem;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(
+    circle,
+    rgba(239, 183, 102, 0.35) 0%,
+    rgba(239, 183, 102, 0.18) 35%,
+    rgba(239, 183, 102, 0) 70%
+  );
+  z-index: 8;
+  animation: landing-pulse-anim 1.5s ease-out forwards;
+}
+
+@keyframes landing-pulse-anim {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+  30% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.4); }
+}

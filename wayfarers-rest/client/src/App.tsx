@@ -1,6 +1,9 @@
 import { useEffect } from 'react';
 import { api } from './api.ts';
 import { DebugPanel } from './components/DebugPanel.tsx';
+import { FavorIndicator } from './components/FavorIndicator.tsx';
+import { InterventionPicker } from './components/InterventionPicker.tsx';
+import { LandingAnimation } from './components/LandingAnimation.tsx';
 import { PauseOverlay } from './components/PauseOverlay.tsx';
 import { StatusBar } from './components/StatusBar.tsx';
 import { Tavern } from './components/Tavern.tsx';
@@ -77,6 +80,9 @@ function Bootstrap() {
       <main className="app-main">
         <Tavern />
         <PauseOverlay />
+        <FavorIndicator />
+        <InterventionPicker />
+        <LandingAnimation />
         {tavern && <DebugPanel />}
       </main>
     </div>

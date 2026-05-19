@@ -278,6 +278,7 @@ function materializeArrival(
       : rumors?.rollAttachmentsForArrival(
           arrival,
           seededRng(worldSeed, 'rumor-attach', arrival.npcId),
+          currentGameDay,
         ) ?? [];
 
   // Pick deterministic archetype + mood for this NPC. archetype may already be
@@ -333,5 +334,6 @@ function materializeArrival(
     tagline: garnish.tagline || undefined,
     item: garnish.item || undefined,
     mood,
+    wasBeckoned: arrival.wasBeckoned,
   };
 }

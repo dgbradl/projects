@@ -4,6 +4,8 @@ import type {
   EventLogEntry,
   FlavorMode,
   FlavorPoolStatus,
+  InterventionOptionsResponse,
+  InterventionRecord,
   Npc,
   NpcDiff,
   TavernConfig,
@@ -35,4 +37,8 @@ export type Action =
   | { type: 'FLAVOR_STATUS'; payload: FlavorStatusPayload }
   | { type: 'WELCOME_OPENED'; payload: ChroniclesSinceResponse }
   | { type: 'CHRONICLE_FILLED'; payload: DailyChronicle }
-  | { type: 'WELCOME_DISMISSED' };
+  | { type: 'WELCOME_DISMISSED' }
+  | { type: 'INTERVENTION_OPTIONS_LOADED'; payload: InterventionOptionsResponse }
+  | { type: 'INTERVENTION_PICKER_OPENED' }
+  | { type: 'INTERVENTION_PICKER_CLOSED' }
+  | { type: 'INTERVENTION_LANDED'; payload: InterventionRecord };
