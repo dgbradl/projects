@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { tavernSprites, tavernSpritesByCategory } from '../assets/tavernSprites.ts';
 import { useStore } from '../state/store.tsx';
 
 export function DebugPanel() {
@@ -147,6 +148,29 @@ export function DebugPanel() {
             </li>
           ))}
         </ul>
+      </details>
+
+      <details data-testid="debug-sprites">
+        <summary>sprite gallery ({tavernSprites.length})</summary>
+        {tavernSpritesByCategory.map(([category, sprites]) => (
+          <div key={category} className="sprite-group">
+            <div className="sprite-group-label">
+              <span className="debug-key">{category}</span>{' '}
+              <span className="debug-dim">({sprites.length})</span>
+            </div>
+            <div className="sprite-grid">
+              {sprites.map((sprite) => (
+                <div
+                  key={sprite.name}
+                  className="sprite-cell"
+                  title={sprite.name}
+                >
+                  <img src={sprite.url} alt={sprite.name} loading="lazy" />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
       </details>
     </aside>
   );

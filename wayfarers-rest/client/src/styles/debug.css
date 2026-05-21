@@ -124,3 +124,35 @@
   cursor: pointer;
   z-index: 5;
 }
+
+.sprite-group {
+  margin: 0.4rem 0;
+}
+
+.sprite-group-label {
+  margin-bottom: 0.2rem;
+}
+
+.sprite-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.sprite-cell {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(243, 228, 197, 0.05);
+  border: 1px solid #3a2a1c;
+  border-radius: 3px;
+}
+
+.sprite-cell img {
+  max-width: 44px;
+  max-height: 44px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}

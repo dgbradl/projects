@@ -140,4 +140,17 @@ describe('DebugPanel', () => {
     expect(screen.queryByTestId('debug-panel')).toBeNull();
     expect(screen.getByTestId('debug-toggle')).toBeTruthy();
   });
+
+  it('lists every cut sprite in the gallery section', () => {
+    render(
+      <StoreProvider>
+        <Seeded>
+          <DebugPanel />
+        </Seeded>
+      </StoreProvider>,
+    );
+    const gallery = screen.getByTestId('debug-sprites');
+    expect(within(gallery).getByText(/sprite gallery \(47\)/)).toBeTruthy();
+    expect(gallery.querySelectorAll('img')).toHaveLength(47);
+  });
 });
