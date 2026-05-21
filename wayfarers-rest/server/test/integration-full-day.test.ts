@@ -139,16 +139,21 @@ describe('integration: a full game day in recorded mode', () => {
     const sawFixtureName = arrivedNames.some((n) => knownFixtureNames.includes(n));
     expect(sawFixtureName).toBe(true);
 
-    // At least one rumor with fixture-style prose (not the placeholder template).
+    // Recorded mode must yield authored prose for rumors, never the
+    // deterministic placeholder fallback. Authored prose covers both fixture
+    // rumors and the explicit text thread archetypes introduce; only the
+    // placeholder templates (see `rumorPlaceholder`) are disqualifying, each
+    // identifiable by a fixed phrase the substitutions leave intact.
     const rumorTexts = rumors.getAll().map((r) => r.text);
-    // Fixture rumor texts contain "Oldspire" or "Gilden Field" — neither appears
-    // in the placeholder template format.
-    const sawProseRumor = rumorTexts.some(
-      (t) => t.includes('Oldspire') || t.includes('Gilden Field'),
-    );
-    if (rumorTexts.length > 0) {
-      expect(sawProseRumor).toBe(true);
-    }
+    const PLACEHOLDER_MARKERS = [
+      'or so they say',
+      'two nights back',
+      "half the tellers don't agree",
+      'You hear it more than once now',
+    ];
+    const isPlaceholderRumor = (t: string) =>
+      PLACEHOLDER_MARKERS.some((marker) => t.includes(marker));
+    expect(rumorTexts.some(isPlaceholderRumor)).toBe(false);
 
     // At least one interaction in the log; check it has overheardText.
     const interactionEvents = events.filter(
