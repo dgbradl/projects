@@ -24,10 +24,11 @@ export function seedPhase3World(opts: {
   worldTags.set('road_safety_south', 'fair', gameDay);
 
   // Slow-burn world arcs.
-  // Phase 7 (D4): a richer war arc than the old worldly_event sequence.
+  // Phase 7 (D4): a richer war arc than the old worldly_event sequence. It
+  // begins in the second week so the opening days stay about arrivals.
   threadRunner.startThread({
     type: 'war_escalation',
-    initialNextTickDelay: 4,
+    initialNextTickDelay: 10,
     gameDay,
   });
   threadRunner.startThread({
