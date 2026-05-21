@@ -54,7 +54,7 @@ const PORT = parseInt(process.env.PORT ?? '3000', 10);
 const HOST = process.env.HOST ?? '0.0.0.0';
 
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434';
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? 'qwen2.5:7b';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? 'llama3.1:8b';
 const OLLAMA_REQUEST_TIMEOUT_MS = parseInt(
   process.env.OLLAMA_REQUEST_TIMEOUT_MS ?? '30000',
   10,

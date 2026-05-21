@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import type { WorldSnapshot } from '@shared/types';
 import { api } from './api.ts';
 import { DebugPanel } from './components/DebugPanel.tsx';
 import { FavorIndicator } from './components/FavorIndicator.tsx';
@@ -20,11 +21,20 @@ function Bootstrap() {
     let unsubscribe: (() => void) | null = null;
     (async () => {
       try {
+        // getWorld/getFlavor feed peripheral UI only; fall back to empty data
+        // on failure so a non-critical endpoint can't block the tavern loading.
         const [tavernConfig, state, npcs, worldSnap, flavor] = await Promise.all([
           api.getTavern(),
           api.getState(),
           api.getNpcs(),
-          api.getWorld(),
+          api.getWorld().catch(
+            (): WorldSnapshot => ({
+              worldTags: [],
+              threads: [],
+              pendingArrivals: [],
+              rumors: [],
+            }),
+          ),
           api.getFlavor().catch(() => ({ mode: 'placeholder' as const, pools: [] })),
         ]);
         if (cancelled) return;
