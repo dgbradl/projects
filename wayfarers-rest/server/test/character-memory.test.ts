@@ -19,6 +19,10 @@ import {
   rememberRumors,
 } from '../src/npc/character-memory.ts';
 import { Persistence } from '../src/persistence.ts';
+import '../src/threads/archetypes/index.ts'; // registers the relationship archetype
+import { ThreadRunner } from '../src/threads/runner.ts';
+import { RumorsManager } from '../src/world/rumors.ts';
+import { WorldTagsManager } from '../src/world/tags.ts';
 
 const NOW = Date.parse('2026-01-01T00:00:00.000Z');
 
@@ -235,5 +239,115 @@ describe('CharacterMemoryRecorder', () => {
     seed('marked-one');
     bus.publish({ type: 'npc_marked', gameDay: 2, npcId: 'marked-one' });
     expect(persistence.loadCharacter('marked-one')!.memory.timesMarked).toBe(1);
+  });
+});
+
+describe('CharacterMemoryRecorder — relationship threads (B3)', () => {
+  function setup() {
+    const persistence = new Persistence(':memory:');
+    const bus = new WorldEventBus(persistence, new FakeClock(NOW));
+    const runner = new ThreadRunner(
+      persistence,
+      bus,
+      new WorldTagsManager(persistence, bus),
+      new RumorsManager(persistence, bus),
+    );
+    const recorder = new CharacterMemoryRecorder(persistence, runner);
+    const seed = (id: string) =>
+      persistence.upsertCharacter({
+        id,
+        displayName: id,
+        archetype: 'wanderer',
+        firstSeenGameDay: 1,
+        lastSeenGameDay: 1,
+        visitCount: 1,
+        memory: emptyMemory(),
+      });
+    return { persistence, recorder, seed };
+  }
+
+  function interact(
+    recorder: CharacterMemoryRecorder,
+    aId: string,
+    bId: string,
+    kind: InteractionKind,
+    gameDay: number,
+  ): void {
+    recorder.handle({
+      type: 'interaction',
+      gameDay,
+      interaction: {
+        id: `int-${gameDay}`,
+        gameDay,
+        subTick: 0,
+        zone: 'bar',
+        participantIds: [aId, bId],
+        kind,
+      },
+    });
+  }
+
+  function relationshipThreads(persistence: Persistence) {
+    return persistence.loadAllThreads().filter((t) => t.type === 'relationship');
+  }
+
+  it('spawns a friendship thread once affinity crosses the threshold', () => {
+    const { persistence, recorder, seed } = setup();
+    seed('borin');
+    seed('sera');
+    // Six shared drinks (+3 each) lift affinity to the +18 threshold.
+    for (let i = 1; i <= 6; i += 1) {
+      interact(recorder, 'borin', 'sera', 'shared_drink', i);
+    }
+    const threads = relationshipThreads(persistence);
+    expect(threads).toHaveLength(1);
+    expect(threads[0].payload.kind).toBe('friendship');
+    expect(threads[0].payload).toMatchObject({ aName: 'borin', bName: 'sera' });
+  });
+
+  it('spawns a feud thread once arguments drive affinity to the floor', () => {
+    const { persistence, recorder, seed } = setup();
+    seed('a');
+    seed('b');
+    // Five arguments (-4 each) drop affinity to -20, past the -18 threshold.
+    for (let i = 1; i <= 5; i += 1) {
+      interact(recorder, 'a', 'b', 'overheard_argument', i);
+    }
+    const threads = relationshipThreads(persistence);
+    expect(threads).toHaveLength(1);
+    expect(threads[0].payload.kind).toBe('feud');
+  });
+
+  it('spawns only one relationship thread per pair, even on a re-crossing', () => {
+    const { persistence, recorder, seed } = setup();
+    seed('a');
+    seed('b');
+    for (let i = 1; i <= 6; i += 1) {
+      interact(recorder, 'a', 'b', 'shared_drink', i); // → 18, spawns
+    }
+    interact(recorder, 'a', 'b', 'overheard_argument', 7); // 18 → 14, dips below
+    interact(recorder, 'a', 'b', 'shared_drink', 8); // 14 → 17
+    interact(recorder, 'a', 'b', 'shared_drink', 9); // 17 → 20, re-crosses
+    expect(relationshipThreads(persistence)).toHaveLength(1);
+  });
+
+  it('does not spawn a thread without a threadRunner', () => {
+    const persistence = new Persistence(':memory:');
+    const recorder = new CharacterMemoryRecorder(persistence); // no runner
+    for (const id of ['a', 'b']) {
+      persistence.upsertCharacter({
+        id,
+        displayName: id,
+        archetype: 'wanderer',
+        firstSeenGameDay: 1,
+        lastSeenGameDay: 1,
+        visitCount: 1,
+        memory: emptyMemory(),
+      });
+    }
+    for (let i = 1; i <= 6; i += 1) {
+      interact(recorder, 'a', 'b', 'shared_drink', i);
+    }
+    expect(persistence.loadAllThreads()).toHaveLength(0);
   });
 });

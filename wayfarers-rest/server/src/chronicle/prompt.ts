@@ -143,6 +143,13 @@ export function threadHeadline(thread: Thread): string {
       const next = sequence[cursor] ?? '?';
       return `${key} drifts toward ${next}`;
     }
+    case 'relationship': {
+      const aName = (payload.aName as string | undefined) ?? 'someone';
+      const bName = (payload.bName as string | undefined) ?? 'someone';
+      return payload.kind === 'feud'
+        ? `${aName} and ${bName} are at odds`
+        : `${aName} and ${bName} have grown close`;
+    }
     default:
       return `${thread.type} is in progress`;
   }

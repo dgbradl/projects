@@ -16,6 +16,7 @@ import type {
 } from '@shared/types';
 import type { WorldEventBus } from '../events/emitter.ts';
 import type { Persistence } from '../persistence.ts';
+import type { ThreadRunner } from '../threads/runner.ts';
 
 /** Cap on `rumorsHeard` so a long-lived character's memory stays bounded. */
 const RUMORS_HEARD_CAP = 50;
@@ -36,6 +37,12 @@ const AFFINITY_DELTAS: Record<InteractionKind, number> = {
 export function clampAffinity(value: number): number {
   return Math.max(AFFINITY_MIN, Math.min(AFFINITY_MAX, value));
 }
+
+/**
+ * Phase 7 (B3): affinity magnitude at which a relationship thread spawns —
+ * a friendship at +threshold, a feud at -threshold.
+ */
+export const RELATIONSHIP_THRESHOLD = 18;
 
 const INTERACTION_KINDS: ReadonlySet<string> = new Set<InteractionKind>([
   'shared_drink',
@@ -168,9 +175,16 @@ export function rememberDeparture(
  * character's memory: interactions, departures, and keeper marks. Rumors heard
  * and beckons are recorded at materialize time (see `materializeArrival`),
  * since those facts aren't carried by a discrete event.
+ *
+ * Phase 7 (B3): when an interaction pushes a pair's affinity past
+ * `RELATIONSHIP_THRESHOLD`, the recorder also spawns a relationship thread
+ * (requires a `threadRunner`).
  */
 export class CharacterMemoryRecorder {
-  constructor(private readonly persistence: Persistence) {}
+  constructor(
+    private readonly persistence: Persistence,
+    private readonly threadRunner?: ThreadRunner,
+  ) {}
 
   attach(bus: WorldEventBus): void {
     bus.on('world_event', (entry: EventLogEntry) => this.handle(entry.event));
@@ -199,12 +213,75 @@ export class CharacterMemoryRecorder {
   private onInteraction(interaction: Interaction): void {
     const [aId, bId] = interaction.participantIds;
     if (!aId || !bId) return;
+    const affinityBefore = this.affinityBetween(aId, bId);
     this.update(aId, (m) =>
       rememberEncounter(m, bId, interaction.kind, interaction.gameDay),
     );
     this.update(bId, (m) =>
       rememberEncounter(m, aId, interaction.kind, interaction.gameDay),
     );
+    this.maybeSpawnRelationship(aId, bId, affinityBefore, interaction.gameDay);
+  }
+
+  /**
+   * Spawn a relationship thread when this interaction pushed the pair's
+   * affinity across an extreme for the first time.
+   */
+  private maybeSpawnRelationship(
+    aId: string,
+    bId: string,
+    affinityBefore: number,
+    gameDay: number,
+  ): void {
+    if (!this.threadRunner) return;
+    const after = this.affinityBetween(aId, bId);
+    let kind: 'friendship' | 'feud' | undefined;
+    if (
+      affinityBefore < RELATIONSHIP_THRESHOLD &&
+      after >= RELATIONSHIP_THRESHOLD
+    ) {
+      kind = 'friendship';
+    } else if (
+      affinityBefore > -RELATIONSHIP_THRESHOLD &&
+      after <= -RELATIONSHIP_THRESHOLD
+    ) {
+      kind = 'feud';
+    }
+    if (!kind) return;
+    if (this.hasRelationshipThread(aId, bId)) return;
+    const a = this.persistence.loadCharacter(aId);
+    const b = this.persistence.loadCharacter(bId);
+    this.threadRunner.startThread({
+      type: 'relationship',
+      payload: {
+        aId,
+        bId,
+        aName: a?.displayName ?? aId,
+        bName: b?.displayName ?? bId,
+        kind,
+      },
+      gameDay,
+    });
+  }
+
+  /** a's current affinity toward b (0 if they have no encounter on record). */
+  private affinityBetween(aId: string, bId: string): number {
+    const character = this.persistence.loadCharacter(aId);
+    const encounter = character?.memory.encounters.find(
+      (e) => e.characterId === bId,
+    );
+    return encounter?.affinity ?? 0;
+  }
+
+  /** True if a relationship thread already exists for this unordered pair. */
+  private hasRelationshipThread(aId: string, bId: string): boolean {
+    return this.persistence.loadAllThreads().some((t) => {
+      if (t.type !== 'relationship') return false;
+      const p = t.payload as { aId?: unknown; bId?: unknown };
+      return (
+        (p.aId === aId && p.bId === bId) || (p.aId === bId && p.bId === aId)
+      );
+    });
   }
 
   private update(
