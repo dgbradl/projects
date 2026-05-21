@@ -19,7 +19,7 @@ export const RELATIONSHIP: ThreadDefinition = {
   type: 'relationship',
   initialState: 'forming',
   initialNextTickDelay: 2,
-  tick({ thread }) {
+  tick({ thread, helpers }) {
     const payload = thread.payload as unknown as RelationshipPayload;
     const { aName, bName, kind } = payload;
     const friendly = kind === 'friendship';
@@ -34,7 +34,19 @@ export const RELATIONSHIP: ThreadDefinition = {
             : `bad blood has settled between ${aName} and ${bName}`,
         };
 
-      case 'established':
+      case 'established': {
+        if (!friendly) {
+          // Phase 7 (D1): a hardened personal feud spills outward — the
+          // quarrel becomes a tavern-wide matter of its own.
+          helpers.spawnThread({
+            type: 'feud',
+            payload: {
+              sideA: aName,
+              sideB: bName,
+              tagKey: `feud_${payload.aId}_${payload.bId}`,
+            },
+          });
+        }
         return {
           nextState: 'settled',
           nextTickDelay: 0,
@@ -43,6 +55,7 @@ export const RELATIONSHIP: ThreadDefinition = {
             : `the feud between ${aName} and ${bName} has hardened into lasting enmity`,
           completes: { outcome: kind },
         };
+      }
 
       default:
         return {
