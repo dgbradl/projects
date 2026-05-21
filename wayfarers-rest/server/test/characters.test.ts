@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Character, ScheduledArrival } from '@shared/types';
 import { WorldEventBus } from '../src/events/emitter.ts';
 import { FakeClock } from '../src/lib/clock.ts';
+import { emptyMemory } from '../src/npc/character-memory.ts';
 import { NpcManager } from '../src/npc/manager.ts';
 import { Persistence } from '../src/persistence.ts';
 
@@ -38,6 +39,7 @@ describe('Persistence — characters', () => {
       firstSeenGameDay: 3,
       lastSeenGameDay: 3,
       visitCount: 1,
+      memory: emptyMemory(),
     };
     persistence.upsertCharacter(c);
     expect(persistence.loadCharacter('c1')).toEqual(c);
@@ -77,6 +79,7 @@ describe('NpcManager — character identity', () => {
       firstSeenGameDay: 1,
       lastSeenGameDay: 1,
       visitCount: 1,
+      memory: emptyMemory(),
     });
     // Schedule them to return on day 2. The archetype here is the
     // non-canonical 'returning_traveler' string the journey thread uses —
@@ -104,5 +107,24 @@ describe('NpcManager — character identity', () => {
     expect(character.archetype).toBe('scholar');
     expect(character.firstSeenGameDay).toBe(1);
     expect(character.lastSeenGameDay).toBe(2);
+  });
+
+  it('records carried rumors and a beckon into the arriving character', () => {
+    const { persistence, npcManager } = build();
+    persistence.saveScheduledArrival({
+      npcId: 'beckoned-1',
+      displayName: 'Garrick Vale',
+      scheduledGameDay: 1,
+      scheduledSubTick: 0,
+      carriedRumorIds: ['rumor-a', 'rumor-b'],
+      wasBeckoned: true,
+    });
+
+    npcManager.onMacroTick(1); // merges the scheduled arrival
+    npcManager.onSubTick(1, 0); // materializes it
+
+    const memory = persistence.loadCharacter('beckoned-1')!.memory;
+    expect(memory.rumorsHeard).toEqual(['rumor-a', 'rumor-b']);
+    expect(memory.timesBeckoned).toBe(1);
   });
 });

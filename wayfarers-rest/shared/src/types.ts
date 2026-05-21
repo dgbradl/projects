@@ -109,6 +109,37 @@ export interface Character {
   lastSeenGameDay: number;
   /** Number of times this character has arrived at the tavern. */
   visitCount: number;
+  /** Phase 7 (A2): what this character carries forward between visits. */
+  memory: CharacterMemory;
+}
+
+/** Phase 7 (A2): one other character this character has crossed paths with. */
+export interface CharacterEncounter {
+  /** The other character met. */
+  characterId: string;
+  /** Most recent interaction kind shared with them. */
+  lastKind: InteractionKind;
+  /** Total interactions shared with them. */
+  count: number;
+  /** Game day of the most recent interaction. */
+  lastGameDay: number;
+}
+
+/**
+ * Phase 7 (A2): a character's accumulated memory. Recorded as events flow and
+ * surfaced (A3) in arrival flavor, the chronicle, and interaction bias.
+ */
+export interface CharacterMemory {
+  /** Rumor ids this character has carried into the tavern (deduped, capped). */
+  rumorsHeard: string[];
+  /** Other characters they have interacted with, aggregated per character. */
+  encounters: CharacterEncounter[];
+  /** Times the keeper summoned this character with a `beckon`. */
+  timesBeckoned: number;
+  /** Times the keeper marked this character for attention. */
+  timesMarked: number;
+  /** Location this character last departed toward, if any. */
+  lastDestinationLocationId?: string;
 }
 
 export interface TavernConfig {

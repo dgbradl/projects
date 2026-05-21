@@ -30,6 +30,7 @@ import {
   buildSwayThread,
 } from './interventions/kinds/index.ts';
 import * as interventionRegistry from './interventions/registry.ts';
+import { CharacterMemoryRecorder } from './npc/character-memory.ts';
 import { NpcManager } from './npc/manager.ts';
 import { Persistence } from './persistence.ts';
 import { WorldStateManager } from './state.ts';
@@ -102,6 +103,9 @@ async function main(): Promise<void> {
   const clock = new RealClock();
   const stateManager = new WorldStateManager(persistence, clock);
   const bus = new WorldEventBus(persistence, clock);
+
+  // Phase 7 (A2): keep each character's memory current as events flow.
+  new CharacterMemoryRecorder(persistence).attach(bus);
 
   const worldTags = new WorldTagsManager(persistence, bus);
   const rumors = new RumorsManager(persistence, bus);

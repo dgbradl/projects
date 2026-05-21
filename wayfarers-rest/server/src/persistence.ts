@@ -14,6 +14,7 @@ import type {
   WorldTag,
 } from '@shared/types';
 import type { RosterSnapshot } from './npc/manager.ts';
+import { emptyMemory, parseCharacterMemory } from './npc/character-memory.ts';
 
 interface WorldStateRow {
   id: number;
@@ -102,6 +103,7 @@ interface CharacterRow {
   first_seen_game_day: number;
   last_seen_game_day: number;
   visit_count: number;
+  memory: string;
 }
 
 interface ScheduledArrivalRow {
@@ -116,6 +118,7 @@ interface ScheduledArrivalRow {
 }
 
 const DEFAULT_ROSTER_JSON = '{"npcs":[],"spawnQueue":[]}';
+const DEFAULT_MEMORY_JSON = JSON.stringify(emptyMemory());
 
 export class Persistence {
   private db: Database.Database;
@@ -249,7 +252,8 @@ export class Persistence {
         archetype TEXT NOT NULL,
         first_seen_game_day INTEGER NOT NULL,
         last_seen_game_day INTEGER NOT NULL,
-        visit_count INTEGER NOT NULL DEFAULT 0
+        visit_count INTEGER NOT NULL DEFAULT 0,
+        memory TEXT NOT NULL DEFAULT '${DEFAULT_MEMORY_JSON}'
       );
     `);
 
@@ -274,6 +278,11 @@ export class Persistence {
       'world_state',
       'marked_npc_ids',
       "TEXT NOT NULL DEFAULT '[]'",
+    );
+    this.addColumnIfMissing(
+      'characters',
+      'memory',
+      `TEXT NOT NULL DEFAULT '${DEFAULT_MEMORY_JSON}'`,
     );
     this.addColumnIfMissing('rumors', 'player_origin', 'INTEGER NOT NULL DEFAULT 0');
     this.addColumnIfMissing('rumors', 'tone', 'TEXT');
@@ -956,14 +965,15 @@ export class Persistence {
     this.db
       .prepare(
         `INSERT INTO characters
-          (id, display_name, archetype, first_seen_game_day, last_seen_game_day, visit_count)
-         VALUES (?, ?, ?, ?, ?, ?)
+          (id, display_name, archetype, first_seen_game_day, last_seen_game_day, visit_count, memory)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET
            display_name = excluded.display_name,
            archetype = excluded.archetype,
            first_seen_game_day = excluded.first_seen_game_day,
            last_seen_game_day = excluded.last_seen_game_day,
-           visit_count = excluded.visit_count`,
+           visit_count = excluded.visit_count,
+           memory = excluded.memory`,
       )
       .run(
         character.id,
@@ -972,6 +982,7 @@ export class Persistence {
         character.firstSeenGameDay,
         character.lastSeenGameDay,
         character.visitCount,
+        JSON.stringify(character.memory),
       );
   }
 
@@ -991,6 +1002,7 @@ export class Persistence {
     firstSeenGameDay: r.first_seen_game_day,
     lastSeenGameDay: r.last_seen_game_day,
     visitCount: r.visit_count,
+    memory: parseCharacterMemory(r.memory),
   });
 
   close(): void {

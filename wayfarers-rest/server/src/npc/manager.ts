@@ -18,6 +18,11 @@ import type { RumorsManager } from '../world/rumors.ts';
 import type { ThreadRunner } from '../threads/runner.ts';
 import { decideNextState, jitterInsideZone } from './behavior.ts';
 import {
+  emptyMemory,
+  rememberBeckon,
+  rememberRumors,
+} from './character-memory.ts';
+import {
   absoluteSubTick,
   generateDeparture,
   generateSpawnQueue,
@@ -331,11 +336,18 @@ function materializeArrival(
     ? existingCharacter.displayName
     : garnish.name || arrival.displayName;
 
+  // Phase 7 (A2): fold this visit's facts into the character's memory —
+  // rumors carried in, and a beckon if the keeper summoned them.
+  let memory = existingCharacter ? existingCharacter.memory : emptyMemory();
+  memory = rememberRumors(memory, rumorIds);
+  if (arrival.wasBeckoned) memory = rememberBeckon(memory);
+
   const character: Character = existingCharacter
     ? {
         ...existingCharacter,
         lastSeenGameDay: currentGameDay,
         visitCount: existingCharacter.visitCount + 1,
+        memory,
       }
     : {
         id: arrival.npcId,
@@ -344,6 +356,7 @@ function materializeArrival(
         firstSeenGameDay: currentGameDay,
         lastSeenGameDay: currentGameDay,
         visitCount: 1,
+        memory,
       };
   persistence.upsertCharacter(character);
 
