@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events';
 import type {
   ArrivalGarnish,
+  Character,
   Npc,
   NpcArchetype,
   NpcDiff,
@@ -179,6 +180,7 @@ export class NpcManager extends EventEmitter {
           this.deps.rumors,
           this.deps.flavorCache,
           currentGameDay,
+          this.deps.persistence,
         );
         this.roster.set(npc.id, npc);
         diff.added.push(npc);
@@ -264,6 +266,7 @@ function materializeArrival(
   rumors: RumorsManager | undefined,
   flavorCache: FlavorCache | undefined,
   currentGameDay: number,
+  persistence: Persistence,
 ): Npc {
   const rng = seededRng(worldSeed, 'materialize', arrival.npcId);
   const departure = generateDeparture({
@@ -281,11 +284,18 @@ function materializeArrival(
           currentGameDay,
         ) ?? [];
 
-  // Pick deterministic archetype + mood for this NPC. archetype may already be
-  // set by the spawn queue (tag-modulated) or by a thread-spawned arrival —
-  // the latter sometimes uses non-canonical strings like 'returning_traveler',
-  // which we map to a canonical Phase 4 archetype so the cache lookup works.
-  const archetype = canonicalizeArchetype(arrival.archetype);
+  // Phase 7: load-or-create the durable Character behind this arrival. A
+  // returning traveller arrives under their original id, so their record
+  // already exists and carries the archetype + display name to restore.
+  const existingCharacter = persistence.loadCharacter(arrival.npcId);
+
+  // archetype may be set by the spawn queue (tag-modulated) or by a
+  // thread-spawned arrival — the latter uses non-canonical strings like
+  // 'returning_traveler'. A returning character keeps their established
+  // archetype; a stranger's is canonicalized so the cache lookup works.
+  const archetype = existingCharacter
+    ? existingCharacter.archetype
+    : canonicalizeArchetype(arrival.archetype);
   const mood = rngPick(
     seededRng(worldSeed, 'mood', arrival.npcId),
     MOODS,
@@ -315,11 +325,31 @@ function materializeArrival(
         item: '',
       };
 
+  // A returning character keeps their established name; only a brand-new
+  // stranger takes the cache-supplied (or queued placeholder) name.
+  const displayName = existingCharacter
+    ? existingCharacter.displayName
+    : garnish.name || arrival.displayName;
+
+  const character: Character = existingCharacter
+    ? {
+        ...existingCharacter,
+        lastSeenGameDay: currentGameDay,
+        visitCount: existingCharacter.visitCount + 1,
+      }
+    : {
+        id: arrival.npcId,
+        displayName,
+        archetype,
+        firstSeenGameDay: currentGameDay,
+        lastSeenGameDay: currentGameDay,
+        visitCount: 1,
+      };
+  persistence.upsertCharacter(character);
+
   return {
     id: arrival.npcId,
-    // Cache-supplied name takes priority over the queue's placeholder name
-    // when the cache is in `llm` mode and a real name is available.
-    displayName: garnish.name || arrival.displayName,
+    displayName,
     status: 'arriving',
     position: jitterInsideZone('door', rng),
     zone: 'door',

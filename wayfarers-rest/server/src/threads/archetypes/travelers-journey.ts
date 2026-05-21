@@ -68,6 +68,9 @@ export const TRAVELERS_JOURNEY: ThreadDefinition = {
           originLocationId: payload.destinationLocationId,
           carriedRumorIds: undefined,
           archetype: 'returning_traveler',
+          // Phase 7: reuse the original id so the same Character returns —
+          // their archetype and visit history are restored on materialize.
+          npcId: payload.npcId,
         });
         return {
           nextState: 'returned_to_tavern',

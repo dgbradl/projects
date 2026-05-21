@@ -9,6 +9,11 @@ export interface ScheduleArrivalInput {
   carriedRumorIds?: string[];
   /** Phase 6: flag set by `beckon` intervention; carried onto the spawned NPC. */
   wasBeckoned?: boolean;
+  /**
+   * Phase 7: when set, the arrival reuses this id instead of minting a fresh
+   * one — used so a returning traveller arrives as the same Character.
+   */
+  npcId?: string;
 }
 
 export interface IntroduceRumorHelperInput {

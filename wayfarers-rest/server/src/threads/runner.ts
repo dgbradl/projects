@@ -138,7 +138,10 @@ export class ThreadRunner {
     const ops: HelperOp[] = [];
     const helpers: ThreadHelpers = {
       scheduleArrival: (input) => {
-        const npcId = this.mintArrivalId(thread.id, currentGameDay, ops);
+        // Phase 7: an explicit npcId means a known Character is returning, so
+        // reuse it; otherwise mint a fresh deterministic id for a stranger.
+        const npcId =
+          input.npcId ?? this.mintArrivalId(thread.id, currentGameDay, ops);
         ops.push({ kind: 'arrival', input, npcId });
         return npcId;
       },

@@ -95,6 +95,22 @@ export interface ScheduledArrival {
   wasBeckoned?: boolean;
 }
 
+/**
+ * Phase 7: a durable person. An `Npc` is a character's *current presence* in
+ * the tavern and is discarded when they depart; a `Character` persists across
+ * visits so a returning traveller keeps their identity and history.
+ * Invariant: `Npc.id === Character.id`.
+ */
+export interface Character {
+  id: string;
+  displayName: string;
+  archetype: NpcArchetype;
+  firstSeenGameDay: number;
+  lastSeenGameDay: number;
+  /** Number of times this character has arrived at the tavern. */
+  visitCount: number;
+}
+
 export interface TavernConfig {
   zones: Zone[];
   subTickIntervalMs: number;

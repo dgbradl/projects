@@ -87,4 +87,50 @@ describe('travelers_journey archetype', () => {
     expect(aThread.state).toBe(bThread.state);
     expect(aThread.history).toEqual(bThread.history);
   });
+
+  it('a returning traveller is rescheduled under their original npcId', () => {
+    // Phase 7: each journey that completes the return leg must reschedule the
+    // arrival under the origin npcId — never a freshly-minted thread id — so
+    // the same Character comes back.
+    const originIds = ['npc_d1_0', 'npc_d1_4', 'npc_d2_3', 'npc_d3_7', 'npc_d4_2'];
+    let returnsSeen = 0;
+
+    for (const npcId of originIds) {
+      const p = new Persistence(':memory:');
+      const clock = new FakeClock(NOW);
+      const bus = new WorldEventBus(p, clock);
+      const tags = new WorldTagsManager(p, bus);
+      const rumors = new RumorsManager(p, bus);
+      const runner = new ThreadRunner(p, bus, tags, rumors);
+      const thread = runner.startThread({
+        type: 'travelers_journey',
+        payload: {
+          npcId,
+          displayName: 'Iliana Brookfoot',
+          destinationLocationId: 'hollow_wood',
+          trip: 'outbound',
+        },
+        initialNextTickDelay: 3,
+        gameDay: 5,
+      });
+      runUntilDay(runner, 6, 80, 'tj-seed');
+
+      const arrivals = p.loadUpcomingScheduledArrivals(0, 10_000);
+      // No return is ever scheduled under a minted thread arrival id.
+      for (const a of arrivals) {
+        expect(a.npcId.startsWith('npc_thread_')).toBe(false);
+      }
+
+      const final = p.loadAllThreads().find((t) => t.id === thread.id) as Thread;
+      if (final.history.some((h) => h.state === 'returned_to_tavern')) {
+        returnsSeen += 1;
+        const mine = arrivals.find((a) => a.npcId === npcId);
+        expect(mine).toBeDefined();
+        expect(mine!.displayName).toBe('Iliana Brookfoot');
+      }
+    }
+
+    // The return path must actually have been exercised by the sample.
+    expect(returnsSeen).toBeGreaterThan(0);
+  });
 });

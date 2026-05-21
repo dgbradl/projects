@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
 import type {
+  Character,
   ChroniclePrologue,
   DailyChronicle,
   EventLogEntry,
@@ -92,6 +93,15 @@ interface RumorRow {
   origin_location_id: string | null;
   player_origin: number | null;
   tone: string | null;
+}
+
+interface CharacterRow {
+  id: string;
+  display_name: string;
+  archetype: string;
+  first_seen_game_day: number;
+  last_seen_game_day: number;
+  visit_count: number;
 }
 
 interface ScheduledArrivalRow {
@@ -232,6 +242,15 @@ export class Persistence {
       );
 
       CREATE INDEX IF NOT EXISTS idx_interventions_game_day ON interventions(game_day);
+
+      CREATE TABLE IF NOT EXISTS characters (
+        id TEXT PRIMARY KEY,
+        display_name TEXT NOT NULL,
+        archetype TEXT NOT NULL,
+        first_seen_game_day INTEGER NOT NULL,
+        last_seen_game_day INTEGER NOT NULL,
+        visit_count INTEGER NOT NULL DEFAULT 0
+      );
     `);
 
     this.addColumnIfMissing('world_state', 'sub_tick', 'INTEGER NOT NULL DEFAULT 0');
@@ -922,6 +941,57 @@ export class Persistence {
       status: row.status as ChroniclePrologue['status'],
     };
   }
+
+  // ---------- characters (Phase 7) ----------
+
+  loadCharacter(id: string): Character | null {
+    const row = this.db
+      .prepare('SELECT * FROM characters WHERE id = ?')
+      .get(id) as CharacterRow | undefined;
+    if (!row) return null;
+    return this.rowToCharacter(row);
+  }
+
+  upsertCharacter(character: Character): void {
+    this.db
+      .prepare(
+        `INSERT INTO characters
+          (id, display_name, archetype, first_seen_game_day, last_seen_game_day, visit_count)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           display_name = excluded.display_name,
+           archetype = excluded.archetype,
+           first_seen_game_day = excluded.first_seen_game_day,
+           last_seen_game_day = excluded.last_seen_game_day,
+           visit_count = excluded.visit_count`,
+      )
+      .run(
+        character.id,
+        character.displayName,
+        character.archetype,
+        character.firstSeenGameDay,
+        character.lastSeenGameDay,
+        character.visitCount,
+      );
+  }
+
+  loadAllCharacters(): Character[] {
+    const rows = this.db
+      .prepare(
+        'SELECT * FROM characters ORDER BY first_seen_game_day ASC, id ASC',
+      )
+      .all() as CharacterRow[];
+    return rows.map(this.rowToCharacter);
+  }
+
+  private rowToCharacter = (r: CharacterRow): Character => ({
+    id: r.id,
+    displayName: r.display_name,
+    archetype: r.archetype as Character['archetype'],
+    firstSeenGameDay: r.first_seen_game_day,
+    lastSeenGameDay: r.last_seen_game_day,
+    visitCount: r.visit_count,
+  });
 
   close(): void {
     this.db.close();
