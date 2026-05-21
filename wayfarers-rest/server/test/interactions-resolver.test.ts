@@ -108,40 +108,45 @@ describe('InteractionResolver', () => {
     expect(arrivals.length).toBeGreaterThan(0);
   });
 
-  it('characters who have met before lean toward silent_recognition', () => {
+  it('affinity steers interaction kinds — friends drink, rivals argue', () => {
     const { p, bus, runner } = build();
     const resolver = new InteractionResolver(bus, runner, undefined, p);
 
-    // friend-a remembers a prior shared_drink with friend-b.
-    p.upsertCharacter({
-      id: 'friend-a',
-      displayName: 'A',
-      archetype: 'wanderer',
-      firstSeenGameDay: 1,
-      lastSeenGameDay: 1,
-      visitCount: 2,
-      memory: {
-        rumorsHeard: [],
-        encounters: [
-          {
-            characterId: 'friend-b',
-            lastKind: 'shared_drink',
-            count: 1,
-            lastGameDay: 1,
-            affinity: 12,
-          },
-        ],
-        timesBeckoned: 0,
-        timesMarked: 0,
-      },
-    });
+    // Give `id` a memory of `otherId` at the given affinity.
+    function remember(id: string, otherId: string, affinity: number): void {
+      p.upsertCharacter({
+        id,
+        displayName: id,
+        archetype: 'wanderer',
+        firstSeenGameDay: 1,
+        lastSeenGameDay: 1,
+        visitCount: 2,
+        memory: {
+          rumorsHeard: [],
+          encounters: [
+            {
+              characterId: otherId,
+              lastKind: 'shared_drink',
+              count: 1,
+              lastGameDay: 1,
+              affinity,
+            },
+          ],
+          timesBeckoned: 0,
+          timesMarked: 0,
+        },
+      });
+    }
+    remember('friend-a', 'friend-b', 25); // close friends
+    remember('rival-a', 'rival-b', -25); // bitter rivals
+    remember('known-a', 'known-b', 0); // mere acquaintances
 
-    function countSilentRecognition(aId: string, bId: string): number {
-      let n = 0;
+    function tally(aId: string, bId: string): Record<string, number> {
+      const counts: Record<string, number> = {};
       for (let i = 0; i < 400; i += 1) {
         const a = npc(aId);
         const b = npc(bId);
-        const interaction = resolver.resolve(
+        const { kind } = resolver.resolve(
           { participantIds: [aId, bId], zone: 'table_a' },
           {
             worldSeed: 'res-seed',
@@ -151,14 +156,25 @@ describe('InteractionResolver', () => {
             perDayCounter: { value: i },
           },
         );
-        if (interaction.kind === 'silent_recognition') n += 1;
+        counts[kind] = (counts[kind] ?? 0) + 1;
       }
-      return n;
+      return counts;
     }
 
-    const met = countSilentRecognition('friend-a', 'friend-b');
-    const strangers = countSilentRecognition('stranger-a', 'stranger-b');
-    expect(met).toBeGreaterThan(0);
-    expect(met).toBeGreaterThan(strangers);
+    const friends = tally('friend-a', 'friend-b');
+    const rivals = tally('rival-a', 'rival-b');
+    const acquaintances = tally('known-a', 'known-b');
+    const strangers = tally('stranger-a', 'stranger-b');
+
+    // Friends drink together far more than strangers do.
+    expect(friends.shared_drink ?? 0).toBeGreaterThan(strangers.shared_drink ?? 0);
+    // Rivals fall into arguments far more than strangers do.
+    expect(rivals.overheard_argument ?? 0).toBeGreaterThan(
+      strangers.overheard_argument ?? 0,
+    );
+    // Any prior meeting raises plain recognition.
+    expect(acquaintances.silent_recognition ?? 0).toBeGreaterThan(
+      strangers.silent_recognition ?? 0,
+    );
   });
 });

@@ -1,4 +1,5 @@
 import type {
+  CharacterEncounter,
   Interaction,
   InteractionKind,
   Npc,
@@ -6,6 +7,7 @@ import type {
 } from '@shared/types';
 import type { WorldEventBus } from '../events/emitter.ts';
 import type { FlavorCache } from '../llm/cache/manager.ts';
+import { AFFINITY_MAX, AFFINITY_MIN } from '../npc/character-memory.ts';
 import type { Persistence } from '../persistence.ts';
 import type { ThreadRunner } from '../threads/runner.ts';
 import { randomLocation } from '../world/locations.ts';
@@ -131,28 +133,29 @@ export class InteractionResolver {
     ) {
       weights.whispered_exchange += 0.25;
     }
-    // Phase 7 (A3): two characters who have crossed paths before recognise
-    // each other — and tend to repeat the tenor of their last meeting.
-    const priorKind = this.priorEncounterKind(a, b);
-    if (priorKind) {
-      weights.silent_recognition += 0.3;
-      if (priorKind === 'shared_drink') weights.shared_drink += 0.3;
-      else if (priorKind === 'overheard_argument') weights.overheard_argument += 0.3;
+    // Phase 7 (B2): two characters who have met recognise each other, and
+    // their standing colours the encounter — friends drink, rivals argue.
+    // The pull scales with how strong the bond (or grudge) has grown.
+    const prior = this.priorEncounter(a, b);
+    if (prior) {
+      weights.silent_recognition += 0.2;
+      if (prior.affinity > 0) {
+        weights.shared_drink += (prior.affinity / AFFINITY_MAX) * 0.6;
+      } else if (prior.affinity < 0) {
+        weights.overheard_argument += (prior.affinity / AFFINITY_MIN) * 0.6;
+      }
     }
     return weightedPick(weights, rng);
   }
 
-  /** The kind of the most recent prior interaction between a and b, if any. */
-  private priorEncounterKind(
+  /** The standing record between a and b from a's memory, if they have met. */
+  private priorEncounter(
     a: Npc | undefined,
     b: Npc | undefined,
-  ): InteractionKind | undefined {
+  ): CharacterEncounter | undefined {
     if (!this.persistence || !a || !b) return undefined;
     const character = this.persistence.loadCharacter(a.id);
-    const encounter = character?.memory.encounters.find(
-      (e) => e.characterId === b.id,
-    );
-    return encounter?.lastKind;
+    return character?.memory.encounters.find((e) => e.characterId === b.id);
   }
 }
 
