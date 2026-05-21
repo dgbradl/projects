@@ -29,6 +29,7 @@ function Seeded() {
       payload: {
         favors: 2,
         favorsMax: 5,
+        coin: 200,
         kinds: [],
         targets: {
           locations: [],

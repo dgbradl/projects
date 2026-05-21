@@ -26,14 +26,22 @@ export interface GuestSpendInput {
   affinitySum: number;
   /** True if the stay crossed a game-day boundary (they took a room). */
   stayedOvernight: boolean;
+  /** Economy (E3): larder stock level (0 = base) — lifts meal spend. */
+  larderStock?: number;
+  /** Economy (E3): hearth comfort level (0 = base) — lifts room spend. */
+  hearthLevel?: number;
 }
 
 /** Per-archetype drink spend band, [min, max] inclusive. */
 const DRINK_BAND: Record<NpcArchetype, readonly [number, number]> = {
+  knight: [6, 12],
   merchant: [5, 11],
   soldier: [5, 11],
+  bard: [4, 9],
   wanderer: [3, 8],
   rogue: [3, 8],
+  mage: [3, 8],
+  hunter: [3, 8],
   scholar: [3, 7],
   pilgrim: [2, 5],
   refugee: [1, 4],
@@ -77,14 +85,18 @@ export function computeGuestSpend(input: GuestSpendInput): GuestSpendBreakdown {
 
   // 2) meal — always draw both the roll and the amount so the stream position
   //    is fixed; an overnight guest always eats, otherwise it is a chance.
+  //    Economy (E3): a stocked larder lifts meal spend (+10% per level).
   const mealRoll = rng();
   const mealAmount = rngInt(rng, MEAL_BAND[0], MEAL_BAND[1] + 1);
   const eats = input.stayedOvernight || mealRoll < MEAL_CHANCE;
-  let meal = eats ? mealAmount : 0;
+  let meal = eats ? mealAmount * (1 + (input.larderStock ?? 0) * 0.1) : 0;
 
   // 3) room — always draw; only an overnight stay is actually charged.
+  //    Economy (E3): a finer hearth lifts room spend (+12% per level).
   const roomAmount = rngInt(rng, ROOM_BAND[0], ROOM_BAND[1] + 1);
-  let room = input.stayedOvernight ? roomAmount : 0;
+  let room = input.stayedOvernight
+    ? roomAmount * (1 + (input.hearthLevel ?? 0) * 0.12)
+    : 0;
 
   // 4) tip — regulars tip, and a warmly-disposed guest tips more.
   let tip = rngInt(rng, TIP_BAND[0], TIP_BAND[1] + 1);

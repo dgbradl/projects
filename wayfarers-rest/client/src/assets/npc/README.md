@@ -11,6 +11,10 @@ Customizer** export into the matching folder — any `.png` filename works; the
     npc/soldier/<anything>.png
     npc/scholar/<anything>.png
     npc/rogue/<anything>.png
+    npc/mage/<anything>.png
+    npc/knight/<anything>.png
+    npc/bard/<anything>.png
+    npc/hunter/<anything>.png
 
 Sheets are the standard **1024x1024**, a 16x16 grid of 64x64 cells (the
 Customizer exports exactly this). Until a folder has a sheet, that archetype

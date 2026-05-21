@@ -46,6 +46,10 @@ const ARCHETYPES: NpcArchetype[] = [
   'soldier',
   'scholar',
   'rogue',
+  'mage',
+  'knight',
+  'bard',
+  'hunter',
 ];
 const MOODS: NpcMood[] = [
   'cheerful',

@@ -26,17 +26,25 @@ const WORLD: WorldState = {
 const OPTIONS: InterventionOptionsResponse = {
   favors: 1,
   favorsMax: 5,
+  coin: 200,
   kinds: [
-    { kind: 'plant_rumor', cost: 1, available: true },
-    { kind: 'beckon', cost: 1, available: true },
-    { kind: 'sway_thread', cost: 1, available: false, unavailableReason: 'no swayable threads' },
+    { kind: 'plant_rumor', cost: 1, costCurrency: 'favor', available: true },
+    { kind: 'beckon', cost: 1, costCurrency: 'favor', available: true },
+    {
+      kind: 'sway_thread',
+      cost: 1,
+      costCurrency: 'favor',
+      available: false,
+      unavailableReason: 'no swayable threads',
+    },
     {
       kind: 'stir_world',
       cost: 2,
+      costCurrency: 'favor',
       available: false,
       unavailableReason: 'costs 2 (you have 1)',
     },
-    { kind: 'mark_npc', cost: 1, available: true },
+    { kind: 'mark_npc', cost: 1, costCurrency: 'favor', available: true },
   ],
   targets: {
     locations: [
@@ -130,7 +138,10 @@ describe('InterventionPicker', () => {
     await Promise.resolve();
 
     expect(fetchSpy).toHaveBeenCalledOnce();
-    const [, options] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const [, options] = fetchSpy.mock.calls[0] as unknown as [
+      string,
+      RequestInit,
+    ];
     expect(JSON.parse(String(options.body))).toEqual({
       kind: 'mark_npc',
       payload: { npcId: 'npc_x' },

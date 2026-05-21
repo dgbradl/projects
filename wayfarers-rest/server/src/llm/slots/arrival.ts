@@ -94,6 +94,26 @@ const TAGLINES: Record<NpcArchetype, string[]> = {
     'smiles like a debt collector',
     'lighter than they look',
   ],
+  mage: [
+    'reads the fire like a page',
+    'speaks low to things that are not there',
+    'a staff worn smooth at the grip',
+  ],
+  knight: [
+    'bows to no one in this room',
+    'armour kept, oath half-kept',
+    'a crest scratched off the shield',
+  ],
+  bard: [
+    'knows a song for every wound',
+    'paid in coin or in stories, never refuses',
+    'tunes the room before the lute',
+  ],
+  hunter: [
+    'smells the weather a day early',
+    'counts the exits like game trails',
+    'quieter than the dog at their heel',
+  ],
 };
 
 const ITEMS: Record<NpcArchetype, string[]> = {
@@ -104,6 +124,10 @@ const ITEMS: Record<NpcArchetype, string[]> = {
   soldier: ['a whetstone wrapped in leather', 'a folded oilcloth knife', 'half a regimental ribbon'],
   scholar: ['a quill and stoppered ink bottle', 'three sheets of vellum', 'a worn copy of someone\'s sermons'],
   rogue: ['a set of bone dice', 'a slim iron pick', 'a coin that is not quite a coin'],
+  mage: ['a candle that burns the wrong colour', 'a chalk stub worn to nothing', 'a clouded glass lens'],
+  knight: ['a dented gauntlet, oiled daily', 'a folded banner, colours faded', 'a signet ring turned inward'],
+  bard: ['a lute string coiled in a tin', 'a songbook swollen with old rain', 'a coin from a city that fell'],
+  hunter: ['a snare wire wound on a stick', 'a single fang strung on sinew', 'a quiver with three good arrows'],
 };
 
 /**

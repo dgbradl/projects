@@ -17,6 +17,10 @@ export interface WorldState {
   coin: number;
   /** Economy (E2): tavern prosperity, a rolling score in [0, 100]. */
   prosperity: number;
+  /** Economy (E3): larder stock level (0 = base); raises guest meal spend. */
+  larderStock?: number;
+  /** Economy (E3): hearth comfort level (0 = base); raises guest room spend. */
+  hearthLevel?: number;
 }
 
 /** @deprecated Replaced by EventLogEntry + WorldEvent. Kept for migration. */
@@ -447,9 +451,14 @@ export type InterventionKind =
   | 'beckon'
   | 'sway_thread'
   | 'stir_world'
-  | 'mark_npc';
+  | 'mark_npc'
+  | 'restock_larder'
+  | 'upgrade_hearth';
 
 export type SwayDirection = 'bless' | 'curse';
+
+/** Economy (E3): which resource an intervention is paid with. */
+export type CostCurrency = 'favor' | 'coin';
 
 export interface InterventionEffect {
   spawnedThreadId?: string;
@@ -457,6 +466,10 @@ export interface InterventionEffect {
   changedTag?: { key: string; oldValue: string; newValue: string };
   markedNpcId?: string;
   swayedThreadId?: string;
+  /** Economy (E3): larder stock level after a restock. */
+  larderRestockedTo?: number;
+  /** Economy (E3): hearth comfort level after an upgrade. */
+  hearthUpgradedTo?: number;
 }
 
 export interface InterventionRecord {
@@ -465,6 +478,8 @@ export interface InterventionRecord {
   gameDay: number;
   realTimestamp: string;
   cost: number;
+  /** Economy (E3): the resource this intervention was paid with. */
+  costCurrency: CostCurrency;
   payload: Record<string, unknown>;
   effect: InterventionEffect;
 }
@@ -472,6 +487,8 @@ export interface InterventionRecord {
 export interface InterventionKindStatus {
   kind: InterventionKind;
   cost: number;
+  /** Economy (E3): the resource this kind is paid with. */
+  costCurrency: CostCurrency;
   available: boolean;
   unavailableReason?: string;
 }
@@ -503,6 +520,8 @@ export interface InterventionTargets {
 export interface InterventionOptionsResponse {
   favors: number;
   favorsMax: number;
+  /** Economy (E3): the tavern's coin purse, for coin-costed interventions. */
+  coin: number;
   kinds: InterventionKindStatus[];
   targets: InterventionTargets;
   rumorsForBeckoning: Array<{ id: string; text: string }>;
@@ -574,7 +593,11 @@ export type NpcArchetype =
   | 'pilgrim'
   | 'soldier'
   | 'scholar'
-  | 'rogue';
+  | 'rogue'
+  | 'mage'
+  | 'knight'
+  | 'bard'
+  | 'hunter';
 
 export interface ArrivalGarnish {
   name: string;

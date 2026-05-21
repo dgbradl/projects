@@ -89,4 +89,18 @@ describe('computeGuestSpend', () => {
     const weary = computeGuestSpend({ ...BASE, mood: 'weary' });
     expect(totalSpend(cheerful)).toBeGreaterThan(totalSpend(weary));
   });
+
+  it('a stocked larder lifts meal spend (E3)', () => {
+    const overnight = { ...BASE, stayedOvernight: true };
+    const bare = computeGuestSpend(overnight);
+    const stocked = computeGuestSpend({ ...overnight, larderStock: 5 });
+    expect(stocked.meal).toBeGreaterThan(bare.meal);
+  });
+
+  it('a finer hearth lifts room spend (E3)', () => {
+    const overnight = { ...BASE, stayedOvernight: true };
+    const bare = computeGuestSpend(overnight);
+    const fine = computeGuestSpend({ ...overnight, hearthLevel: 5 });
+    expect(fine.room).toBeGreaterThan(bare.room);
+  });
 });

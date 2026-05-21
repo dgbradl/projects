@@ -35,6 +35,8 @@ interface WorldStateRow {
   marked_npc_ids: string;
   coin: number;
   prosperity: number;
+  larder_stock: number;
+  hearth_level: number;
 }
 
 interface DailyLedgerRow {
@@ -53,6 +55,7 @@ interface InterventionRow {
   game_day: number;
   real_timestamp: string;
   cost: number;
+  cost_currency: string;
   payload: string;
   effect: string;
 }
@@ -322,6 +325,21 @@ export class Persistence {
     );
     this.addColumnIfMissing('daily_ledgers', 'prosperity_after', 'REAL');
     this.addColumnIfMissing(
+      'world_state',
+      'larder_stock',
+      'INTEGER NOT NULL DEFAULT 0',
+    );
+    this.addColumnIfMissing(
+      'world_state',
+      'hearth_level',
+      'INTEGER NOT NULL DEFAULT 0',
+    );
+    this.addColumnIfMissing(
+      'interventions',
+      'cost_currency',
+      "TEXT NOT NULL DEFAULT 'favor'",
+    );
+    this.addColumnIfMissing(
       'characters',
       'memory',
       `TEXT NOT NULL DEFAULT '${DEFAULT_MEMORY_JSON}'`,
@@ -416,7 +434,7 @@ export class Persistence {
     } catch {
       markedNpcIds = [];
     }
-    return {
+    const state: WorldState = {
       gameDay: row.game_day,
       lastTickAt: row.last_tick_at,
       status: row.status,
@@ -430,13 +448,18 @@ export class Persistence {
       coin: row.coin ?? COIN_INITIAL_DEFAULT,
       prosperity: row.prosperity ?? PROSPERITY_INITIAL,
     };
+    // Economy (E3): larder/hearth are optional — omit at the base level so a
+    // fresh tavern's state stays minimal (and round-trips cleanly).
+    if (row.larder_stock) state.larderStock = row.larder_stock;
+    if (row.hearth_level) state.hearthLevel = row.hearth_level;
+    return state;
   }
 
   saveState(state: WorldState): void {
     this.db
       .prepare(
-        `INSERT INTO world_state (id, game_day, last_tick_at, status, unattended_ticks, seed, sub_tick, last_acknowledged_game_day, favors, favors_last_regen_game_day, marked_npc_ids, coin, prosperity)
-         VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO world_state (id, game_day, last_tick_at, status, unattended_ticks, seed, sub_tick, last_acknowledged_game_day, favors, favors_last_regen_game_day, marked_npc_ids, coin, prosperity, larder_stock, hearth_level)
+         VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET
            game_day = excluded.game_day,
            last_tick_at = excluded.last_tick_at,
@@ -449,7 +472,9 @@ export class Persistence {
            favors_last_regen_game_day = excluded.favors_last_regen_game_day,
            marked_npc_ids = excluded.marked_npc_ids,
            coin = excluded.coin,
-           prosperity = excluded.prosperity`,
+           prosperity = excluded.prosperity,
+           larder_stock = excluded.larder_stock,
+           hearth_level = excluded.hearth_level`,
       )
       .run(
         state.gameDay,
@@ -464,6 +489,8 @@ export class Persistence {
         JSON.stringify(state.markedNpcIds ?? []),
         state.coin,
         state.prosperity,
+        state.larderStock ?? 0,
+        state.hearthLevel ?? 0,
       );
   }
 
@@ -918,8 +945,8 @@ export class Persistence {
   insertIntervention(record: InterventionRecord): void {
     this.db
       .prepare(
-        `INSERT INTO interventions (id, kind, game_day, real_timestamp, cost, payload, effect)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO interventions (id, kind, game_day, real_timestamp, cost, cost_currency, payload, effect)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         record.id,
@@ -927,6 +954,7 @@ export class Persistence {
         record.gameDay,
         record.realTimestamp,
         record.cost,
+        record.costCurrency,
         JSON.stringify(record.payload),
         JSON.stringify(record.effect),
       );
@@ -972,6 +1000,8 @@ export class Persistence {
     gameDay: r.game_day,
     realTimestamp: r.real_timestamp,
     cost: r.cost,
+    costCurrency:
+      (r.cost_currency as InterventionRecord['costCurrency']) ?? 'favor',
     payload: JSON.parse(r.payload),
     effect: JSON.parse(r.effect),
   });

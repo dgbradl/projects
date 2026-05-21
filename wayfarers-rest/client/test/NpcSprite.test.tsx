@@ -1,8 +1,19 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import type { Npc } from '@shared/types';
 import { NpcSprite } from '../src/sprites/NpcSprite.tsx';
+import { spriteSheetForNpc } from '../src/sprites/npcSheet.ts';
 import { StoreProvider } from '../src/state/store.tsx';
+
+// Mock only the sheet lookup so the test does not depend on which .png files
+// happen to be in assets/npc/ — the rest of npcSheet (resolvePose etc.) is real.
+vi.mock('../src/sprites/npcSheet.ts', async (importActual) => {
+  const actual =
+    await importActual<typeof import('../src/sprites/npcSheet.ts')>();
+  return { ...actual, spriteSheetForNpc: vi.fn() };
+});
+
+const sheetMock = vi.mocked(spriteSheetForNpc);
 
 const NPC: Npc = {
   id: 'n1',
@@ -19,33 +30,30 @@ const NPC: Npc = {
   archetype: 'merchant',
 };
 
-const STAFF_NPC: Npc = {
-  ...NPC,
-  id: 'staff_bartender_mirela',
-  displayName: 'Mirela',
-  isStaff: true,
-  staffRole: 'bartender',
-};
+function renderSprite(npc: Npc) {
+  return render(
+    <StoreProvider>
+      <NpcSprite npc={npc} />
+    </StoreProvider>,
+  );
+}
 
 describe('NpcSprite', () => {
-  it('falls back to the status dot when the archetype has no sheet', () => {
-    // No sheets ship in the repo, so every archetype hits the fallback path.
-    const { container } = render(
-      <StoreProvider>
-        <NpcSprite npc={NPC} />
-      </StoreProvider>,
-    );
+  it('falls back to the status dot when the NPC has no sheet', () => {
+    sheetMock.mockReturnValue(undefined);
+    const { container } = renderSprite(NPC);
     expect(container.querySelector('.npc-dot')).toBeTruthy();
     expect(container.querySelector('.npc-sprite')).toBeNull();
   });
 
-  it('falls back to the status dot for staff with no sheet', () => {
-    const { container } = render(
-      <StoreProvider>
-        <NpcSprite npc={STAFF_NPC} />
-      </StoreProvider>,
+  it('renders an animated sprite when the NPC has a sheet', () => {
+    sheetMock.mockReturnValue('/sheets/merchant.png');
+    const { container } = renderSprite(NPC);
+    const sprite = container.querySelector('.npc-sprite');
+    expect(sprite).toBeTruthy();
+    expect(container.querySelector('.npc-dot')).toBeNull();
+    expect((sprite as HTMLElement).style.backgroundImage).toContain(
+      'merchant.png',
     );
-    expect(container.querySelector('.npc-dot')).toBeTruthy();
-    expect(container.querySelector('.npc-sprite')).toBeNull();
   });
 });

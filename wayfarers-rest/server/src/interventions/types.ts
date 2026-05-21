@@ -1,4 +1,5 @@
 import type {
+  CostCurrency,
   InterventionEffect,
   InterventionKind,
   InterventionTargets,
@@ -57,6 +58,8 @@ export interface InterventionApplyInput<TPayload> {
 export interface InterventionDefinition<TPayload = Record<string, unknown>> {
   kind: InterventionKind;
   cost: number;
+  /** Economy (E3): resource the cost is paid in; defaults to 'favor'. */
+  costCurrency?: CostCurrency;
   describe(payload: TPayload, options: InterventionOptions): string;
   validate(
     payload: TPayload,
@@ -92,3 +95,7 @@ export interface StirWorldPayload {
 export interface MarkNpcPayload {
   npcId: string;
 }
+
+/** Economy (E3): restock_larder and upgrade_hearth take no parameters. */
+export type RestockLarderPayload = Record<string, never>;
+export type UpgradeHearthPayload = Record<string, never>;

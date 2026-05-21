@@ -9,6 +9,12 @@ import { useDispatch, useStore } from '../state/store.tsx';
 
 type Step = 'kind' | 'target' | 'confirm';
 
+/** Economy (E3): coin-costed verbs that take no target — skip the target step. */
+const NO_TARGET_KINDS: ReadonlySet<InterventionKind> = new Set<InterventionKind>([
+  'restock_larder',
+  'upgrade_hearth',
+]);
+
 export function InterventionPicker() {
   const { interventionPickerOpen, interventionOptions, world } = useStore();
   const dispatch = useDispatch();
@@ -31,7 +37,7 @@ export function InterventionPicker() {
   const pickKind = (next: InterventionKind) => {
     setKind(next);
     setPayload({});
-    setStep('target');
+    setStep(NO_TARGET_KINDS.has(next) ? 'confirm' : 'target');
   };
 
   const goConfirm = () => {
@@ -92,7 +98,7 @@ export function InterventionPicker() {
           payload={payload}
           busy={busy}
           error={error}
-          onCancel={() => setStep('target')}
+          onCancel={() => setStep(NO_TARGET_KINDS.has(kind) ? 'kind' : 'target')}
           onConfirm={confirm}
         />
       )}
@@ -101,7 +107,7 @@ export function InterventionPicker() {
 }
 
 function titleForStep(step: Step, kind: InterventionKind | null): string {
-  if (step === 'kind') return 'Spend a favor';
+  if (step === 'kind') return 'Intervene';
   if (step === 'target') return `Configure: ${kind}`;
   return `Confirm: ${kind}`;
 }
@@ -132,7 +138,9 @@ function KindList({
             data-testid={`intervention-kind-${k.kind}`}
           >
             <span className="intervention-kind-name">{labelForKind(k.kind)}</span>
-            <span className="intervention-kind-cost">cost {k.cost}</span>
+            <span className="intervention-kind-cost">
+              cost {k.cost} {k.costCurrency}
+            </span>
             {!k.available && k.unavailableReason && (
               <span className="intervention-kind-reason">{k.unavailableReason}</span>
             )}
@@ -155,6 +163,10 @@ function labelForKind(kind: InterventionKind): string {
       return 'Stir the wider world';
     case 'mark_npc':
       return 'Mark a guest';
+    case 'restock_larder':
+      return 'Restock the larder';
+    case 'upgrade_hearth':
+      return 'Upgrade the hearth';
   }
 }
 
@@ -394,7 +406,7 @@ function ConfirmStep({
           disabled={busy}
           data-testid="picker-confirm"
         >
-          {busy ? 'sending…' : 'spend the favor'}
+          {busy ? 'sending…' : 'confirm'}
         </button>
       </div>
     </div>
@@ -413,5 +425,9 @@ function summarize(kind: InterventionKind, p: Record<string, unknown>): string {
       return `Stir ${p.tagKey} to ${p.newValue}.`;
     case 'mark_npc':
       return `Mark ${p.npcId} for the keeper's attention.`;
+    case 'restock_larder':
+      return 'Spend coin to restock the larder — guests will eat better.';
+    case 'upgrade_hearth':
+      return 'Spend coin to build up the hearth and common room.';
   }
 }

@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type {
+  CostCurrency,
   InterventionExecuteResponse,
   InterventionKind,
   InterventionOptionsResponse,
@@ -7,6 +8,7 @@ import type {
 } from '@shared/types';
 import type { WorldEventBus } from '../events/emitter.ts';
 import type { Clock } from '../lib/clock.ts';
+import { debitCoin } from '../economy/ledger.ts';
 import { debitFavor } from '../interventions/favor.ts';
 import { buildInterventionHelpers } from '../interventions/helpers.ts';
 import { buildInterventionOptions } from '../interventions/options.ts';
@@ -61,9 +63,14 @@ export function registerInterventionRoutes(
       }
 
       const state = deps.stateManager.getState();
-      if (state.favors < def.cost) {
+      // Economy (E3): a kind is paid in favor (default) or coin.
+      const currency: CostCurrency = def.costCurrency ?? 'favor';
+      const balance = currency === 'coin' ? state.coin : state.favors;
+      if (balance < def.cost) {
         reply.code(400);
-        return { error: `not enough favors (have ${state.favors}, need ${def.cost})` };
+        return {
+          error: `not enough ${currency} (have ${balance}, need ${def.cost})`,
+        };
       }
 
       const options: InterventionOptions = {
@@ -96,7 +103,11 @@ export function registerInterventionRoutes(
       let applyError: Error | null = null;
       try {
         deps.persistence.transaction(() => {
-          debitFavor(deps.stateManager, def.cost);
+          if (currency === 'coin') {
+            debitCoin(deps.stateManager, def.cost);
+          } else {
+            debitFavor(deps.stateManager, def.cost);
+          }
           const effect = def.apply({
             payload,
             helpers,
@@ -123,6 +134,7 @@ export function registerInterventionRoutes(
             gameDay,
             realTimestamp: new Date(deps.clock.now()).toISOString(),
             cost: def.cost,
+            costCurrency: currency,
             payload: payload ?? {},
             effect,
           };

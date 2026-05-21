@@ -30,8 +30,10 @@ import {
 import './interventions/kinds/index.ts';
 import {
   buildMarkNpc,
+  buildRestockLarder,
   buildStirWorld,
   buildSwayThread,
+  buildUpgradeHearth,
 } from './interventions/kinds/index.ts';
 import * as interventionRegistry from './interventions/registry.ts';
 import { CharacterMemoryRecorder } from './npc/character-memory.ts';
@@ -258,6 +260,9 @@ async function main(): Promise<void> {
   interventionRegistry.register(buildSwayThread({ persistence }));
   interventionRegistry.register(buildStirWorld({ persistence }));
   interventionRegistry.register(buildMarkNpc({ npcManager, stateManager, bus }));
+  // Economy (E3): the coin-costed economic verbs.
+  interventionRegistry.register(buildRestockLarder({ stateManager }));
+  interventionRegistry.register(buildUpgradeHearth({ stateManager }));
 
   // Phase 6: marked-NPC cleanup on departure.
   bus.on('world_event', (entry: { event: unknown }) => {

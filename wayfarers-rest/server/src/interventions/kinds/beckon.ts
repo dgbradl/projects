@@ -15,6 +15,10 @@ const CANONICAL_ARCHETYPES: ReadonlySet<NpcArchetype> = new Set<NpcArchetype>([
   'soldier',
   'scholar',
   'rogue',
+  'mage',
+  'knight',
+  'bard',
+  'hunter',
 ]);
 
 export const BECKON: InterventionDefinition<BeckonPayload> = {

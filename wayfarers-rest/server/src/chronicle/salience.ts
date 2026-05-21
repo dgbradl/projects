@@ -104,6 +104,9 @@ const NOTABLE_ARCHETYPES = new Set([
   'soldier',
   'rogue',
   'scholar',
+  'mage',
+  'knight',
+  'bard',
 ]);
 
 export interface SelectOpts {

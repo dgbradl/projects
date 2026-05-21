@@ -110,8 +110,9 @@ function pickName(rng: Rng, used: Set<string>): string {
 }
 
 /**
- * Picks one of the 7 canonical archetypes (matches Phase 4's NpcArchetype
- * union; the LLM arrival pool is keyed by these strings).
+ * Picks a canonical archetype (matches the NpcArchetype union; the LLM
+ * arrival pool is keyed by these strings). `refugee` is omitted from the
+ * base pool — it only enters via the war-in-north boost above.
  */
 function pickArchetype(
   rng: Rng,
@@ -133,6 +134,10 @@ function pickArchetype(
     'soldier',
     'scholar',
     'rogue',
+    'mage',
+    'knight',
+    'bard',
+    'hunter',
   ];
   return archetypes[Math.floor(rng() * archetypes.length)];
 }

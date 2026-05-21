@@ -8,12 +8,19 @@ import { initialState, reducer } from '../src/state/reducer.ts';
 const SAMPLE_OPTIONS: InterventionOptionsResponse = {
   favors: 3,
   favorsMax: 5,
+  coin: 200,
   kinds: [
-    { kind: 'plant_rumor', cost: 1, available: true },
-    { kind: 'beckon', cost: 1, available: true },
-    { kind: 'sway_thread', cost: 1, available: false, unavailableReason: 'no swayable threads' },
-    { kind: 'stir_world', cost: 2, available: true },
-    { kind: 'mark_npc', cost: 1, available: true },
+    { kind: 'plant_rumor', cost: 1, costCurrency: 'favor', available: true },
+    { kind: 'beckon', cost: 1, costCurrency: 'favor', available: true },
+    {
+      kind: 'sway_thread',
+      cost: 1,
+      costCurrency: 'favor',
+      available: false,
+      unavailableReason: 'no swayable threads',
+    },
+    { kind: 'stir_world', cost: 2, costCurrency: 'favor', available: true },
+    { kind: 'mark_npc', cost: 1, costCurrency: 'favor', available: true },
   ],
   targets: {
     locations: [],
@@ -31,6 +38,7 @@ const SAMPLE_RECORD: InterventionRecord = {
   gameDay: 3,
   realTimestamp: '2026-01-03T00:00:00.000Z',
   cost: 1,
+  costCurrency: 'favor',
   payload: { npcId: 'npc_x' },
   effect: { markedNpcId: 'npc_x' },
 };

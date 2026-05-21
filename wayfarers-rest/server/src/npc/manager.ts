@@ -51,6 +51,10 @@ const CANONICAL_ARCHETYPES: ReadonlySet<NpcArchetype> = new Set([
   'soldier',
   'scholar',
   'rogue',
+  'mage',
+  'knight',
+  'bard',
+  'hunter',
 ]);
 
 function canonicalizeArchetype(raw?: string): NpcArchetype {
@@ -327,6 +331,8 @@ export class NpcManager extends EventEmitter {
                 0,
               )
             : 0;
+          // Economy (E3): the larder and hearth lift meal and room spend.
+          const tavern = this.deps.persistence?.loadState();
           const breakdown = computeGuestSpend({
             worldSeed,
             npcId: id,
@@ -337,6 +343,8 @@ export class NpcManager extends EventEmitter {
             affinitySum,
             stayedOvernight:
               npc.plannedDepartureGameDay > npc.arrivedGameDay,
+            larderStock: tavern?.larderStock,
+            hearthLevel: tavern?.hearthLevel,
           });
           this.deps.bus.publish({
             type: 'guest_spent',

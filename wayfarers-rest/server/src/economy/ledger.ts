@@ -37,6 +37,22 @@ export function computeUpkeep(input: ComputeUpkeepInput): number {
   return UPKEEP_BASE + UPKEEP_PER_GUEST * Math.max(0, input.occupancy) + jitter;
 }
 
+/**
+ * Economy (E3): debit coin for a deliberate keeper purchase. Throws if the
+ * purse can't cover it — a price check on a chosen action, not the autonomous
+ * soft economy (which never goes negative on its own).
+ */
+export function debitCoin(
+  stateManager: WorldStateManager,
+  cost: number,
+): void {
+  const state = stateManager.getState();
+  if (state.coin < cost) {
+    throw new Error(`not enough coin: have ${state.coin}, need ${cost}`);
+  }
+  stateManager.setState({ ...state, coin: state.coin - cost });
+}
+
 export interface LedgerDeps {
   persistence: Persistence;
   stateManager: WorldStateManager;
