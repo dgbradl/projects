@@ -19,6 +19,9 @@ export function StatusBar() {
       <span className="status-item status-population">
         {Object.keys(npcs).length} in tavern
       </span>
+      <span className="status-item status-coin">
+        <strong data-testid="status-coin">{world.coin}</strong> coin
+      </span>
     </div>
   );
 }

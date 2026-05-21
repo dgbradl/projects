@@ -82,9 +82,16 @@ export function score(event: WorldEvent, ctx: SalienceContext): number {
     }
     case 'intervention_used':
       return 9;
+    case 'ledger_closed': {
+      // The day's takings — modestly notable, a little more so in the red.
+      let s = 4;
+      if (event.net < 0) s += 2;
+      return s;
+    }
     default:
       // Excluded: init/tick/pause/resume, all flavor_*, all chronicle_*,
-      // favor_regenerated, npc_marked, npc_unmarked.
+      // favor_regenerated, npc_marked, npc_unmarked, guest_spent,
+      // tavern_upkeep (the latter two are too noisy per-event).
       return 0;
   }
 }

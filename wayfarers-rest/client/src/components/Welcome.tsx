@@ -1,5 +1,9 @@
 import { useState } from 'react';
-import type { DailyChronicle } from '@shared/types';
+import type {
+  ChronicleLedgerEntry,
+  DailyChronicle,
+  WorldEvent,
+} from '@shared/types';
 import { api } from '../api.ts';
 import { useDispatch, useStore } from '../state/store.tsx';
 
@@ -127,10 +131,7 @@ function DayEntry({
 }
 
 function Ledger({ day }: { day: number }) {
-  const [items, setItems] = useState<
-    | Array<{ eventId: number; event: { type: string } }>
-    | null
-  >(null);
+  const [items, setItems] = useState<ChronicleLedgerEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   if (items === null && error === null) {
@@ -148,11 +149,27 @@ function Ledger({ day }: { day: number }) {
           {items.map((e) => (
             <li key={e.eventId}>
               <span className="welcome-entry-ledger-id">#{e.eventId}</span>{' '}
-              {e.event.type}
+              {ledgerLine(e.event)}
             </li>
           ))}
         </ul>
       )}
     </div>
   );
+}
+
+/** Render one ledger event as a readable line; economy events get coin detail. */
+function ledgerLine(event: WorldEvent): string {
+  switch (event.type) {
+    case 'ledger_closed': {
+      const sign = event.net >= 0 ? '+' : '';
+      return `ledger settled — took ${event.income}, spent ${event.expense}, net ${sign}${event.net} (purse ${event.coinAfter})`;
+    }
+    case 'guest_spent':
+      return `a guest settled their tab — ${event.amount} coin`;
+    case 'tavern_upkeep':
+      return `tavern upkeep — ${event.amount} coin`;
+    default:
+      return event.type;
+  }
 }

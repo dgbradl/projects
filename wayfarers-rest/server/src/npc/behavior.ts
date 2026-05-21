@@ -3,6 +3,12 @@ import { TABLE_ZONES, zoneByName } from '../world/tavern.ts';
 import { rngFloat, rngInt, rngPick, seededRng } from '../world/rng.ts';
 import { absoluteSubTick } from './spawn.ts';
 
+const STAFF_ZONES_BY_ROLE: Record<string, ZoneName[]> = {
+  bartender: ['bar', 'hearth'],
+  waitstaff: ['table_a', 'table_b', 'table_c', 'bar'],
+  cleaner: ['hearth', 'table_a', 'table_b', 'table_c'],
+};
+
 export interface BehaviorContext {
   absSubTick: number;
   worldSeed: string;
@@ -21,6 +27,8 @@ export interface BehaviorResult {
  * Dwell ranges follow the Phase 2 spec.
  */
 export function decideNextState(npc: Npc, ctx: BehaviorContext): BehaviorResult {
+  if (npc.isStaff) return decideStaffBehavior(npc, ctx);
+
   const { absSubTick, worldSeed, subTicksPerDay } = ctx;
   const departureAbs = absoluteSubTick(
     npc.plannedDepartureGameDay,
@@ -86,6 +94,33 @@ export function decideNextState(npc: Npc, ctx: BehaviorContext): BehaviorResult 
       return transition(npc, nextStatus, target, rng, ctx, dwell);
     }
 
+    default:
+      return { npc, changed: false };
+  }
+}
+
+function decideStaffBehavior(npc: Npc, ctx: BehaviorContext): BehaviorResult {
+  const { absSubTick, worldSeed } = ctx;
+  const rng = seededRng(worldSeed, 'staff', npc.id, absSubTick);
+  const role = npc.staffRole ?? 'waitstaff';
+  const zones = STAFF_ZONES_BY_ROLE[role] ?? TABLE_ZONES;
+
+  switch (role) {
+    case 'bartender': {
+      const stayAtBar = rng() > 0.15;
+      const target: ZoneName = stayAtBar ? 'bar' : 'hearth';
+      const nextStatus: NpcStatus = stayAtBar ? 'at_bar' : 'wandering';
+      return transition(npc, nextStatus, target, rng, ctx, rngInt(rng, 8, 20));
+    }
+    case 'waitstaff': {
+      const target = rngPick(rng, zones);
+      const nextStatus: NpcStatus = target === 'bar' ? 'at_bar' : 'wandering';
+      return transition(npc, nextStatus, target, rng, ctx, rngInt(rng, 5, 12));
+    }
+    case 'cleaner': {
+      const target = rngPick(rng, zones);
+      return transition(npc, 'wandering', target, rng, ctx, rngInt(rng, 18, 40));
+    }
     default:
       return { npc, changed: false };
   }

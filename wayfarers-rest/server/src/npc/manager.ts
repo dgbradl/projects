@@ -8,6 +8,7 @@ import type {
   NpcMood,
   ScheduledArrival,
 } from '@shared/types';
+import { computeGuestSpend, totalSpend } from '../economy/spend.ts';
 import type { WorldEventBus } from '../events/emitter.ts';
 import type { FlavorCache } from '../llm/cache/manager.ts';
 import type { ArrivalInput } from '../llm/slots/arrival.ts';
@@ -22,6 +23,11 @@ import {
   rememberBeckon,
   rememberRumors,
 } from './character-memory.ts';
+import {
+  ACTIVE_STAFF,
+  ALL_STAFF_DEFINITIONS,
+  makeStaffNpc,
+} from './staff-roster.ts';
 import {
   absoluteSubTick,
   generateDeparture,
@@ -118,8 +124,54 @@ export class NpcManager extends EventEmitter {
     return [...this.roster.values()];
   }
 
+  /** Apply a gossip transfer: add rumorId to recipient's carriedRumorIds. */
+  applyGossip(recipientId: string, rumorId: string): void {
+    const npc = this.roster.get(recipientId);
+    if (!npc || npc.carriedRumorIds.includes(rumorId)) return;
+    const updated: Npc = {
+      ...npc,
+      carriedRumorIds: [...npc.carriedRumorIds, rumorId],
+    };
+    this.roster.set(recipientId, updated);
+    this.emit('diff', { added: [], updated: [updated], removed: [] });
+  }
+
+  /** Extend a traveler's planned departure by the given number of sub-ticks. */
+  extendDeparture(npcId: string, subTicks: number): void {
+    const npc = this.roster.get(npcId);
+    if (!npc || npc.isStaff || subTicks <= 0) return;
+    const updated: Npc = {
+      ...npc,
+      plannedDepartureSubTick: npc.plannedDepartureSubTick + subTicks,
+    };
+    this.roster.set(npcId, updated);
+    this.emit('diff', { added: [], updated: [updated], removed: [] });
+  }
+
   getSpawnQueue(): ScheduledArrival[] {
     return [...this.spawnQueue];
+  }
+
+  /**
+   * Re-insert active staff into the roster if absent. Safe to call any time;
+   * skips staff already present. Emits a diff if any were added.
+   */
+  ensureStaffOnDuty(gameDay: number, subTick: number): void {
+    const activeIds = new Set(ACTIVE_STAFF.map((d) => d.id));
+    const staffChars = this.deps.persistence?.loadStaffCharacters() ?? [];
+    const diff: NpcDiff = { added: [], updated: [], removed: [] };
+
+    for (const char of staffChars) {
+      if (!activeIds.has(char.id) || this.roster.has(char.id)) continue;
+      const def = ALL_STAFF_DEFINITIONS.find((d) => d.id === char.id);
+      if (!def) continue;
+      const abs = absoluteSubTick(gameDay, subTick, this.config.subTicksPerDay);
+      const npc = makeStaffNpc(char, def, abs, this.config.worldSeed);
+      this.roster.set(npc.id, npc);
+      diff.added.push(npc);
+    }
+
+    if (diff.added.length) this.emit('diff', diff);
   }
 
   /**
@@ -130,6 +182,7 @@ export class NpcManager extends EventEmitter {
     for (const [id, npc] of this.roster) {
       if (npc.status === 'departed') this.roster.delete(id);
     }
+    this.ensureStaffOnDuty(newGameDay, 0);
 
     const worldTags = this.deps.persistence?.getAllWorldTags() ?? [];
     this.spawnQueue = generateSpawnQueue({
@@ -253,6 +306,35 @@ export class NpcManager extends EventEmitter {
           npcId: id,
           destinationLocationId: destination,
         });
+        // Economy (E1): settle the departing guest's tab. Staff never depart,
+        // so this only ever fires for paying travellers.
+        if (this.deps.bus && !npc.isStaff) {
+          const character = this.deps.persistence?.loadCharacter(id);
+          const affinitySum = character
+            ? character.memory.encounters.reduce(
+                (sum, e) => sum + e.affinity,
+                0,
+              )
+            : 0;
+          const breakdown = computeGuestSpend({
+            worldSeed,
+            npcId: id,
+            arrivedGameDay: npc.arrivedGameDay,
+            archetype: canonicalizeArchetype(npc.archetype),
+            mood: npc.mood,
+            visitCount: npc.visitCount ?? 1,
+            affinitySum,
+            stayedOvernight:
+              npc.plannedDepartureGameDay > npc.arrivedGameDay,
+          });
+          this.deps.bus.publish({
+            type: 'guest_spent',
+            gameDay: currentGameDay,
+            npcId: id,
+            amount: totalSpend(breakdown),
+            breakdown,
+          });
+        }
       } else if (changed) {
         this.roster.set(id, next);
         diff.updated.push(next);

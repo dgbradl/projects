@@ -161,6 +161,55 @@ describe('salience.score', () => {
     expect(plain).toBe(1);
     expect(whispered).toBe(9); // 1 + 3 (kind) + 5 (spawned)
   });
+
+  it('scores ledger_closed, with a boost when the day ran a loss', () => {
+    const surplus = score(
+      {
+        type: 'ledger_closed',
+        gameDay: 1,
+        income: 80,
+        expense: 30,
+        net: 50,
+        coinBefore: 200,
+        coinAfter: 250,
+        guestCount: 5,
+      },
+      ctx,
+    );
+    const shortfall = score(
+      {
+        type: 'ledger_closed',
+        gameDay: 1,
+        income: 10,
+        expense: 40,
+        net: -30,
+        coinBefore: 200,
+        coinAfter: 170,
+        guestCount: 1,
+      },
+      ctx,
+    );
+    expect(surplus).toBe(4);
+    expect(shortfall).toBe(6); // 4 + 2 when net < 0
+  });
+
+  it('excludes per-event economy noise (guest_spent, tavern_upkeep)', () => {
+    expect(
+      score(
+        {
+          type: 'guest_spent',
+          gameDay: 1,
+          npcId: 'a',
+          amount: 12,
+          breakdown: { drink: 8, meal: 0, room: 0, tip: 4 },
+        },
+        ctx,
+      ),
+    ).toBe(0);
+    expect(
+      score({ type: 'tavern_upkeep', gameDay: 1, amount: 20, occupancy: 4 }, ctx),
+    ).toBe(0);
+  });
 });
 
 describe('salience.select', () => {

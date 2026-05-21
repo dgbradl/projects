@@ -16,6 +16,7 @@ const WORLD: WorldState = {
   favors: 2,
   favorsLastRegenGameDay: 4,
   markedNpcIds: [],
+  coin: 200,
 };
 
 function Seeded() {

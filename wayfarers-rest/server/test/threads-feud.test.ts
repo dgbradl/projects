@@ -22,6 +22,7 @@ function fakeWorld(gameDay: number): WorldState {
     favors: 3,
     favorsLastRegenGameDay: 0,
     markedNpcIds: [],
+    coin: 0,
   };
 }
 

@@ -8,6 +8,7 @@ import { registerSSE } from './api/sse.ts';
 import { ChronicleGenerator } from './chronicle/generator.ts';
 import { ChroniclePipeline } from './chronicle/pipeline.ts';
 import { PrologueGenerator } from './chronicle/prologue.ts';
+import { closeLedgerForDay } from './economy/ledger.ts';
 import { WorldEventBus } from './events/emitter.ts';
 import { detectInteractions } from './interactions/detector.ts';
 import { InteractionResolver } from './interactions/resolver.ts';
@@ -32,6 +33,12 @@ import {
 import * as interventionRegistry from './interventions/registry.ts';
 import { CharacterMemoryRecorder } from './npc/character-memory.ts';
 import { NpcManager } from './npc/manager.ts';
+import {
+  computeConflictMitigation,
+  computeHospitalityExtension,
+  processGossipNetwork,
+} from './npc/staff-effects.ts';
+import { seedStaffIfMissing } from './npc/staff-roster.ts';
 import { Persistence } from './persistence.ts';
 import { WorldStateManager } from './state.ts';
 import { SubTickScheduler } from './subtick.ts';
@@ -104,12 +111,13 @@ async function main(): Promise<void> {
   const stateManager = new WorldStateManager(persistence, clock);
   const bus = new WorldEventBus(persistence, clock);
 
-  // Phase 7 (A2): keep each character's memory current as events flow.
-  new CharacterMemoryRecorder(persistence).attach(bus);
-
   const worldTags = new WorldTagsManager(persistence, bus);
   const rumors = new RumorsManager(persistence, bus);
   const threadRunner = new ThreadRunner(persistence, bus, worldTags, rumors);
+
+  // Phase 7 (A2/B3): keep character memory current as events flow, and spawn
+  // relationship threads when an affinity reaches an extreme.
+  new CharacterMemoryRecorder(persistence, threadRunner).attach(bus);
 
   // ----- Phase 4 flavor wiring (Phase 5: shared request gate) -----
   const requestGate = new RequestGate();
@@ -165,6 +173,22 @@ async function main(): Promise<void> {
     },
   );
   npcManager.hydrate(persistence.loadRoster());
+  // Epic E: create Character records for every staff member on first boot, then
+  // place active staff in the roster (idempotent — safe on every restart).
+  seedStaffIfMissing(persistence, stateManager.getState().gameDay);
+  npcManager.ensureStaffOnDuty(
+    stateManager.getState().gameDay,
+    stateManager.getState().subTick,
+  );
+
+  // Epic E (E2): hospitality — waitstaff extends each new traveler's stay.
+  bus.on('world_event', (entry: { event: unknown }) => {
+    const ev = entry.event as { type: string; npcId?: string };
+    if (ev.type !== 'npc_arrived' && ev.type !== 'npc_returned') return;
+    if (!ev.npcId) return;
+    const ext = computeHospitalityExtension(npcManager.getRoster());
+    if (ext > 0) npcManager.extendDeparture(ev.npcId, ext);
+  });
 
   const interactionResolver = new InteractionResolver(
     bus,
@@ -179,6 +203,17 @@ async function main(): Promise<void> {
   }).deps.postSubTickHook = postSubTickHook;
 
   function postSubTickHook(gameDay: number, subTick: number, roster: Npc[]) {
+    // Epic E (E2): gossip — bartender may share a rumor between bar patrons.
+    const gossip = processGossipNetwork(
+      roster,
+      stateManager.getState().seed,
+      gameDay,
+      subTick,
+    );
+    if (gossip) {
+      npcManager.applyGossip(gossip.recipientId, gossip.rumorId);
+    }
+
     const candidates = detectInteractions(roster, {
       worldSeed: stateManager.getState().seed,
       gameDay,
@@ -187,6 +222,8 @@ async function main(): Promise<void> {
       pairsToday: npcManager.pairsToday,
     });
     if (candidates.length === 0) return;
+    // Epic E (E2): conflict mitigation — reduce argument weight if bartender present.
+    const staffModifiers = { conflictMitigation: computeConflictMitigation(roster) };
     const npcsById = new Map(roster.map((n) => [n.id, n]));
     for (const candidate of candidates) {
       interactionResolver.resolve(candidate, {
@@ -195,6 +232,7 @@ async function main(): Promise<void> {
         subTick,
         npcsById,
         perDayCounter: interactionCounter,
+        staffModifiers,
       });
     }
   }
@@ -240,8 +278,20 @@ async function main(): Promise<void> {
     clock,
     { subTickIntervalMs: SUBTICK_INTERVAL_MS, subTicksPerDay: SUB_TICKS_PER_DAY },
     threadRunner,
-    // Phase 6: regenerate one favor at the start of each new game day.
-    (newGameDay) => regenerateForDayTick(stateManager, bus, newGameDay),
+    // Economy (E1): settle the ledger for the day that just ended, then
+    // (Phase 6) regenerate one favor at the start of the new game day.
+    (newGameDay) => {
+      closeLedgerForDay(
+        {
+          persistence,
+          stateManager,
+          bus,
+          worldSeed: stateManager.getState().seed,
+        },
+        newGameDay - 1,
+      );
+      regenerateForDayTick(stateManager, bus, newGameDay);
+    },
   );
 
   // ----- Phase 5: chronicle pipeline -----

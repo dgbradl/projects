@@ -19,6 +19,7 @@ const WORLD: WorldState = {
   favors: 1,
   favorsLastRegenGameDay: 4,
   markedNpcIds: [],
+  coin: 200,
 };
 
 const OPTIONS: InterventionOptionsResponse = {

@@ -18,9 +18,34 @@ describe('Persistence', () => {
       favors: 3,
       favorsLastRegenGameDay: 0,
       markedNpcIds: [],
+      coin: 200,
     };
     p.saveState(state);
     expect(p.loadState()).toEqual(state);
+  });
+
+  it('round-trips a DailyLedger write -> read', () => {
+    const p = new Persistence(':memory:');
+    const ledger = {
+      gameDay: 4,
+      income: 88,
+      expense: 34,
+      net: 54,
+      guestCount: 6,
+      coinAfter: 254,
+    };
+    p.upsertDailyLedger(ledger);
+    expect(p.loadDailyLedger(4)).toEqual(ledger);
+    expect(p.loadDailyLedger(99)).toBeNull();
+
+    // Upsert overwrites in place.
+    p.upsertDailyLedger({ ...ledger, income: 100, net: 66, coinAfter: 266 });
+    expect(p.loadDailyLedger(4)).toEqual({
+      ...ledger,
+      income: 100,
+      net: 66,
+      coinAfter: 266,
+    });
   });
 
   it('event log appends produce monotonically increasing ids', () => {
@@ -96,6 +121,7 @@ describe('Persistence', () => {
       favors: 3,
       favorsLastRegenGameDay: 0,
       markedNpcIds: [],
+      coin: 200,
     };
     p.saveState(existing);
 

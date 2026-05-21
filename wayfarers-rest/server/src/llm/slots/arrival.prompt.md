@@ -5,8 +5,10 @@ Mood: {mood}
 Coming from: {originLocationDisplayName} ({originLocationKind})
 Carrying news about: {newsContext}
 
-- name: an evocative fantasy name, 1-3 words, not generic
-- tagline: a 4-10 word description of who they are
-- item: one specific item in their pack, concrete and visual
+- name: the visitor's name — a given name and a plain, ordinary-word surname
+  (e.g. Crow, Reed, Ashdown); never a welded heroic compound
+- tagline: a 4-10 word description of who they are; third person, no "I"/"my"
+- item: one concrete, visual item in their pack — specific and a little
+  unexpected, not a generic pouch or satchel
 
 JSON shape: {"name": "...", "tagline": "...", "item": "..."}

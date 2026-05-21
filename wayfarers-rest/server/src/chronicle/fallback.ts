@@ -115,6 +115,13 @@ function renderSentence(entry: EventLogEntry, npcsById: Map<string, Npc>): strin
       return `The matter of ${ev.threadId} concluded: ${ev.outcome}.`;
     case 'rumor_introduced':
       return `A new rumor began to circulate (${ev.rumorId}).`;
+    case 'ledger_closed': {
+      if (ev.net > 0) return `The day's takings came to ${ev.net} coin.`;
+      if (ev.net < 0) {
+        return `The day's takings ran short by ${-ev.net} coin.`;
+      }
+      return "The day's takings broke even.";
+    }
     case 'interaction': {
       const names = ev.interaction.participantIds
         .map((id) => npcsById.get(id)?.displayName ?? id)

@@ -28,8 +28,8 @@ Write 3-5 headline lines and 3-6 footnote lines.
 
 Headlines are the day's consequential events: arrivals worth remarking on, departures with weight, world news, threads that turned. Each headline is one sentence.
 
-Footnotes are the small things: a soup that turned out well, a brawl over copper, a song no one quite caught. Each footnote is one sentence.
+Footnotes are the day's smaller moments: a brief interaction, a minor arrival or departure, a quieter detail. Each footnote is one sentence.
 
-Do not invent. Every line traces to an event above. Some events may be combined into one line if they share a thread.
+Every headline and footnote must trace to a specific entry under "What happened today" above — not to yesterday's lines, not to the wider-world list, and not to anything you supply yourself. Do not invent weather, food, songs, or crowds that were not recorded. Some events may be combined into one line if they share a thread.
 
 Respond ONLY with JSON matching the schema. No preamble, no commentary.

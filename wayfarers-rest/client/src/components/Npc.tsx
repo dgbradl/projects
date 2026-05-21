@@ -1,6 +1,13 @@
-import type { Npc as NpcT } from '@shared/types';
+import type { Npc as NpcT, StaffRole } from '@shared/types';
 import { useStore } from '../state/store.tsx';
+import { NpcSprite } from '../sprites/NpcSprite.tsx';
 import { InteractionBubble } from './InteractionBubble.tsx';
+
+const STAFF_ROLE_ABBREV: Record<StaffRole, string> = {
+  bartender: '(bar)',
+  waitstaff: '(wait)',
+  cleaner: '(clean)',
+};
 
 interface Props {
   npc: NpcT;
@@ -19,8 +26,9 @@ export function Npc({
   const { interactingNpcs } = useStore();
   const flash = interactingNpcs[npc.id];
   const interacting = !!flash && flash.expiresAt > Date.now();
-  // Phase 7 (A3): a returning regular wears a small badge.
   const isRegular = (npc.visitCount ?? 0) > 1;
+  const isStaff = npc.isStaff ?? false;
+  const staffRoleLabel = isStaff ? STAFF_ROLE_ABBREV[npc.staffRole ?? 'waitstaff'] : null;
 
   const style: React.CSSProperties = {
     left: `${npc.position.x}%`,
@@ -41,22 +49,24 @@ export function Npc({
 
   return (
     <div
-      className={`npc npc-${npc.status}`}
+      className={`npc npc-${npc.status}${isStaff ? ' npc-staff' : ''}`}
       style={style}
       data-npc-id={npc.id}
       data-status={npc.status}
+      data-staff-role={npc.staffRole ?? undefined}
       data-interacting={interacting ? 'true' : undefined}
     >
       <InteractionBubble npc={npc} />
-      <span className="npc-dot" aria-hidden />
+      <NpcSprite npc={npc} />
       <span className="npc-label">
         {npc.displayName}
-        {isRegular && (
-          <span
-            className="npc-regular-badge"
-            aria-label="a regular"
-            title="a regular"
-          >
+        {isStaff && staffRoleLabel && (
+          <span className="npc-staff-badge" title={npc.staffRole}>
+            {staffRoleLabel}
+          </span>
+        )}
+        {isRegular && !isStaff && (
+          <span className="npc-regular-badge" aria-label="a regular" title="a regular">
             ★
           </span>
         )}
@@ -66,15 +76,22 @@ export function Npc({
         {npc.tagline && (
           <div className="npc-tooltip-tagline">{npc.tagline}</div>
         )}
-        <div className="npc-tooltip-row">
-          status: <span>{npc.status}</span>
-        </div>
-        {isRegular && (
+        {isStaff && npc.staffRole && (
+          <div className="npc-tooltip-row">
+            role: <span>{npc.staffRole}</span>
+          </div>
+        )}
+        {!isStaff && (
+          <div className="npc-tooltip-row">
+            status: <span>{npc.status}</span>
+          </div>
+        )}
+        {isRegular && !isStaff && (
           <div className="npc-tooltip-row">
             visits: <span>{npc.visitCount}</span>
           </div>
         )}
-        {subTicksSinceArrival !== null && (
+        {!isStaff && subTicksSinceArrival !== null && (
           <div className="npc-tooltip-row">
             here: <span>{subTicksSinceArrival} sub-ticks</span>
           </div>

@@ -208,6 +208,10 @@ function formatEventLine(entry: EventLogEntry, npcsById: Map<string, Npc>): stri
       return `${stamp} thread completed: ${ev.threadId} → ${ev.outcome}`;
     case 'rumor_introduced':
       return `${stamp} rumor introduced: ${ev.rumorId}`;
+    case 'ledger_closed': {
+      const sign = ev.net >= 0 ? '+' : '';
+      return `${stamp} ledger settled: took ${ev.income}, spent ${ev.expense}, net ${sign}${ev.net} (purse now ${ev.coinAfter})`;
+    }
     case 'interaction': {
       const ids = ev.interaction.participantIds
         .map((id) => npcsById.get(id)?.displayName ?? id)

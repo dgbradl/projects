@@ -13,6 +13,8 @@ export interface WorldState {
   favorsLastRegenGameDay: number;
   /** Phase 6: NPCs currently marked for the keeper's attention. */
   markedNpcIds: string[];
+  /** Economy (E1): the tavern's purse, in coin. Settled once per day. */
+  coin: number;
 }
 
 /** @deprecated Replaced by EventLogEntry + WorldEvent. Kept for migration. */
@@ -75,6 +77,12 @@ export interface Npc {
   wasBeckoned?: boolean;
   /** Phase 7 (A3): total visits including this one; >1 marks a returning regular. */
   visitCount?: number;
+  /** Epic E: true for permanent tavern staff (never departs). */
+  isStaff?: boolean;
+  /** Epic E: role within the staff roster. */
+  staffRole?: StaffRole;
+  /** Epic E (E2): skill ratings carried for fast effect lookup. */
+  skills?: StaffSkills;
 }
 
 export type NpcMood =
@@ -84,6 +92,18 @@ export type NpcMood =
   | 'guarded'
   | 'desperate'
   | 'smug';
+
+export type StaffRole = 'bartender' | 'waitstaff' | 'cleaner';
+
+export interface StaffSkills {
+  pourQuality?: number;
+  gossipNetwork?: number;
+  conflictMitigation?: number;
+  hospitality?: number;
+  attentiveness?: number;
+  thoroughness?: number;
+  observant?: number;
+}
 
 export interface ScheduledArrival {
   npcId: string;
@@ -113,6 +133,14 @@ export interface Character {
   visitCount: number;
   /** Phase 7 (A2): what this character carries forward between visits. */
   memory: CharacterMemory;
+  /** Epic E: true for permanent tavern staff. */
+  isStaff?: boolean;
+  /** Epic E: role within the staff roster. */
+  staffRole?: StaffRole;
+  /** Epic E: skill ratings that affect gameplay (wired in E2). */
+  skills?: StaffSkills;
+  /** Epic E: one-liner personality description shown as tagline. */
+  personality?: string;
 }
 
 /** Phase 7 (A2): one other character this character has crossed paths with. */
@@ -240,6 +268,26 @@ export interface Interaction {
   overheardText?: string;
 }
 
+// ---------- Economy (E1) ----------
+
+/** What a single guest spent during a visit, broken out by category. */
+export interface GuestSpendBreakdown {
+  drink: number;
+  meal: number;
+  room: number;
+  tip: number;
+}
+
+/** A settled day's income and expense. One row per game day. */
+export interface DailyLedger {
+  gameDay: number;
+  income: number;
+  expense: number;
+  net: number;
+  guestCount: number;
+  coinAfter: number;
+}
+
 // ---------- Phase 3: Events ----------
 
 export type WorldEvent =
@@ -327,6 +375,32 @@ export type WorldEvent =
       gameDay: number;
       npcId: string;
       reason: 'departed' | 'manual';
+    }
+  | {
+      /** Economy (E1): a departing guest settled their tab. */
+      type: 'guest_spent';
+      gameDay: number;
+      npcId: string;
+      amount: number;
+      breakdown: GuestSpendBreakdown;
+    }
+  | {
+      /** Economy (E1): the tavern's daily running cost. */
+      type: 'tavern_upkeep';
+      gameDay: number;
+      amount: number;
+      occupancy: number;
+    }
+  | {
+      /** Economy (E1): a game day's ledger was settled. */
+      type: 'ledger_closed';
+      gameDay: number;
+      income: number;
+      expense: number;
+      net: number;
+      coinBefore: number;
+      coinAfter: number;
+      guestCount: number;
     };
 
 // ---------- Phase 6: Interventions ----------

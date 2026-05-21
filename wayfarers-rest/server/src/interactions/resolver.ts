@@ -31,12 +31,18 @@ const BASE_WEIGHTS: Record<string, Weights> = {
   },
 };
 
+export interface StaffModifiers {
+  /** Reduce `overheard_argument` weight by this amount (0–1). */
+  conflictMitigation: number;
+}
+
 export interface ResolverContext {
   worldSeed: string;
   gameDay: number;
   subTick: number;
   npcsById: Map<string, Npc>;
   perDayCounter: { value: number };
+  staffModifiers?: StaffModifiers;
 }
 
 export class InteractionResolver {
@@ -63,7 +69,7 @@ export class InteractionResolver {
       ctx.gameDay,
       ctx.subTick,
     );
-    const kind = this.pickKind(candidate.zone, a, b, rng);
+    const kind = this.pickKind(candidate.zone, a, b, rng, ctx.staffModifiers);
     const id = `int_d${ctx.gameDay}_st${ctx.subTick}_${ctx.perDayCounter.value}`;
     ctx.perDayCounter.value += 1;
 
@@ -124,6 +130,7 @@ export class InteractionResolver {
     a: Npc | undefined,
     b: Npc | undefined,
     rng: Rng,
+    staffModifiers?: StaffModifiers,
   ): InteractionKind {
     const base = BASE_WEIGHTS[zone] ?? BASE_WEIGHTS.default;
     const weights: Weights = { ...base };
@@ -132,6 +139,12 @@ export class InteractionResolver {
       (b?.carriedRumorIds?.length ?? 0) > 0
     ) {
       weights.whispered_exchange += 0.25;
+    }
+    if (staffModifiers?.conflictMitigation) {
+      weights.overheard_argument = Math.max(
+        0,
+        weights.overheard_argument - staffModifiers.conflictMitigation,
+      );
     }
     // Phase 7 (B2): two characters who have met recognise each other, and
     // their standing colours the encounter — friends drink, rivals argue.

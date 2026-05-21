@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { randomBytes } from 'node:crypto';
 import type { WorldState } from '@shared/types';
+import { COIN_INITIAL_DEFAULT } from './economy/ledger.ts';
 import type { Clock } from './lib/clock.ts';
 import type { Persistence } from './persistence.ts';
 
@@ -36,6 +37,7 @@ export class WorldStateManager extends EventEmitter {
         favors: 3,
         favorsLastRegenGameDay: 0,
         markedNpcIds: [],
+        coin: COIN_INITIAL_DEFAULT,
       };
       persistence.saveState(this.state);
       this.wasColdStart = true;

@@ -33,8 +33,13 @@ export class SubTickScheduler {
         this.npcManager.onMacroTick(state.gameDay);
         this.threadRunner?.runDay(state.gameDay, state, state.seed);
         this.lastGameDay = state.gameDay;
-        if (state.subTick !== 0) {
-          this.stateManager.setState({ ...state, subTick: 0 });
+        // Snap subTick to 0 for the new day. Re-read fresh state: onDayChange
+        // may have mutated other fields (favor regen, the daily ledger's
+        // coin), and the captured `state` arg is stale — writing it back
+        // would clobber those updates.
+        const afterDayChange = this.stateManager.getState();
+        if (afterDayChange.subTick !== 0) {
+          this.stateManager.setState({ ...afterDayChange, subTick: 0 });
         }
         this.nextDueAtMs = this.clock.now() + this.config.subTickIntervalMs;
       }

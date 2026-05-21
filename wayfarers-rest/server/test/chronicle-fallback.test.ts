@@ -130,6 +130,50 @@ describe('buildFallbackChronicle', () => {
     expect(allText.toLowerCase()).toContain('familiar face');
   });
 
+  it("renders a ledger_closed event as the day's takings", () => {
+    const surplus = buildFallbackChronicle({
+      gameDay: 6,
+      generatedAtRealTs: 't',
+      salientEvents: [
+        entry(1, {
+          type: 'ledger_closed',
+          gameDay: 6,
+          income: 80,
+          expense: 30,
+          net: 50,
+          coinBefore: 200,
+          coinAfter: 250,
+          guestCount: 5,
+        }),
+      ],
+      context: ctx,
+    });
+    expect([...surplus.headlines, ...surplus.footnotes].join(' ')).toContain(
+      "takings came to 50 coin",
+    );
+
+    const shortfall = buildFallbackChronicle({
+      gameDay: 6,
+      generatedAtRealTs: 't',
+      salientEvents: [
+        entry(1, {
+          type: 'ledger_closed',
+          gameDay: 6,
+          income: 10,
+          expense: 40,
+          net: -30,
+          coinBefore: 200,
+          coinAfter: 170,
+          guestCount: 1,
+        }),
+      ],
+      context: ctx,
+    });
+    expect([...shortfall.headlines, ...shortfall.footnotes].join(' ')).toContain(
+      'ran short by 30 coin',
+    );
+  });
+
   it('never throws on any event mix', () => {
     const events: EventLogEntry[] = [
       entry(1, { type: 'tick', gameDay: 1 }),
