@@ -375,7 +375,7 @@ function buildInterventionDescriptions(
     }
     try {
       out.push({
-        text: def.describe(record.payload as never, optionsShape),
+        text: def.describe(record.payload as never, optionsShape, record.effect),
       });
     } catch {
       out.push({ text: `(intervention: ${record.kind})` });

@@ -4,9 +4,12 @@ import { registerRoutes, type ApiDeps } from '../src/api/routes.ts';
 import { WorldEventBus } from '../src/events/emitter.ts';
 import {
   buildMarkNpc,
+  buildRestockLarder,
   buildStirWorld,
   buildSwayThread,
+  buildUpgradeHearth,
 } from '../src/interventions/kinds/index.ts';
+import { RESTOCK_LARDER_COST } from '../src/interventions/kinds/restock-larder.ts';
 import * as interventionRegistry from '../src/interventions/registry.ts';
 import { FakeClock } from '../src/lib/clock.ts';
 import { NpcManager } from '../src/npc/manager.ts';
@@ -43,6 +46,8 @@ function build() {
   interventionRegistry.register(buildSwayThread({ persistence }));
   interventionRegistry.register(buildStirWorld({ persistence }));
   interventionRegistry.register(buildMarkNpc({ npcManager, stateManager, bus }));
+  interventionRegistry.register(buildRestockLarder({ stateManager }));
+  interventionRegistry.register(buildUpgradeHearth({ stateManager }));
   worldTags.set('war_in_north', 'quiet', 1);
 
   const app = Fastify();
@@ -82,7 +87,7 @@ describe('intervention REST routes', () => {
     const body = res.json();
     expect(body.favors).toBe(3);
     expect(body.favorsMax).toBe(5);
-    expect(body.kinds.length).toBe(5);
+    expect(body.kinds.length).toBe(7);
     expect(Array.isArray(body.targets.locations)).toBe(true);
     expect(body.targets.locations.length).toBeGreaterThan(0);
     expect(body.targets.worldTags.find((t: { key: string }) => t.key === 'war_in_north')).toBeDefined();
@@ -132,5 +137,37 @@ describe('intervention REST routes', () => {
     });
     expect(res.statusCode).toBe(400);
     expect(h.stateManager.getState().favors).toBe(before);
+  });
+
+  it('pays a coin-costed verb from the purse, leaving favors untouched', async () => {
+    const h = build();
+    openApps.push(h.app);
+    const coinBefore = h.stateManager.getState().coin;
+    const res = await h.app.inject({
+      method: 'POST',
+      url: '/interventions',
+      payload: { kind: 'restock_larder' },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.intervention.kind).toBe('restock_larder');
+    expect(body.intervention.costCurrency).toBe('coin');
+    expect(body.intervention.effect.larderRestockedTo).toBe(1);
+    expect(body.state.coin).toBe(coinBefore - RESTOCK_LARDER_COST);
+    expect(body.state.favors).toBe(3);
+  });
+
+  it('insufficient coin returns 400 for a coin-costed verb', async () => {
+    const h = build();
+    openApps.push(h.app);
+    h.stateManager.setState({ ...h.stateManager.getState(), coin: 10 });
+    const res = await h.app.inject({
+      method: 'POST',
+      url: '/interventions',
+      payload: { kind: 'restock_larder' },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toMatch(/not enough coin/);
+    expect(h.stateManager.getState().coin).toBe(10);
   });
 });

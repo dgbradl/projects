@@ -130,6 +130,28 @@ describe('closeLedgerForDay', () => {
     expect(closedCount()).toBe(1);
   });
 
+  it('depletes the larder by one level each day (Economy E3)', () => {
+    const { stateManager, deps } = setup();
+    stateManager.setState({ ...stateManager.getState(), larderStock: 3 });
+    closeLedgerForDay(deps, 1);
+    expect(stateManager.getState().larderStock).toBe(2);
+  });
+
+  it('clamps larder depletion at zero', () => {
+    const { stateManager, deps } = setup();
+    // A fresh tavern's larder is already at 0 — closing must not go negative.
+    closeLedgerForDay(deps, 1);
+    expect(stateManager.getState().larderStock).toBe(0);
+  });
+
+  it('does not deplete the larder twice when a day is re-closed', () => {
+    const { stateManager, deps } = setup();
+    stateManager.setState({ ...stateManager.getState(), larderStock: 3 });
+    closeLedgerForDay(deps, 1);
+    closeLedgerForDay(deps, 1);
+    expect(stateManager.getState().larderStock).toBe(2);
+  });
+
   it('clamps the purse at zero — a soft economy never goes negative', () => {
     const { stateManager, deps } = setup();
     stateManager.setState({ ...stateManager.getState(), coin: 5 });

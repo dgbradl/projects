@@ -23,6 +23,13 @@ const UPKEEP_PER_GUEST = 3;
 /** Seeded jitter added to upkeep, drawn from [0, UPKEEP_JITTER]. */
 const UPKEEP_JITTER = 6;
 
+/**
+ * Economy (E3): the larder loses one stock level each day the tavern is open
+ * — the day's meals draw it down. The keeper offsets this with the
+ * `restock_larder` intervention; left alone, a full larder lasts five days.
+ */
+export const LARDER_DECAY_PER_DAY = 1;
+
 export interface ComputeUpkeepInput {
   worldSeed: string;
   gameDay: number;
@@ -63,11 +70,13 @@ export interface LedgerDeps {
 /**
  * Settle one game day's ledger. Sums that day's `guest_spent` events for
  * income, debits upkeep scaled by the day's arrivals, applies the net to the
- * purse, and records a `daily_ledgers` row.
+ * purse, records a `daily_ledgers` row, and depletes the larder by one level
+ * (Economy E3).
  *
  * Idempotent: a day that already has a ledger row is a no-op. The row is
  * written before the coin `setState` so that, should the state listener
- * re-enter this function during that write, the second call bails cleanly.
+ * re-enter this function during that write, the second call bails cleanly —
+ * which is also what keeps the larder from decaying twice for one day.
  */
 export function closeLedgerForDay(
   deps: LedgerDeps,
@@ -114,8 +123,17 @@ export function closeLedgerForDay(
     guestCount,
     coinAfter,
   };
+  // Economy (E3): the day's meals draw the larder down by one level.
+  const larderAfter = Math.max(
+    0,
+    (state.larderStock ?? 0) - LARDER_DECAY_PER_DAY,
+  );
   deps.persistence.upsertDailyLedger(ledger);
-  deps.stateManager.setState({ ...state, coin: coinAfter });
+  deps.stateManager.setState({
+    ...state,
+    coin: coinAfter,
+    larderStock: larderAfter,
+  });
 
   deps.bus.publish({
     type: 'tavern_upkeep',

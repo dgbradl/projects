@@ -1,6 +1,5 @@
 import type { FastifyInstance } from 'fastify';
 import type {
-  CostCurrency,
   InterventionExecuteResponse,
   InterventionKind,
   InterventionOptionsResponse,
@@ -64,12 +63,12 @@ export function registerInterventionRoutes(
 
       const state = deps.stateManager.getState();
       // Economy (E3): a kind is paid in favor (default) or coin.
-      const currency: CostCurrency = def.costCurrency ?? 'favor';
+      const currency = registry.costCurrencyOf(def);
       const balance = currency === 'coin' ? state.coin : state.favors;
       if (balance < def.cost) {
         reply.code(400);
         return {
-          error: `not enough ${currency} (have ${balance}, need ${def.cost})`,
+          error: `not enough ${registry.currencyLabel(currency)} (have ${balance}, need ${def.cost})`,
         };
       }
 

@@ -1,4 +1,4 @@
-import type { InterventionKind } from '@shared/types';
+import type { CostCurrency, InterventionKind } from '@shared/types';
 import type { InterventionDefinition } from './types.ts';
 
 const REGISTRY = new Map<InterventionKind, InterventionDefinition>();
@@ -22,4 +22,14 @@ export function listDefinitions(): InterventionDefinition[] {
 /** Tests reset registrations and re-import the kinds they want. */
 export function clearRegistry(): void {
   REGISTRY.clear();
+}
+
+/** Economy (E3): the resource a kind's cost is paid in — favor unless stated. */
+export function costCurrencyOf(def: InterventionDefinition): CostCurrency {
+  return def.costCurrency ?? 'favor';
+}
+
+/** Economy (E3): human-readable currency name for player-facing copy. */
+export function currencyLabel(currency: CostCurrency): string {
+  return currency === 'coin' ? 'coin' : 'favors';
 }

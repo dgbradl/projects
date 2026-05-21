@@ -11,7 +11,7 @@ import type { NpcManager } from '../npc/manager.ts';
 import type { Persistence } from '../persistence.ts';
 import type { WorldStateManager } from '../state.ts';
 import { threadHeadline } from '../chronicle/prompt.ts';
-import { listDefinitions } from './registry.ts';
+import { costCurrencyOf, currencyLabel, listDefinitions } from './registry.ts';
 import { FAVORS_MAX_DEFAULT } from './favor.ts';
 import { LARDER_MAX } from './kinds/restock-larder.ts';
 import { HEARTH_MAX } from './kinds/upgrade-hearth.ts';
@@ -90,14 +90,14 @@ export function buildInterventionOptions(
 
   // Compute per-kind availability.
   const kinds: InterventionKindStatus[] = listDefinitions().map((def) => {
-    const currency = def.costCurrency ?? 'favor';
+    const currency = costCurrencyOf(def);
     const balance = currency === 'coin' ? state.coin : state.favors;
     const base = { kind: def.kind, cost: def.cost, costCurrency: currency };
     if (balance < def.cost) {
       return {
         ...base,
         available: false,
-        unavailableReason: `costs ${def.cost} ${currency} (you have ${balance})`,
+        unavailableReason: `costs ${def.cost} ${currencyLabel(currency)} (you have ${balance})`,
       };
     }
     const reason = checkHasTargets(def.kind, targets, npcsInTavern, state);

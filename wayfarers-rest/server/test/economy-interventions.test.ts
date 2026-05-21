@@ -88,6 +88,22 @@ describe('restock_larder', () => {
     def.apply(applyInput(sm.getState()));
     expect(sm.getState().larderStock).toBe(LARDER_MAX);
   });
+
+  it('describe() renders the apply-time effect, not live state', () => {
+    // The larder has since moved on (decayed/restocked); describe is called
+    // post-hoc in the chronicle and must ignore current state.
+    const sm = stateManager({ larderStock: LARDER_MAX });
+    const def = buildRestockLarder({ stateManager: sm });
+    const text = def.describe({}, OPTIONS, { larderRestockedTo: 2 });
+    expect(text).toBe(`You restocked the larder (now at 2/${LARDER_MAX}).`);
+  });
+
+  it('describe() falls back to a level-free line with no effect', () => {
+    const def = buildRestockLarder({ stateManager: stateManager() });
+    expect(def.describe({}, OPTIONS, undefined)).toBe(
+      'You restocked the larder.',
+    );
+  });
 });
 
 describe('upgrade_hearth', () => {
@@ -109,5 +125,21 @@ describe('upgrade_hearth', () => {
     const sm = stateManager({ hearthLevel: HEARTH_MAX });
     const def = buildUpgradeHearth({ stateManager: sm });
     expect(def.validate({}, sm.getState(), OPTIONS).ok).toBe(false);
+  });
+
+  it('never exceeds the cap', () => {
+    const sm = stateManager({ hearthLevel: HEARTH_MAX - 1 });
+    const def = buildUpgradeHearth({ stateManager: sm });
+    def.apply(applyInput(sm.getState()));
+    expect(sm.getState().hearthLevel).toBe(HEARTH_MAX);
+  });
+
+  it('describe() renders the apply-time effect, not live state', () => {
+    const sm = stateManager({ hearthLevel: HEARTH_MAX });
+    const def = buildUpgradeHearth({ stateManager: sm });
+    const text = def.describe({}, OPTIONS, { hearthUpgradedTo: 3 });
+    expect(text).toBe(
+      `You built up the hearth and common room (now at 3/${HEARTH_MAX}).`,
+    );
   });
 });

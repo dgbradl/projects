@@ -60,7 +60,17 @@ export interface InterventionDefinition<TPayload = Record<string, unknown>> {
   cost: number;
   /** Economy (E3): resource the cost is paid in; defaults to 'favor'. */
   costCurrency?: CostCurrency;
-  describe(payload: TPayload, options: InterventionOptions): string;
+  /**
+   * Renders a one-line summary of an intervention. Called post-hoc by the
+   * chronicle generator against a historical record, so it must derive
+   * everything from its arguments — never from live world state. `effect` is
+   * the apply-time result; pass it for kinds whose summary needs the outcome.
+   */
+  describe(
+    payload: TPayload,
+    options: InterventionOptions,
+    effect?: InterventionEffect,
+  ): string;
   validate(
     payload: TPayload,
     state: WorldState,

@@ -1,7 +1,9 @@
 /**
  * Economy (E3): `restock_larder` — the keeper spends coin to restock the
  * larder. A fuller larder lifts what guests spend on meals (see
- * `computeGuestSpend`). One of the coin-costed "economic verbs".
+ * `computeGuestSpend`), but it depletes by one level each day the tavern is
+ * open (see `LARDER_DECAY_PER_DAY`), so the keeper restocks to keep it up.
+ * One of the coin-costed "economic verbs".
  */
 import type { WorldStateManager } from '../../state.ts';
 import type {
@@ -25,12 +27,13 @@ export function buildRestockLarder(
     kind: 'restock_larder',
     cost: RESTOCK_LARDER_COST,
     costCurrency: 'coin',
-    describe() {
-      const next = Math.min(
-        LARDER_MAX,
-        (deps.stateManager.getState().larderStock ?? 0) + 1,
-      );
-      return `You restocked the larder (now at ${next}/${LARDER_MAX}).`;
+    describe(_payload, _options, effect) {
+      // Render from the apply-time effect, not live state — `describe` runs
+      // post-hoc in the chronicle, by when the larder has moved on (decayed).
+      const level = effect?.larderRestockedTo;
+      return level != null
+        ? `You restocked the larder (now at ${level}/${LARDER_MAX}).`
+        : 'You restocked the larder.';
     },
     validate(_payload, state) {
       if ((state.larderStock ?? 0) >= LARDER_MAX) {
