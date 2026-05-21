@@ -2,8 +2,10 @@
   position: relative;
   width: min(96vw, 1100px);
   aspect-ratio: 5 / 3;
-  background:
-    radial-gradient(circle at 50% 30%, #4a3320 0%, #2c1d11 60%, #1d130a 100%);
+  background-color: #241710;
+  background-image: url('../assets/tavern/hardwood_tiles.png');
+  background-repeat: repeat;
+  box-shadow: inset 0 0 80px 10px rgba(14, 8, 4, 0.62);
   border: 1px solid #4a3320;
   border-radius: 0.5rem;
   overflow: hidden;
@@ -39,4 +41,57 @@
 
 .zone-door {
   border-color: rgba(210, 156, 84, 0.4);
+}
+
+.furnishings {
+  position: absolute;
+  inset: 0;
+}
+
+.furniture {
+  position: absolute;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.furniture:active {
+  cursor: grabbing;
+}
+
+.furniture img {
+  display: block;
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+.furniture.selected img {
+  outline: 1.5px dashed var(--accent-strong);
+  outline-offset: 2px;
+}
+
+.furniture-rotate-handle {
+  position: absolute;
+  left: 50%;
+  top: -24px;
+  width: 13px;
+  height: 13px;
+  margin-left: -7px;
+  border-radius: 50%;
+  background: var(--accent-strong);
+  border: 1.5px solid #1d130a;
+  cursor: grab;
+}
+
+.furniture-rotate-handle::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 12px;
+  width: 1.5px;
+  height: 12px;
+  margin-left: -0.75px;
+  background: var(--accent-strong);
 }

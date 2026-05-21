@@ -35,3 +35,7 @@ export const tavernSpritesByCategory: [string, SpriteAsset[]][] = (() => {
   }
   return [...groups.entries()];
 })();
+
+export const spriteByName: Record<string, SpriteAsset> = Object.fromEntries(
+  tavernSprites.map((sprite) => [sprite.name, sprite]),
+);

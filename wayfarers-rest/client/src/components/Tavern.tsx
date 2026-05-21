@@ -1,4 +1,5 @@
 import { useStore } from '../state/store.tsx';
+import { Furnishings } from './Furnishings.tsx';
 import { Npc } from './Npc.tsx';
 import { Zone } from './Zone.tsx';
 
@@ -14,6 +15,7 @@ export function Tavern() {
       {tavern.zones.map((z) => (
         <Zone key={z.name} zone={z} />
       ))}
+      <Furnishings />
       {Object.values(npcs).map((n) => (
         <Npc
           key={n.id}
