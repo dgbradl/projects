@@ -1,4 +1,6 @@
-Generate {batchSize} short fragments of dialogue you might overhear in a fantasy tavern. Each is 5-15 words, mid-sentence, no quotation marks, no attribution. Mix moods: some mundane, some funny, some ominous, some absurd.
+Generate {batchSize} short fragments of overheard tavern dialogue. Each is
+5-15 words, mid-sentence, no attribution. Mix moods: some mundane, some funny,
+some ominous, some absurd.
 
 Examples of the form:
 - and then he says that's not a lute, that's my wife
@@ -7,4 +9,4 @@ Examples of the form:
 
 Mood hint: {moodHint}
 
-Respond ONLY with JSON of the form: {"fragments": ["...", "...", ...]}
+JSON shape: {"fragments": ["...", "...", ...]}

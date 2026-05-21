@@ -55,7 +55,7 @@ const PORT = parseInt(process.env.PORT ?? '3000', 10);
 const HOST = process.env.HOST ?? '0.0.0.0';
 
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434';
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? 'llama3.1:8b';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? 'wayfarers-flavor';
 const OLLAMA_REQUEST_TIMEOUT_MS = parseInt(
   process.env.OLLAMA_REQUEST_TIMEOUT_MS ?? '30000',
   10,
@@ -70,7 +70,7 @@ const OLLAMA_HEALTH_CHECK_MS = parseInt(
   process.env.OLLAMA_HEALTH_CHECK_MS ?? '30000',
   10,
 );
-const CHRONICLE_MODEL = process.env.CHRONICLE_MODEL;
+const CHRONICLE_MODEL = process.env.CHRONICLE_MODEL ?? 'wayfarers-keeper';
 const CHRONICLE_MAX_EVENTS = parseInt(
   process.env.CHRONICLE_MAX_EVENTS ?? '25',
   10,
