@@ -1,4 +1,4 @@
-import type { ScheduledArrival, WorldTag } from '@shared/types';
+import type { ProsperityTier, ScheduledArrival, WorldTag } from '@shared/types';
 import { PLACEHOLDER_NAMES } from '../data/placeholderNames.ts';
 import { rngFloat, rngInt, seededRng, type Rng } from '../world/rng.ts';
 
@@ -7,6 +7,8 @@ export interface SpawnConfig {
   gameDay: number;
   subTicksPerDay: number;
   worldTags?: WorldTag[];
+  /** Economy (E2): tavern prosperity tier, modulating arrival count + mix. */
+  prosperityTier?: ProsperityTier;
 }
 
 export interface DepartureConfig {
@@ -21,6 +23,14 @@ const MAX_ARRIVALS = 10;
 const EVENING_BIAS = 0.6;
 const MIN_STAY = 40;
 const MAX_STAY = 200;
+
+/** Economy (E2): prosperity-tier adjustment to a day's arrival count. */
+const PROSPERITY_COUNT_DELTA: Record<ProsperityTier, number> = {
+  struggling: -1,
+  steady: 0,
+  thriving: 1,
+  renowned: 2,
+};
 
 export function generateSpawnQueue(cfg: SpawnConfig): ScheduledArrival[] {
   const { worldSeed, gameDay, subTicksPerDay } = cfg;
@@ -37,18 +47,28 @@ export function generateSpawnQueue(cfg: SpawnConfig): ScheduledArrival[] {
   if (tags.get('road_safety_south') === 'poor') count -= 1;
   // Phase 7 (D3): a festival underway packs the tavern.
   if (tags.get('festival') === 'underway') count += 3;
+  // Economy (E2): a thriving tavern draws a fuller house; a struggling one
+  // thins out. The Math.max below still holds the loop open — no death spiral.
+  count += PROSPERITY_COUNT_DELTA[cfg.prosperityTier ?? 'steady'];
   count = Math.max(1, count);
 
   // Tag-driven archetype injection.
   const refugeeBoost = tags.get('war_in_north') === 'escalating';
   const merchantBoost = tags.get('harvest') === 'poor';
+  // Economy (E2): a well-regarded tavern pulls in more well-off merchants.
+  const prosperityHigh =
+    cfg.prosperityTier === 'thriving' || cfg.prosperityTier === 'renowned';
 
   const usedNames = new Set<string>();
   const arrivals: ScheduledArrival[] = [];
   for (let i = 0; i < count; i += 1) {
     const subTick = sampleArrivalSubTick(rng, subTicksPerDay);
     const displayName = pickName(rng, usedNames);
-    const archetype = pickArchetype(rng, { refugeeBoost, merchantBoost });
+    const archetype = pickArchetype(rng, {
+      refugeeBoost,
+      merchantBoost,
+      prosperityHigh,
+    });
     arrivals.push({
       npcId: `npc_d${gameDay}_${i}`,
       displayName,
@@ -95,11 +115,16 @@ function pickName(rng: Rng, used: Set<string>): string {
  */
 function pickArchetype(
   rng: Rng,
-  opts: { refugeeBoost: boolean; merchantBoost: boolean },
+  opts: {
+    refugeeBoost: boolean;
+    merchantBoost: boolean;
+    prosperityHigh: boolean;
+  },
 ): string {
   const r = rng();
   if (opts.refugeeBoost && r < 0.5) return 'refugee';
   if (opts.merchantBoost && r < 0.3) return 'merchant';
+  if (opts.prosperityHigh && r < 0.25) return 'merchant';
   // Otherwise pick from the full canonical archetype set.
   const archetypes = [
     'wanderer',

@@ -23,14 +23,10 @@ export function seedPhase3World(opts: {
   worldTags.set('war_in_north', 'quiet', gameDay);
   worldTags.set('road_safety_south', 'fair', gameDay);
 
-  // Slow-burn worldly events.
+  // Slow-burn world arcs.
+  // Phase 7 (D4): a richer war arc than the old worldly_event sequence.
   threadRunner.startThread({
-    type: 'worldly_event',
-    payload: {
-      tagKey: 'war_in_north',
-      sequence: ['simmering', 'escalating', 'resolved'],
-      dwellDays: 5,
-    },
+    type: 'war_escalation',
     initialNextTickDelay: 4,
     gameDay,
   });

@@ -19,6 +19,7 @@ describe('Persistence', () => {
       favorsLastRegenGameDay: 0,
       markedNpcIds: [],
       coin: 200,
+      prosperity: 0,
     };
     p.saveState(state);
     expect(p.loadState()).toEqual(state);
@@ -122,6 +123,7 @@ describe('Persistence', () => {
       favorsLastRegenGameDay: 0,
       markedNpcIds: [],
       coin: 200,
+      prosperity: 0,
     };
     p.saveState(existing);
 

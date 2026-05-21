@@ -122,6 +122,13 @@ function renderSentence(entry: EventLogEntry, npcsById: Map<string, Npc>): strin
       }
       return "The day's takings broke even.";
     }
+    case 'prosperity_changed': {
+      const order = ['struggling', 'steady', 'thriving', 'renowned'];
+      const rose = order.indexOf(ev.tier) > order.indexOf(ev.previousTier);
+      return rose
+        ? `The Rest's fortunes rose: it is now ${ev.tier}.`
+        : `The Rest's fortunes slipped: it is now ${ev.tier}.`;
+    }
     case 'interaction': {
       const names = ev.interaction.participantIds
         .map((id) => npcsById.get(id)?.displayName ?? id)

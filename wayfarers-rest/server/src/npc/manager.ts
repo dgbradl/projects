@@ -8,6 +8,7 @@ import type {
   NpcMood,
   ScheduledArrival,
 } from '@shared/types';
+import { tierForScore } from '@shared/types';
 import { computeGuestSpend, totalSpend } from '../economy/spend.ts';
 import type { WorldEventBus } from '../events/emitter.ts';
 import type { FlavorCache } from '../llm/cache/manager.ts';
@@ -24,7 +25,6 @@ import {
   rememberRumors,
 } from './character-memory.ts';
 import {
-  ACTIVE_STAFF,
   ALL_STAFF_DEFINITIONS,
   makeStaffNpc,
 } from './staff-roster.ts';
@@ -157,12 +157,11 @@ export class NpcManager extends EventEmitter {
    * skips staff already present. Emits a diff if any were added.
    */
   ensureStaffOnDuty(gameDay: number, subTick: number): void {
-    const activeIds = new Set(ACTIVE_STAFF.map((d) => d.id));
-    const staffChars = this.deps.persistence?.loadStaffCharacters() ?? [];
+    const activeChars = this.deps.persistence?.loadActiveStaffCharacters() ?? [];
     const diff: NpcDiff = { added: [], updated: [], removed: [] };
 
-    for (const char of staffChars) {
-      if (!activeIds.has(char.id) || this.roster.has(char.id)) continue;
+    for (const char of activeChars) {
+      if (this.roster.has(char.id)) continue;
       const def = ALL_STAFF_DEFINITIONS.find((d) => d.id === char.id);
       if (!def) continue;
       const abs = absoluteSubTick(gameDay, subTick, this.config.subTicksPerDay);
@@ -172,6 +171,13 @@ export class NpcManager extends EventEmitter {
     }
 
     if (diff.added.length) this.emit('diff', diff);
+  }
+
+  /** Remove a staff member from the live roster (used by hire/fire swap). */
+  removeFromRoster(id: string): void {
+    if (!this.roster.has(id)) return;
+    this.roster.delete(id);
+    this.emit('diff', { added: [], updated: [], removed: [id] });
   }
 
   /**
@@ -185,11 +191,15 @@ export class NpcManager extends EventEmitter {
     this.ensureStaffOnDuty(newGameDay, 0);
 
     const worldTags = this.deps.persistence?.getAllWorldTags() ?? [];
+    // Economy (E2): the tavern's prosperity shapes how full the next day is.
+    const prosperity = this.deps.persistence?.loadState()?.prosperity;
     this.spawnQueue = generateSpawnQueue({
       worldSeed: this.config.worldSeed,
       gameDay: newGameDay,
       subTicksPerDay: this.config.subTicksPerDay,
       worldTags,
+      prosperityTier:
+        prosperity != null ? tierForScore(prosperity) : undefined,
     });
 
     // Merge thread-scheduled arrivals into today's queue.
@@ -304,6 +314,7 @@ export class NpcManager extends EventEmitter {
           type: 'npc_departed',
           gameDay: currentGameDay,
           npcId: id,
+          displayName: next.displayName,
           destinationLocationId: destination,
         });
         // Economy (E1): settle the departing guest's tab. Staff never depart,

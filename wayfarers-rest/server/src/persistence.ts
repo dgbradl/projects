@@ -18,6 +18,7 @@ import type {
 import type { RosterSnapshot } from './npc/manager.ts';
 import { emptyMemory, parseCharacterMemory } from './npc/character-memory.ts';
 import { COIN_INITIAL_DEFAULT } from './economy/ledger.ts';
+import { PROSPERITY_INITIAL } from './economy/prosperity.ts';
 
 interface WorldStateRow {
   id: number;
@@ -33,6 +34,7 @@ interface WorldStateRow {
   favors_last_regen_game_day: number;
   marked_npc_ids: string;
   coin: number;
+  prosperity: number;
 }
 
 interface DailyLedgerRow {
@@ -42,6 +44,7 @@ interface DailyLedgerRow {
   net: number;
   guest_count: number;
   coin_after: number;
+  prosperity_after: number | null;
 }
 
 interface InterventionRow {
@@ -121,6 +124,7 @@ interface CharacterRow {
   staff_role: string | null;
   skills: string | null;
   personality: string | null;
+  is_active_staff: number | null;
 }
 
 interface ScheduledArrivalRow {
@@ -279,7 +283,8 @@ export class Persistence {
         expense INTEGER NOT NULL,
         net INTEGER NOT NULL,
         guest_count INTEGER NOT NULL,
-        coin_after INTEGER NOT NULL
+        coin_after INTEGER NOT NULL,
+        prosperity_after REAL
       );
     `);
 
@@ -311,6 +316,12 @@ export class Persistence {
       `INTEGER NOT NULL DEFAULT ${COIN_INITIAL_DEFAULT}`,
     );
     this.addColumnIfMissing(
+      'world_state',
+      'prosperity',
+      `REAL NOT NULL DEFAULT ${PROSPERITY_INITIAL}`,
+    );
+    this.addColumnIfMissing('daily_ledgers', 'prosperity_after', 'REAL');
+    this.addColumnIfMissing(
       'characters',
       'memory',
       `TEXT NOT NULL DEFAULT '${DEFAULT_MEMORY_JSON}'`,
@@ -319,6 +330,7 @@ export class Persistence {
     this.addColumnIfMissing('characters', 'staff_role', 'TEXT');
     this.addColumnIfMissing('characters', 'skills', 'TEXT');
     this.addColumnIfMissing('characters', 'personality', 'TEXT');
+    this.addColumnIfMissing('characters', 'is_active_staff', 'INTEGER NOT NULL DEFAULT 0');
     this.addColumnIfMissing('rumors', 'player_origin', 'INTEGER NOT NULL DEFAULT 0');
     this.addColumnIfMissing('rumors', 'tone', 'TEXT');
     this.addColumnIfMissing(
@@ -416,14 +428,15 @@ export class Persistence {
       favorsLastRegenGameDay: row.favors_last_regen_game_day ?? 0,
       markedNpcIds,
       coin: row.coin ?? COIN_INITIAL_DEFAULT,
+      prosperity: row.prosperity ?? PROSPERITY_INITIAL,
     };
   }
 
   saveState(state: WorldState): void {
     this.db
       .prepare(
-        `INSERT INTO world_state (id, game_day, last_tick_at, status, unattended_ticks, seed, sub_tick, last_acknowledged_game_day, favors, favors_last_regen_game_day, marked_npc_ids, coin)
-         VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO world_state (id, game_day, last_tick_at, status, unattended_ticks, seed, sub_tick, last_acknowledged_game_day, favors, favors_last_regen_game_day, marked_npc_ids, coin, prosperity)
+         VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET
            game_day = excluded.game_day,
            last_tick_at = excluded.last_tick_at,
@@ -435,7 +448,8 @@ export class Persistence {
            favors = excluded.favors,
            favors_last_regen_game_day = excluded.favors_last_regen_game_day,
            marked_npc_ids = excluded.marked_npc_ids,
-           coin = excluded.coin`,
+           coin = excluded.coin,
+           prosperity = excluded.prosperity`,
       )
       .run(
         state.gameDay,
@@ -449,6 +463,7 @@ export class Persistence {
         state.favorsLastRegenGameDay,
         JSON.stringify(state.markedNpcIds ?? []),
         state.coin,
+        state.prosperity,
       );
   }
 
@@ -1003,8 +1018,8 @@ export class Persistence {
     this.db
       .prepare(
         `INSERT INTO characters
-          (id, display_name, archetype, first_seen_game_day, last_seen_game_day, visit_count, memory, is_staff, staff_role, skills, personality)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          (id, display_name, archetype, first_seen_game_day, last_seen_game_day, visit_count, memory, is_staff, staff_role, skills, personality, is_active_staff)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET
            display_name = excluded.display_name,
            archetype = excluded.archetype,
@@ -1015,7 +1030,8 @@ export class Persistence {
            is_staff = excluded.is_staff,
            staff_role = excluded.staff_role,
            skills = excluded.skills,
-           personality = excluded.personality`,
+           personality = excluded.personality,
+           is_active_staff = excluded.is_active_staff`,
       )
       .run(
         character.id,
@@ -1029,6 +1045,7 @@ export class Persistence {
         character.staffRole ?? null,
         character.skills ? JSON.stringify(character.skills) : null,
         character.personality ?? null,
+        character.isActiveStaff ? 1 : 0,
       );
   }
 
@@ -1048,6 +1065,21 @@ export class Persistence {
     return rows.map(this.rowToCharacter);
   }
 
+  loadActiveStaffCharacters(): Character[] {
+    const rows = this.db
+      .prepare("SELECT * FROM characters WHERE is_staff = 1 AND is_active_staff = 1 ORDER BY id ASC")
+      .all() as CharacterRow[];
+    return rows.map(this.rowToCharacter);
+  }
+
+  setStaffActive(id: string): void {
+    this.db.prepare("UPDATE characters SET is_active_staff = 1 WHERE id = ?").run(id);
+  }
+
+  setStaffInactive(id: string): void {
+    this.db.prepare("UPDATE characters SET is_active_staff = 0 WHERE id = ?").run(id);
+  }
+
   private rowToCharacter = (r: CharacterRow): Character => ({
     id: r.id,
     displayName: r.display_name,
@@ -1060,6 +1092,7 @@ export class Persistence {
     staffRole: r.staff_role ? (r.staff_role as Character['staffRole']) : undefined,
     skills: r.skills ? (JSON.parse(r.skills) as StaffSkills) : undefined,
     personality: r.personality ?? undefined,
+    isActiveStaff: r.is_active_staff === 1 ? true : undefined,
   });
 
   // ---------- daily_ledgers (Economy E1) ----------
@@ -1067,14 +1100,15 @@ export class Persistence {
   upsertDailyLedger(ledger: DailyLedger): void {
     this.db
       .prepare(
-        `INSERT INTO daily_ledgers (game_day, income, expense, net, guest_count, coin_after)
-         VALUES (?, ?, ?, ?, ?, ?)
+        `INSERT INTO daily_ledgers (game_day, income, expense, net, guest_count, coin_after, prosperity_after)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(game_day) DO UPDATE SET
            income = excluded.income,
            expense = excluded.expense,
            net = excluded.net,
            guest_count = excluded.guest_count,
-           coin_after = excluded.coin_after`,
+           coin_after = excluded.coin_after,
+           prosperity_after = excluded.prosperity_after`,
       )
       .run(
         ledger.gameDay,
@@ -1083,6 +1117,7 @@ export class Persistence {
         ledger.net,
         ledger.guestCount,
         ledger.coinAfter,
+        ledger.prosperityAfter ?? null,
       );
   }
 
@@ -1109,6 +1144,7 @@ export class Persistence {
     net: r.net,
     guestCount: r.guest_count,
     coinAfter: r.coin_after,
+    prosperityAfter: r.prosperity_after ?? undefined,
   });
 
   close(): void {

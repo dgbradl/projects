@@ -212,6 +212,8 @@ function formatEventLine(entry: EventLogEntry, npcsById: Map<string, Npc>): stri
       const sign = ev.net >= 0 ? '+' : '';
       return `${stamp} ledger settled: took ${ev.income}, spent ${ev.expense}, net ${sign}${ev.net} (purse now ${ev.coinAfter})`;
     }
+    case 'prosperity_changed':
+      return `${stamp} prosperity: ${ev.previousTier} → ${ev.tier} (score ${Math.round(ev.score)})`;
     case 'interaction': {
       const ids = ev.interaction.participantIds
         .map((id) => npcsById.get(id)?.displayName ?? id)

@@ -8,7 +8,9 @@ import { registerSSE } from './api/sse.ts';
 import { ChronicleGenerator } from './chronicle/generator.ts';
 import { ChroniclePipeline } from './chronicle/pipeline.ts';
 import { PrologueGenerator } from './chronicle/prologue.ts';
+import { tierForScore } from '@shared/types';
 import { closeLedgerForDay } from './economy/ledger.ts';
+import { updateProsperityForDay } from './economy/prosperity.ts';
 import { WorldEventBus } from './events/emitter.ts';
 import { detectInteractions } from './interactions/detector.ts';
 import { InteractionResolver } from './interactions/resolver.ts';
@@ -22,6 +24,7 @@ import { OllamaClient } from './llm/ollama.ts';
 import { registerAllPools } from './llm/registry.ts';
 import {
   FAVORS_MAX_DEFAULT,
+  FAVORS_REGEN_PER_DAY_DEFAULT,
   regenerateForDayTick,
 } from './interventions/favor.ts';
 import './interventions/kinds/index.ts';
@@ -34,8 +37,10 @@ import * as interventionRegistry from './interventions/registry.ts';
 import { CharacterMemoryRecorder } from './npc/character-memory.ts';
 import { NpcManager } from './npc/manager.ts';
 import {
+  checkObservant,
   computeConflictMitigation,
   computeHospitalityExtension,
+  computeThoroughnessBonus,
   processGossipNetwork,
 } from './npc/staff-effects.ts';
 import { seedStaffIfMissing } from './npc/staff-roster.ts';
@@ -256,20 +261,36 @@ async function main(): Promise<void> {
 
   // Phase 6: marked-NPC cleanup on departure.
   bus.on('world_event', (entry: { event: unknown }) => {
-    const ev = entry.event as { type: string; npcId?: string; gameDay?: number };
+    const ev = entry.event as { type: string; npcId?: string; displayName?: string; gameDay?: number };
     if (ev.type !== 'npc_departed' || !ev.npcId) return;
     const s = stateManager.getState();
-    if (!s.markedNpcIds.includes(ev.npcId)) return;
-    stateManager.setState({
-      ...s,
-      markedNpcIds: s.markedNpcIds.filter((id) => id !== ev.npcId),
-    });
-    bus.publish({
-      type: 'npc_unmarked',
-      gameDay: ev.gameDay ?? s.gameDay,
-      npcId: ev.npcId,
-      reason: 'departed',
-    });
+    if (s.markedNpcIds.includes(ev.npcId)) {
+      stateManager.setState({
+        ...s,
+        markedNpcIds: s.markedNpcIds.filter((id) => id !== ev.npcId),
+      });
+      bus.publish({
+        type: 'npc_unmarked',
+        gameDay: ev.gameDay ?? s.gameDay,
+        npcId: ev.npcId,
+        reason: 'departed',
+      });
+    }
+
+    // Epic E (E3): cleaner observant — overhear something about the departing traveler.
+    const observant = checkObservant(
+      npcManager.getRoster(),
+      ev.npcId,
+      ev.displayName ?? 'the traveler',
+      s.seed,
+      ev.gameDay ?? s.gameDay,
+    );
+    if (observant) {
+      rumors.introduce(
+        { text: observant.rumorText },
+        ev.gameDay ?? s.gameDay,
+      );
+    }
   });
 
   const subTickScheduler = new SubTickScheduler(
@@ -281,6 +302,19 @@ async function main(): Promise<void> {
     // Economy (E1): settle the ledger for the day that just ended, then
     // (Phase 6) regenerate one favor at the start of the new game day.
     (newGameDay) => {
+      const closingDay = newGameDay - 1;
+      // Epic E (E3): thoroughness — emit service income before the ledger closes.
+      const thoroughnessBonus = computeThoroughnessBonus(npcManager.getRoster());
+      const cleaner = npcManager.getRoster().find((n) => n.isStaff && n.staffRole === 'cleaner');
+      if (thoroughnessBonus > 0 && cleaner) {
+        bus.publish({
+          type: 'staff_service_income',
+          gameDay: closingDay,
+          staffId: cleaner.id,
+          amount: thoroughnessBonus,
+          source: 'thoroughness',
+        });
+      }
       closeLedgerForDay(
         {
           persistence,
@@ -288,9 +322,17 @@ async function main(): Promise<void> {
           bus,
           worldSeed: stateManager.getState().seed,
         },
-        newGameDay - 1,
+        closingDay,
       );
-      regenerateForDayTick(stateManager, bus, newGameDay);
+      // Economy (E2): settle prosperity from the day just closed, then let a
+      // renowned tavern's standing speed the keeper's favor regeneration.
+      updateProsperityForDay({ persistence, stateManager, bus }, closingDay);
+      const renowned =
+        tierForScore(stateManager.getState().prosperity) === 'renowned';
+      regenerateForDayTick(stateManager, bus, newGameDay, {
+        max: FAVORS_MAX_DEFAULT,
+        regenPerDay: FAVORS_REGEN_PER_DAY_DEFAULT + (renowned ? 1 : 0),
+      });
     },
   );
 

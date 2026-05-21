@@ -88,6 +88,9 @@ export function score(event: WorldEvent, ctx: SalienceContext): number {
       if (event.net < 0) s += 2;
       return s;
     }
+    case 'prosperity_changed':
+      // A shift in the tavern's standing is a real beat.
+      return 6;
     default:
       // Excluded: init/tick/pause/resume, all flavor_*, all chronicle_*,
       // favor_regenerated, npc_marked, npc_unmarked, guest_spent,

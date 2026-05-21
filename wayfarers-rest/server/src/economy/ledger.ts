@@ -72,6 +72,8 @@ export function closeLedgerForDay(
     if (ev.type === 'guest_spent') {
       income += ev.amount;
       guestCount += 1;
+    } else if (ev.type === 'staff_service_income') {
+      income += ev.amount;
     } else if (ev.type === 'npc_arrived' || ev.type === 'npc_returned') {
       occupancy += 1;
     }

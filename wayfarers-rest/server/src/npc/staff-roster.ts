@@ -90,6 +90,7 @@ export function definitionById(id: string): StaffDefinition | undefined {
 
 /** Create Character DB records for every known staff member if absent. */
 export function seedStaffIfMissing(persistence: Persistence, currentGameDay: number): void {
+  const activeIds = new Set(ACTIVE_STAFF.map((d) => d.id));
   for (const def of ALL_STAFF_DEFINITIONS) {
     if (persistence.loadCharacter(def.id)) continue;
     persistence.upsertCharacter({
@@ -104,6 +105,7 @@ export function seedStaffIfMissing(persistence: Persistence, currentGameDay: num
       staffRole: def.role,
       skills: def.skills,
       personality: def.personality,
+      isActiveStaff: activeIds.has(def.id) ? true : undefined,
     });
   }
 }

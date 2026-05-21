@@ -6,3 +6,4 @@ import './relationship.ts';
 import './feud.ts';
 import './missing-person.ts';
 import './festival.ts';
+import './war-escalation.ts';

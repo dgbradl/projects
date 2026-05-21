@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
+import { LOCATIONS } from '../../world/locations.ts';
 import { seededRng } from '../../world/rng.ts';
 import type { OllamaClient } from '../ollama.ts';
 
@@ -48,6 +49,16 @@ const STYLE_HINTS: Record<NameKind, string> = {
   item: 'pocket-sized, characterful, mundane-with-history',
 };
 
+/** WORLD CANON place names that the `location` kind must never re-coin. */
+const CANON_LOCATION_NAMES = LOCATIONS.map((l) => l.displayName).join(', ');
+
+/** Names the LLM must avoid for a given kind, injected into the name prompt. */
+export function nameAvoidBlock(kind: NameKind): string {
+  return kind === 'location'
+    ? `These names already exist — never output them or a variation of them:\n${CANON_LOCATION_NAMES}\n`
+    : '';
+}
+
 export async function generateNames(
   client: OllamaClient,
   input: NameInput,
@@ -56,6 +67,7 @@ export async function generateNames(
   const prompt = PROMPT_TEMPLATE
     .replace('{batchSize}', String(batch))
     .replace('{kind}', input.kind)
+    .replace('{avoidBlock}', nameAvoidBlock(input.kind))
     .replace('{styleHint}', input.styleHint ?? STYLE_HINTS[input.kind]);
   return client.generateStructured({
     prompt,

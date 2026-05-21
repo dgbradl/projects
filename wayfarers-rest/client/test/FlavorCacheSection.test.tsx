@@ -17,6 +17,7 @@ const WORLD: WorldState = {
   favorsLastRegenGameDay: 0,
   markedNpcIds: [],
   coin: 200,
+  prosperity: 50,
 };
 
 const EMPTY_SNAPSHOT: WorldSnapshot = {

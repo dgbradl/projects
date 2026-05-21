@@ -1,7 +1,11 @@
 import type { FastifyInstance } from 'fastify';
 import type {
+  Character,
   FlavorMode,
   FlavorPoolStatus,
+  StaffMember,
+  StaffRoster,
+  StaffSwapRequest,
   TavernConfig,
   WorldSnapshot,
 } from '@shared/types';
@@ -77,6 +81,47 @@ export function registerRoutes(app: FastifyInstance, deps: ApiDeps): void {
   app.get('/world', async (): Promise<WorldSnapshot> => buildWorldSnapshot(deps));
 
   app.get('/flavor', async (): Promise<FlavorStatus> => buildFlavorStatus(deps));
+
+  // Epic E (E3): staff roster and hire/fire.
+  app.get('/staff', async (): Promise<StaffRoster> => {
+    const all = deps.persistence.loadStaffCharacters();
+    const rosterIds = new Set(deps.npcManager.getRoster().map((n) => n.id));
+    const toMember = (c: Character): StaffMember => ({
+      id: c.id,
+      displayName: c.displayName,
+      role: c.staffRole!,
+      skills: c.skills!,
+      personality: c.personality ?? '',
+      isActive: !!c.isActiveStaff,
+      isOnDuty: rosterIds.has(c.id),
+    });
+    return {
+      active: all.filter((c) => c.isActiveStaff).map(toMember),
+      reserve: all.filter((c) => !c.isActiveStaff).map(toMember),
+    };
+  });
+
+  app.post<{ Body: StaffSwapRequest }>('/staff/swap', async (req, reply) => {
+    const { fireId, hireId } = req.body ?? {};
+    if (!fireId || !hireId) {
+      return reply.status(400).send({ error: 'fireId and hireId required' });
+    }
+    const allStaff = deps.persistence.loadStaffCharacters();
+    const fireChar = allStaff.find((c) => c.id === fireId);
+    const hireChar = allStaff.find((c) => c.id === hireId);
+    if (!fireChar || !hireChar) {
+      return reply.status(404).send({ error: 'Staff member not found' });
+    }
+    if (fireChar.staffRole !== hireChar.staffRole) {
+      return reply.status(400).send({ error: 'Cannot swap staff of different roles' });
+    }
+    deps.persistence.setStaffInactive(fireId);
+    deps.persistence.setStaffActive(hireId);
+    deps.npcManager.removeFromRoster(fireId);
+    const state = deps.stateManager.getState();
+    deps.npcManager.ensureStaffOnDuty(state.gameDay, state.subTick);
+    return { ok: true };
+  });
 
   if (deps.chroniclePipeline && deps.prologueGenerator) {
     registerChronicleRoutes(app, {

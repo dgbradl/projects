@@ -22,6 +22,7 @@ const FAKE_WORLD: WorldState = {
   favorsLastRegenGameDay: 0,
   markedNpcIds: [],
   coin: 200,
+  prosperity: 0,
 };
 
 function build() {

@@ -15,6 +15,8 @@ export interface WorldState {
   markedNpcIds: string[];
   /** Economy (E1): the tavern's purse, in coin. Settled once per day. */
   coin: number;
+  /** Economy (E2): tavern prosperity, a rolling score in [0, 100]. */
+  prosperity: number;
 }
 
 /** @deprecated Replaced by EventLogEntry + WorldEvent. Kept for migration. */
@@ -141,6 +143,8 @@ export interface Character {
   skills?: StaffSkills;
   /** Epic E: one-liner personality description shown as tagline. */
   personality?: string;
+  /** Epic E (E3): true if this staff member is currently on the active roster. */
+  isActiveStaff?: boolean;
 }
 
 /** Phase 7 (A2): one other character this character has crossed paths with. */
@@ -286,6 +290,22 @@ export interface DailyLedger {
   net: number;
   guestCount: number;
   coinAfter: number;
+  /** Economy (E2): prosperity score after this day was settled, if computed. */
+  prosperityAfter?: number;
+}
+
+/** Economy (E2): the tavern's standing, derived from its prosperity score. */
+export type ProsperityTier = 'struggling' | 'steady' | 'thriving' | 'renowned';
+
+/**
+ * Map a [0, 100] prosperity score to its tier. Shared so the server's
+ * feedback logic and the client's display always agree on the boundaries.
+ */
+export function tierForScore(score: number): ProsperityTier {
+  if (score < 25) return 'struggling';
+  if (score < 55) return 'steady';
+  if (score < 80) return 'thriving';
+  return 'renowned';
 }
 
 // ---------- Phase 3: Events ----------
@@ -308,6 +328,7 @@ export type WorldEvent =
       type: 'npc_departed';
       gameDay: number;
       npcId: string;
+      displayName?: string;
       destinationLocationId?: string;
     }
   | { type: 'interaction'; gameDay: number; interaction: Interaction }
@@ -401,6 +422,22 @@ export type WorldEvent =
       coinBefore: number;
       coinAfter: number;
       guestCount: number;
+    }
+  | {
+      /** Epic E (E3): a staff member's skill added to the day's income. */
+      type: 'staff_service_income';
+      gameDay: number;
+      staffId: string;
+      amount: number;
+      source: 'thoroughness';
+    }
+  | {
+      /** Economy (E2): the tavern's prosperity tier shifted. */
+      type: 'prosperity_changed';
+      gameDay: number;
+      score: number;
+      tier: ProsperityTier;
+      previousTier: ProsperityTier;
     };
 
 // ---------- Phase 6: Interventions ----------
@@ -568,4 +605,27 @@ export interface WorldSnapshot {
   threads: Thread[];
   pendingArrivals: ScheduledArrival[];
   rumors: Rumor[];
+}
+
+// ---------- Epic E: Staff ----------
+
+export interface StaffMember {
+  id: string;
+  displayName: string;
+  role: StaffRole;
+  personality: string;
+  skills: StaffSkills;
+  isActive: boolean;
+  /** True if this staff member is currently in the tavern roster. */
+  isOnDuty: boolean;
+}
+
+export interface StaffRoster {
+  active: StaffMember[];
+  reserve: StaffMember[];
+}
+
+export interface StaffSwapRequest {
+  fireId: string;
+  hireId: string;
 }

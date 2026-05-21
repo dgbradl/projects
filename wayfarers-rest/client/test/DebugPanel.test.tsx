@@ -82,6 +82,7 @@ const WORLD: WorldState = {
   favorsLastRegenGameDay: 0,
   markedNpcIds: [],
   coin: 200,
+  prosperity: 50,
 };
 
 function Seeded({ children }: { children: React.ReactNode }) {

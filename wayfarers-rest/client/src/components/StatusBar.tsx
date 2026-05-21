@@ -1,3 +1,4 @@
+import { tierForScore } from '@shared/types';
 import { useStore } from '../state/store.tsx';
 
 export function StatusBar() {
@@ -21,6 +22,11 @@ export function StatusBar() {
       </span>
       <span className="status-item status-coin">
         <strong data-testid="status-coin">{world.coin}</strong> coin
+      </span>
+      <span className="status-item status-prosperity">
+        <strong data-testid="status-prosperity">
+          {tierForScore(world.prosperity)}
+        </strong>
       </span>
     </div>
   );

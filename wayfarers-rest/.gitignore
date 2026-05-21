@@ -1,6 +1,7 @@
 node_modules/
 dist/
 *.log
+*.tsbuildinfo
 data/*.db
 data/*.db-journal
 data/*.db-wal

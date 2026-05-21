@@ -46,6 +46,7 @@ const WORLD: WorldState = {
   favorsLastRegenGameDay: 0,
   markedNpcIds: [],
   coin: 200,
+  prosperity: 50,
 };
 
 const TAG: WorldTag = { key: 'season', value: 'spring', setOnGameDay: 1 };

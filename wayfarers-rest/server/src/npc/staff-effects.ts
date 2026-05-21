@@ -1,14 +1,12 @@
 /**
- * Epic E (E2): skill-driven passive effects for tavern staff.
+ * Epic E (E2/E3): skill-driven passive effects for tavern staff.
  *
- * Three active effects are wired here:
- *  - gossipNetwork  (bartender): propagate rumors between travelers at the bar
- *  - hospitality    (waitstaff): extend a new traveler's planned stay on arrival
- *  - conflictMitigation (bartender): weight modifier passed to the interaction
- *    resolver to reduce the chance of arguments in bar-zone encounters
- *
- * Each function is pure with respect to roster state and is invoked at the
- * appropriate point (sub-tick hook, arrival bus listener, resolver context).
+ * Effects wired here:
+ *  - gossipNetwork       (bartender): propagate rumors between travelers at bar
+ *  - hospitality         (waitstaff): extend a new traveler's planned stay
+ *  - conflictMitigation  (bartender): reduce argument chance in resolver
+ *  - observant           (cleaner):   create a rumor from a departing traveler
+ *  - thoroughness        (cleaner):   daily coin bonus from meticulous service
  */
 import type { Npc, StaffSkills } from '@shared/types';
 import { seededRng } from '../world/rng.ts';
@@ -117,4 +115,72 @@ export function computeConflictMitigation(roster: Npc[]): number {
   if (!bartender) return 0;
   const cm = skill(bartender, 'conflictMitigation');
   return (cm / 10) * 0.5;
+}
+
+// ---------- observant ----------
+
+export interface ObservantResult {
+  /** The cleaner who noticed something. */
+  cleanerId: string;
+  /** Departing traveler's name to weave into the rumor text. */
+  displayName: string;
+  /** A rumor text fragment for RumorsManager to save. */
+  rumorText: string;
+}
+
+const OBSERVANT_TEMPLATES = [
+  (name: string) =>
+    `${name} was seen slipping something into their pack before leaving at dawn.`,
+  (name: string) =>
+    `${name} left a folded note under their pillow — then seemed to think better of it and took it back.`,
+  (name: string) =>
+    `${name} asked Oskar to keep quiet about a late-night visitor. He said nothing, as usual.`,
+  (name: string) =>
+    `Before departing, ${name} spent a long time studying the road south through the common-room window.`,
+  (name: string) =>
+    `${name} tipped generously but avoided eye contact on the way out. Tells you something.`,
+];
+
+/**
+ * When a traveler departs, the cleaner may notice something worth repeating.
+ * Returns a result if the cleaner is present, observant > 5, and probability
+ * fires. Probability = observant / 10 * 0.35 (max 35% at skill 10).
+ */
+export function checkObservant(
+  roster: Npc[],
+  departingNpcId: string,
+  departingDisplayName: string,
+  worldSeed: string,
+  gameDay: number,
+): ObservantResult | undefined {
+  const cleaner = staffByRole(roster, 'cleaner');
+  if (!cleaner) return undefined;
+  const obs = skill(cleaner, 'observant');
+  if (obs <= 5) return undefined;
+
+  const rng = seededRng(worldSeed, 'observant', gameDay, departingNpcId);
+  if (rng() >= (obs / 10) * 0.35) return undefined;
+
+  const templateIdx = Math.floor(rng() * OBSERVANT_TEMPLATES.length);
+  return {
+    cleanerId: cleaner.id,
+    displayName: departingDisplayName,
+    rumorText: OBSERVANT_TEMPLATES[templateIdx](departingDisplayName),
+  };
+}
+
+// ---------- thoroughness ----------
+
+/**
+ * Coin bonus from the cleaner's thoroughness — clean premises mean guests
+ * linger and spend a little more.
+ *
+ * Bonus = floor(thoroughness * 0.8) coin per day (max 7 at skill 9, 8 at 10).
+ * Returns 0 if no cleaner is present or skill is 0.
+ */
+export function computeThoroughnessBonus(roster: Npc[]): number {
+  const cleaner = staffByRole(roster, 'cleaner');
+  if (!cleaner) return 0;
+  const th = skill(cleaner, 'thoroughness');
+  return Math.floor(th * 0.8);
 }

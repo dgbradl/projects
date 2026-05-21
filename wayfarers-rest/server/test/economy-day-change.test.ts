@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { closeLedgerForDay } from '../src/economy/ledger.ts';
+import { updateProsperityForDay } from '../src/economy/prosperity.ts';
 import { WorldEventBus } from '../src/events/emitter.ts';
 import { regenerateForDayTick } from '../src/interventions/favor.ts';
 import { FakeClock } from '../src/lib/clock.ts';
@@ -67,6 +68,10 @@ describe('economy day-change wiring', () => {
           { persistence, stateManager, bus, worldSeed: SEED },
           newGameDay - 1,
         );
+        updateProsperityForDay(
+          { persistence, stateManager, bus },
+          newGameDay - 1,
+        );
         regenerateForDayTick(stateManager, bus, newGameDay);
       },
     );
@@ -108,5 +113,14 @@ describe('economy day-change wiring', () => {
     // that the subTick reset did not clobber it (3 -> 4 -> 5, capped at 5).
     expect(stateManager.getState().favorsLastRegenGameDay).toBe(4);
     expect(stateManager.getState().favors).toBe(5);
+
+    // Prosperity was settled each day too: it moved off the steady start and
+    // every closed ledger carries the score it produced.
+    expect(stateManager.getState().prosperity).not.toBe(50);
+    for (const day of [1, 2, 3]) {
+      expect(persistence.loadDailyLedger(day)?.prosperityAfter).toBeTypeOf(
+        'number',
+      );
+    }
   });
 });
