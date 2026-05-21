@@ -128,6 +128,7 @@ describe('InteractionResolver', () => {
             lastKind: 'shared_drink',
             count: 1,
             lastGameDay: 1,
+            affinity: 12,
           },
         ],
         timesBeckoned: 0,

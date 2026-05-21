@@ -20,6 +20,23 @@ import type { Persistence } from '../persistence.ts';
 /** Cap on `rumorsHeard` so a long-lived character's memory stays bounded. */
 const RUMORS_HEARD_CAP = 50;
 
+/** Phase 7 (B1): affinity is clamped to this signed range. */
+export const AFFINITY_MIN = -25;
+export const AFFINITY_MAX = 25;
+
+/** How much each interaction kind nudges a pair's affinity. */
+const AFFINITY_DELTAS: Record<InteractionKind, number> = {
+  shared_drink: 3,
+  silent_recognition: 1,
+  whispered_exchange: 1,
+  overheard_argument: -4,
+};
+
+/** Clamp an affinity value into [AFFINITY_MIN, AFFINITY_MAX]. */
+export function clampAffinity(value: number): number {
+  return Math.max(AFFINITY_MIN, Math.min(AFFINITY_MAX, value));
+}
+
 const INTERACTION_KINDS: ReadonlySet<string> = new Set<InteractionKind>([
   'shared_drink',
   'overheard_argument',
@@ -46,7 +63,9 @@ export function parseCharacterMemory(json: string | null | undefined): Character
       ? raw.rumorsHeard.filter((x): x is string => typeof x === 'string')
       : [],
     encounters: Array.isArray(raw.encounters)
-      ? raw.encounters.filter(isEncounter)
+      ? raw.encounters
+          .map(readEncounter)
+          .filter((e): e is CharacterEncounter => e !== null)
       : [],
     timesBeckoned: typeof raw.timesBeckoned === 'number' ? raw.timesBeckoned : 0,
     timesMarked: typeof raw.timesMarked === 'number' ? raw.timesMarked : 0,
@@ -57,16 +76,29 @@ export function parseCharacterMemory(json: string | null | undefined): Character
   };
 }
 
-function isEncounter(x: unknown): x is CharacterEncounter {
-  if (typeof x !== 'object' || x === null) return false;
+/**
+ * Validate and normalize one stored encounter. Returns null for malformed
+ * entries; fills a missing `affinity` (encounters written before B1) with 0.
+ */
+function readEncounter(x: unknown): CharacterEncounter | null {
+  if (typeof x !== 'object' || x === null) return null;
   const e = x as Record<string, unknown>;
-  return (
-    typeof e.characterId === 'string' &&
-    typeof e.lastKind === 'string' &&
-    INTERACTION_KINDS.has(e.lastKind) &&
-    typeof e.count === 'number' &&
-    typeof e.lastGameDay === 'number'
-  );
+  if (
+    typeof e.characterId !== 'string' ||
+    typeof e.lastKind !== 'string' ||
+    !INTERACTION_KINDS.has(e.lastKind) ||
+    typeof e.count !== 'number' ||
+    typeof e.lastGameDay !== 'number'
+  ) {
+    return null;
+  }
+  return {
+    characterId: e.characterId,
+    lastKind: e.lastKind as InteractionKind,
+    count: e.count,
+    lastGameDay: e.lastGameDay,
+    affinity: typeof e.affinity === 'number' ? clampAffinity(e.affinity) : 0,
+  };
 }
 
 // ---------- pure update functions ----------
@@ -91,18 +123,21 @@ export function rememberEncounter(
   kind: InteractionKind,
   gameDay: number,
 ): CharacterMemory {
+  const delta = AFFINITY_DELTAS[kind];
   const encounters = memory.encounters.map((e) => ({ ...e }));
   const existing = encounters.find((e) => e.characterId === otherCharacterId);
   if (existing) {
     existing.count += 1;
     existing.lastKind = kind;
     existing.lastGameDay = gameDay;
+    existing.affinity = clampAffinity(existing.affinity + delta);
   } else {
     encounters.push({
       characterId: otherCharacterId,
       lastKind: kind,
       count: 1,
       lastGameDay: gameDay,
+      affinity: clampAffinity(delta),
     });
   }
   return { ...memory, encounters };

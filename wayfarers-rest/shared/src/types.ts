@@ -125,6 +125,12 @@ export interface CharacterEncounter {
   count: number;
   /** Game day of the most recent interaction. */
   lastGameDay: number;
+  /**
+   * Phase 7 (B1): cumulative relationship score, clamped to [-25, 25].
+   * Positive is warmth (drinks, recognition), negative is friction
+   * (arguments). Drives interaction bias (B2) and relationship threads (B3).
+   */
+  affinity: number;
 }
 
 /**

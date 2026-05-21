@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import type { CharacterMemory, Interaction } from '@shared/types';
+import type {
+  CharacterMemory,
+  Interaction,
+  InteractionKind,
+} from '@shared/types';
 import { WorldEventBus } from '../src/events/emitter.ts';
 import { FakeClock } from '../src/lib/clock.ts';
 import {
+  AFFINITY_MAX,
+  AFFINITY_MIN,
   CharacterMemoryRecorder,
   emptyMemory,
   parseCharacterMemory,
@@ -46,6 +52,7 @@ describe('character memory — pure updates', () => {
     expect(withOther.count).toBe(2);
     expect(withOther.lastKind).toBe('overheard_argument');
     expect(withOther.lastGameDay).toBe(5);
+    expect(withOther.affinity).toBe(-1); // +3 drink, then -4 argument
   });
 
   it('rememberBeckon / rememberMark increment counters', () => {
@@ -68,7 +75,13 @@ describe('character memory — parse', () => {
     const original: CharacterMemory = {
       rumorsHeard: ['r1'],
       encounters: [
-        { characterId: 'x', lastKind: 'shared_drink', count: 2, lastGameDay: 4 },
+        {
+          characterId: 'x',
+          lastKind: 'shared_drink',
+          count: 2,
+          lastGameDay: 4,
+          affinity: 6,
+        },
       ],
       timesBeckoned: 1,
       timesMarked: 3,
@@ -97,8 +110,53 @@ describe('character memory — parse', () => {
     expect(parsed.rumorsHeard).toEqual(['ok']);
     expect(parsed.encounters).toHaveLength(1);
     expect(parsed.encounters[0].characterId).toBe('good');
+    expect(parsed.encounters[0].affinity).toBe(0); // missing affinity → 0
     expect(parsed.timesBeckoned).toBe(4);
     expect(parsed.timesMarked).toBe(0);
+  });
+});
+
+describe('affinity (B1)', () => {
+  it('applies a delta per interaction kind', () => {
+    const affinityFor = (kind: InteractionKind) =>
+      rememberEncounter(emptyMemory(), 'x', kind, 1).encounters[0].affinity;
+    expect(affinityFor('shared_drink')).toBe(3);
+    expect(affinityFor('silent_recognition')).toBe(1);
+    expect(affinityFor('whispered_exchange')).toBe(1);
+    expect(affinityFor('overheard_argument')).toBe(-4);
+  });
+
+  it('accumulates across interactions and clamps to the range', () => {
+    let warm = emptyMemory();
+    for (let i = 0; i < 20; i += 1) {
+      warm = rememberEncounter(warm, 'friend', 'shared_drink', i);
+    }
+    expect(warm.encounters[0].affinity).toBe(AFFINITY_MAX);
+
+    let cold = emptyMemory();
+    for (let i = 0; i < 20; i += 1) {
+      cold = rememberEncounter(cold, 'rival', 'overheard_argument', i);
+    }
+    expect(cold.encounters[0].affinity).toBe(AFFINITY_MIN);
+  });
+
+  it('parse fills a missing affinity and clamps an out-of-range one', () => {
+    const parsed = parseCharacterMemory(
+      JSON.stringify({
+        encounters: [
+          { characterId: 'old', lastKind: 'shared_drink', count: 1, lastGameDay: 1 },
+          {
+            characterId: 'hot',
+            lastKind: 'shared_drink',
+            count: 9,
+            lastGameDay: 1,
+            affinity: 999,
+          },
+        ],
+      }),
+    );
+    expect(parsed.encounters[0].affinity).toBe(0);
+    expect(parsed.encounters[1].affinity).toBe(AFFINITY_MAX);
   });
 });
 
@@ -136,7 +194,13 @@ describe('CharacterMemoryRecorder', () => {
     const a = persistence.loadCharacter('a')!;
     const b = persistence.loadCharacter('b')!;
     expect(a.memory.encounters).toEqual([
-      { characterId: 'b', lastKind: 'shared_drink', count: 1, lastGameDay: 4 },
+      {
+        characterId: 'b',
+        lastKind: 'shared_drink',
+        count: 1,
+        lastGameDay: 4,
+        affinity: 3,
+      },
     ]);
     expect(b.memory.encounters[0].characterId).toBe('a');
   });
