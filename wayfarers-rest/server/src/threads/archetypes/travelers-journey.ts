@@ -89,6 +89,14 @@ export const TRAVELERS_JOURNEY: ThreadDefinition = {
             threadHistoryNote: `${payload.displayName} never made it past ${destination.displayName}`,
           });
         }
+        // Phase 7 (D2): a traveller lost to the road becomes a missing person.
+        helpers.spawnThread({
+          type: 'missing_person',
+          payload: {
+            missingName: payload.displayName,
+            lastSeenLocationId: payload.destinationLocationId,
+          },
+        });
         return {
           nextState: 'closed',
           nextTickDelay: 0,
