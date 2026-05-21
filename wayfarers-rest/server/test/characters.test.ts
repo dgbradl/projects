@@ -127,4 +127,34 @@ describe('NpcManager — character identity', () => {
     expect(memory.rumorsHeard).toEqual(['rumor-a', 'rumor-b']);
     expect(memory.timesBeckoned).toBe(1);
   });
+
+  it('emits npc_returned for a regular and npc_arrived for newcomers', () => {
+    const { persistence, npcManager } = build();
+    persistence.upsertCharacter({
+      id: 'regular-2',
+      displayName: 'Old Sten',
+      archetype: 'soldier',
+      firstSeenGameDay: 1,
+      lastSeenGameDay: 1,
+      visitCount: 1,
+      memory: emptyMemory(),
+    });
+    persistence.saveScheduledArrival({
+      npcId: 'regular-2',
+      displayName: 'Old Sten',
+      scheduledGameDay: 2,
+      scheduledSubTick: 0,
+    });
+
+    npcManager.onMacroTick(2);
+    runDay(npcManager, 2);
+
+    const events = persistence.getEventsSince(0).map((e) => e.event);
+    const returned = events.find(
+      (e) => e.type === 'npc_returned' && e.npcId === 'regular-2',
+    );
+    expect(returned).toMatchObject({ visitCount: 2, displayName: 'Old Sten' });
+    // The day-2 strangers from the spawn queue still arrive as newcomers.
+    expect(events.some((e) => e.type === 'npc_arrived')).toBe(true);
+  });
 });

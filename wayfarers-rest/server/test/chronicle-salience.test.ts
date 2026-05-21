@@ -107,6 +107,25 @@ describe('salience.score', () => {
     expect(notableArchetype).toBe(5);
   });
 
+  it('scores npc_returned above npc_arrived and rewards visit count', () => {
+    const arrived = score(
+      { type: 'npc_arrived', gameDay: 1, npcId: 'c', displayName: 'c' },
+      ctx,
+    );
+    const returnedOnce = score(
+      { type: 'npc_returned', gameDay: 1, npcId: 'c', displayName: 'c', visitCount: 2 },
+      ctx,
+    );
+    const returnedRegular = score(
+      { type: 'npc_returned', gameDay: 1, npcId: 'c', displayName: 'c', visitCount: 6 },
+      ctx,
+    );
+    expect(arrived).toBe(2);
+    expect(returnedOnce).toBe(5); // base 4 + min(2-1, 3)
+    expect(returnedRegular).toBe(7); // base 4 + min(6-1, 3)
+    expect(returnedOnce).toBeGreaterThan(arrived);
+  });
+
   it('rewards interaction kind + spawned thread', () => {
     const plain = score(
       {

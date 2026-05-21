@@ -44,6 +44,17 @@ export function score(event: WorldEvent, ctx: SalienceContext): number {
       if (ctx.markedNpcIds?.has(event.npcId)) s += 5;
       return s;
     }
+    case 'npc_returned': {
+      // A familiar face is more notable than yet another stranger.
+      let s = 4;
+      const npc = ctx.npcsById.get(event.npcId);
+      if (npc?.carriedRumorIds.length) s += 3;
+      if (npc?.archetype && NOTABLE_ARCHETYPES.has(npc.archetype)) s += 3;
+      if (ctx.markedNpcIds?.has(event.npcId)) s += 5;
+      // A well-worn regular outranks a second-time face.
+      s += Math.min(event.visitCount - 1, 3);
+      return s;
+    }
     case 'npc_departed': {
       let s = 2;
       const npc = ctx.npcsById.get(event.npcId);

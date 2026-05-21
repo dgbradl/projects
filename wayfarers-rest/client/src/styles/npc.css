@@ -27,6 +27,13 @@
   text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
 }
 
+.npc-regular-badge {
+  margin-left: 0.25rem;
+  font-size: 0.65rem;
+  color: var(--accent-strong);
+  text-shadow: 0 0 4px rgba(239, 183, 102, 0.7);
+}
+
 .npc-arriving .npc-dot {
   background: #88c69b;
 }

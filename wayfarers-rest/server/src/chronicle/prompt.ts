@@ -173,6 +173,15 @@ function formatEventLine(entry: EventLogEntry, npcsById: Map<string, Npc>): stri
       const moodStr = mood ? `${mood} ` : '';
       return `${stamp} arrived: ${ev.displayName} (${moodStr}${archetype} from ${origin})${tagline}`;
     }
+    case 'npc_returned': {
+      const npc = npcsById.get(ev.npcId);
+      const archetype = npc?.archetype ?? 'traveler';
+      const origin = npc?.originLocationId
+        ? locationById(npc.originLocationId)?.displayName ?? npc.originLocationId
+        : 'parts unknown';
+      const tagline = npc?.tagline ? ` — ${npc.tagline}` : '';
+      return `${stamp} returned: ${ev.displayName}, a familiar face (${archetype} from ${origin}, visit #${ev.visitCount})${tagline}`;
+    }
     case 'npc_departed': {
       const npc = npcsById.get(ev.npcId);
       const name = npc?.displayName ?? ev.npcId;

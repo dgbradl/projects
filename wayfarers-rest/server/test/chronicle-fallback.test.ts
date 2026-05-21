@@ -110,6 +110,26 @@ describe('buildFallbackChronicle', () => {
     expect(chron.footnotes.length).toBe(3);
   });
 
+  it('renders a npc_returned event as a familiar face', () => {
+    const chron = buildFallbackChronicle({
+      gameDay: 7,
+      generatedAtRealTs: 't',
+      salientEvents: [
+        entry(1, {
+          type: 'npc_returned',
+          gameDay: 7,
+          npcId: 'a',
+          displayName: 'Mara',
+          visitCount: 3,
+        }),
+      ],
+      context: ctx,
+    });
+    const allText = [...chron.headlines, ...chron.footnotes].join(' ');
+    expect(allText).toContain('Mara');
+    expect(allText.toLowerCase()).toContain('familiar face');
+  });
+
   it('never throws on any event mix', () => {
     const events: EventLogEntry[] = [
       entry(1, { type: 'tick', gameDay: 1 }),

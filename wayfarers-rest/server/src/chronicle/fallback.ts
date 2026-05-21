@@ -89,6 +89,13 @@ function renderSentence(entry: EventLogEntry, npcsById: Map<string, Npc>): strin
         : 'parts unknown';
       return `${ev.displayName} arrived from ${origin}.`;
     }
+    case 'npc_returned': {
+      const npc = npcsById.get(ev.npcId);
+      const origin = npc?.originLocationId
+        ? locationById(npc.originLocationId)?.displayName ?? npc.originLocationId
+        : 'parts unknown';
+      return `${ev.displayName}, a familiar face, returned from ${origin}.`;
+    }
     case 'npc_departed': {
       const npc = npcsById.get(ev.npcId);
       const name = npc?.displayName ?? ev.npcId;

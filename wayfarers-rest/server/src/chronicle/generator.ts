@@ -100,7 +100,12 @@ export class ChronicleGenerator {
     // Augment npcsById with departed NPCs we can recover from the event log
     // (their arrival events carry the displayName).
     for (const entry of allEvents) {
-      if (entry.event.type !== 'npc_arrived') continue;
+      if (
+        entry.event.type !== 'npc_arrived' &&
+        entry.event.type !== 'npc_returned'
+      ) {
+        continue;
+      }
       if (npcsById.has(entry.event.npcId)) continue;
       npcsById.set(entry.event.npcId, {
         id: entry.event.npcId,

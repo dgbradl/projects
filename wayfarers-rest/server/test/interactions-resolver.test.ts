@@ -107,4 +107,57 @@ describe('InteractionResolver', () => {
     const arrivals = p.loadUpcomingScheduledArrivals(0, 30);
     expect(arrivals.length).toBeGreaterThan(0);
   });
+
+  it('characters who have met before lean toward silent_recognition', () => {
+    const { p, bus, runner } = build();
+    const resolver = new InteractionResolver(bus, runner, undefined, p);
+
+    // friend-a remembers a prior shared_drink with friend-b.
+    p.upsertCharacter({
+      id: 'friend-a',
+      displayName: 'A',
+      archetype: 'wanderer',
+      firstSeenGameDay: 1,
+      lastSeenGameDay: 1,
+      visitCount: 2,
+      memory: {
+        rumorsHeard: [],
+        encounters: [
+          {
+            characterId: 'friend-b',
+            lastKind: 'shared_drink',
+            count: 1,
+            lastGameDay: 1,
+          },
+        ],
+        timesBeckoned: 0,
+        timesMarked: 0,
+      },
+    });
+
+    function countSilentRecognition(aId: string, bId: string): number {
+      let n = 0;
+      for (let i = 0; i < 400; i += 1) {
+        const a = npc(aId);
+        const b = npc(bId);
+        const interaction = resolver.resolve(
+          { participantIds: [aId, bId], zone: 'table_a' },
+          {
+            worldSeed: 'res-seed',
+            gameDay: 1,
+            subTick: i,
+            npcsById: new Map([[aId, a], [bId, b]]),
+            perDayCounter: { value: i },
+          },
+        );
+        if (interaction.kind === 'silent_recognition') n += 1;
+      }
+      return n;
+    }
+
+    const met = countSilentRecognition('friend-a', 'friend-b');
+    const strangers = countSilentRecognition('stranger-a', 'stranger-b');
+    expect(met).toBeGreaterThan(0);
+    expect(met).toBeGreaterThan(strangers);
+  });
 });

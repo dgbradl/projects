@@ -103,6 +103,29 @@ describe('buildDailyPrompt', () => {
     expect(a).toContain('Old Tomas argued with the doorframe.');
   });
 
+  it('renders a npc_returned event as a familiar face', () => {
+    const prompt = buildDailyPrompt({
+      gameDay: 4,
+      salientEvents: [
+        entry(20, {
+          type: 'npc_returned',
+          gameDay: 4,
+          npcId: 'npc_d1_0',
+          displayName: 'Mara Thistlewick',
+          visitCount: 3,
+        }),
+      ],
+      tagsAtDawn: [],
+      tagsAtDusk: [],
+      yesterdayHeadlines: [],
+      activeThreads: [],
+      npcsById,
+    });
+    expect(prompt).toContain('returned: Mara Thistlewick');
+    expect(prompt).toContain('familiar face');
+    expect(prompt).toContain('visit #3');
+  });
+
   it('falls back to friendly placeholders when slots are empty', () => {
     const prompt = buildDailyPrompt({
       gameDay: 1,

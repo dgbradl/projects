@@ -208,6 +208,8 @@ function summarize(event: import('@shared/types').WorldEvent): string {
   switch (event.type) {
     case 'npc_arrived':
       return event.displayName;
+    case 'npc_returned':
+      return `${event.displayName} ×${event.visitCount}`;
     case 'npc_departed':
       return event.destinationLocationId ?? '';
     case 'world_tag_changed':

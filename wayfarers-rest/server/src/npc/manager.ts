@@ -189,12 +189,24 @@ export class NpcManager extends EventEmitter {
         );
         this.roster.set(npc.id, npc);
         diff.added.push(npc);
-        this.deps.bus?.publish({
-          type: 'npc_arrived',
-          gameDay: currentGameDay,
-          npcId: npc.id,
-          displayName: npc.displayName,
-        });
+        // Phase 7 (A3): a returning regular gets a distinct event carrying
+        // their visit count; first-timers still emit npc_arrived.
+        if (npc.visitCount && npc.visitCount > 1) {
+          this.deps.bus?.publish({
+            type: 'npc_returned',
+            gameDay: currentGameDay,
+            npcId: npc.id,
+            displayName: npc.displayName,
+            visitCount: npc.visitCount,
+          });
+        } else {
+          this.deps.bus?.publish({
+            type: 'npc_arrived',
+            gameDay: currentGameDay,
+            npcId: npc.id,
+            displayName: npc.displayName,
+          });
+        }
       } else {
         remainingQueue.push(arrival);
       }
@@ -378,5 +390,6 @@ function materializeArrival(
     item: garnish.item || undefined,
     mood,
     wasBeckoned: arrival.wasBeckoned,
+    visitCount: character.visitCount,
   };
 }

@@ -73,6 +73,8 @@ export interface Npc {
   mood?: NpcMood;
   /** Phase 6: true if summoned by a `beckon` intervention. */
   wasBeckoned?: boolean;
+  /** Phase 7 (A3): total visits including this one; >1 marks a returning regular. */
+  visitCount?: number;
 }
 
 export type NpcMood =
@@ -240,6 +242,14 @@ export type WorldEvent =
   | { type: 'pause'; gameDay: number }
   | { type: 'resume'; gameDay: number }
   | { type: 'npc_arrived'; gameDay: number; npcId: string; displayName: string }
+  | {
+      type: 'npc_returned';
+      gameDay: number;
+      npcId: string;
+      displayName: string;
+      /** How many times this character has now visited the tavern (>= 2). */
+      visitCount: number;
+    }
   | {
       type: 'npc_departed';
       gameDay: number;

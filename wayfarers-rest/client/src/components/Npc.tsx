@@ -19,6 +19,8 @@ export function Npc({
   const { interactingNpcs } = useStore();
   const flash = interactingNpcs[npc.id];
   const interacting = !!flash && flash.expiresAt > Date.now();
+  // Phase 7 (A3): a returning regular wears a small badge.
+  const isRegular = (npc.visitCount ?? 0) > 1;
 
   const style: React.CSSProperties = {
     left: `${npc.position.x}%`,
@@ -47,7 +49,18 @@ export function Npc({
     >
       <InteractionBubble npc={npc} />
       <span className="npc-dot" aria-hidden />
-      <span className="npc-label">{npc.displayName}</span>
+      <span className="npc-label">
+        {npc.displayName}
+        {isRegular && (
+          <span
+            className="npc-regular-badge"
+            aria-label="a regular"
+            title="a regular"
+          >
+            ★
+          </span>
+        )}
+      </span>
       <div className="npc-tooltip" role="tooltip">
         <div className="npc-tooltip-name">{npc.displayName}</div>
         {npc.tagline && (
@@ -56,6 +69,11 @@ export function Npc({
         <div className="npc-tooltip-row">
           status: <span>{npc.status}</span>
         </div>
+        {isRegular && (
+          <div className="npc-tooltip-row">
+            visits: <span>{npc.visitCount}</span>
+          </div>
+        )}
         {subTicksSinceArrival !== null && (
           <div className="npc-tooltip-row">
             here: <span>{subTicksSinceArrival} sub-ticks</span>

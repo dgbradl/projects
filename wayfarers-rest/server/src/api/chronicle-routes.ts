@@ -156,7 +156,12 @@ function buildLedger(
     deps.npcManager.getRoster().map((n) => [n.id, n]),
   );
   for (const entry of allEvents) {
-    if (entry.event.type !== 'npc_arrived') continue;
+    if (
+      entry.event.type !== 'npc_arrived' &&
+      entry.event.type !== 'npc_returned'
+    ) {
+      continue;
+    }
     if (npcsById.has(entry.event.npcId)) continue;
     npcsById.set(entry.event.npcId, {
       id: entry.event.npcId,

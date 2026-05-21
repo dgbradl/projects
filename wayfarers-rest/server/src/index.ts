@@ -170,6 +170,7 @@ async function main(): Promise<void> {
     bus,
     threadRunner,
     flavorCache,
+    persistence,
   );
   const interactionCounter = { value: 0 };
 
