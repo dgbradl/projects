@@ -1,11 +1,8 @@
 Generate {batchSize} short fragments of overheard tavern dialogue. Each is
-5-15 words, mid-sentence, no attribution. Mix moods: some mundane, some funny,
-some ominous, some absurd.
-
-Examples of the form only — do not reuse these or anything close to them:
-- and then he says that's not a lute, that's my wife
-- the third moon hasn't risen in two weeks
-- I told her, copper or nothing
+5-15 words and reads like the middle of something — a snatch of a longer
+story, a complaint, a boast, a claim — caught with no beginning and no
+speaker named. Mix moods across the batch: some mundane, some funny, some
+ominous, some absurd. Invent every fragment fresh; make each unlike the rest.
 
 Mood hint: {moodHint}
 

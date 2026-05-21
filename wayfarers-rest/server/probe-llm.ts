@@ -25,6 +25,7 @@ import {
   NAME_PROMPT_TEMPLATE,
   NAME_FORMAT,
   nameValidator,
+  nameAvoidBlock,
 } from './src/llm/slots/name.ts';
 
 const client = new OllamaClient({
@@ -166,6 +167,7 @@ async function main(): Promise<void> {
     fill(NAME_PROMPT_TEMPLATE, {
       batchSize: '10',
       kind: 'location',
+      avoidBlock: nameAvoidBlock('location'),
       styleHint: 'rivers, ridges, hollows, fords, lone trees',
     }),
     NAME_FORMAT,
@@ -177,6 +179,7 @@ async function main(): Promise<void> {
     fill(NAME_PROMPT_TEMPLATE, {
       batchSize: '6',
       kind: 'song',
+      avoidBlock: nameAvoidBlock('song'),
       styleHint: 'old ballads, drinking songs, lullabies remembered wrong',
     }),
     NAME_FORMAT,
