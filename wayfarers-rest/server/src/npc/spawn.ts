@@ -35,6 +35,8 @@ export function generateSpawnQueue(cfg: SpawnConfig): ScheduledArrival[] {
   let count = baseCount;
   if (tags.get('war_in_north') === 'escalating') count += 2;
   if (tags.get('road_safety_south') === 'poor') count -= 1;
+  // Phase 7 (D3): a festival underway packs the tavern.
+  if (tags.get('festival') === 'underway') count += 3;
   count = Math.max(1, count);
 
   // Tag-driven archetype injection.

@@ -65,6 +65,21 @@ describe('generateSpawnQueue', () => {
     }
   });
 
+  it('a festival underway adds arrivals to the queue', () => {
+    const base = generateSpawnQueue({
+      worldSeed: 'fixed-seed',
+      gameDay: 5,
+      subTicksPerDay: SUB_TICKS_PER_DAY,
+    });
+    const withFestival = generateSpawnQueue({
+      worldSeed: 'fixed-seed',
+      gameDay: 5,
+      subTicksPerDay: SUB_TICKS_PER_DAY,
+      worldTags: [{ key: 'festival', value: 'underway', setOnGameDay: 1 }],
+    });
+    expect(withFestival.length).toBe(base.length + 3);
+  });
+
   it('different seeds produce different queues', () => {
     const a = generateSpawnQueue({
       worldSeed: 'seed-A',

@@ -45,6 +45,13 @@ export function seedPhase3World(opts: {
     gameDay,
   });
 
+  // Phase 7 (D3): kick off the recurring festival cycle.
+  threadRunner.startThread({
+    type: 'festival',
+    initialNextTickDelay: 10,
+    gameDay,
+  });
+
   // One initial approaching stranger so the first week has a special arrival.
   const rng = seededRng(worldSeed, 'seed', 'stranger', gameDay);
   const origin = randomLocation(rng);
