@@ -164,8 +164,18 @@ export function DebugPanel() {
                   key={sprite.name}
                   className="sprite-cell"
                   title={sprite.name}
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData('text/plain', sprite.name);
+                    e.dataTransfer.effectAllowed = 'copy';
+                  }}
                 >
-                  <img src={sprite.url} alt={sprite.name} loading="lazy" />
+                  <img
+                    src={sprite.url}
+                    alt={sprite.name}
+                    loading="lazy"
+                    draggable={false}
+                  />
                 </div>
               ))}
             </div>

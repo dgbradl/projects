@@ -9,6 +9,7 @@ import type {
   WorldTag,
 } from '@shared/types';
 import { DebugPanel } from '../src/components/DebugPanel.tsx';
+import { tavernSprites } from '../src/assets/tavernSprites.ts';
 import { StoreProvider, useDispatch } from '../src/state/store.tsx';
 import { useEffect } from 'react';
 
@@ -80,6 +81,7 @@ const WORLD: WorldState = {
   favors: 3,
   favorsLastRegenGameDay: 0,
   markedNpcIds: [],
+  coin: 200,
 };
 
 function Seeded({ children }: { children: React.ReactNode }) {
@@ -150,7 +152,9 @@ describe('DebugPanel', () => {
       </StoreProvider>,
     );
     const gallery = screen.getByTestId('debug-sprites');
-    expect(within(gallery).getByText(/sprite gallery \(47\)/)).toBeTruthy();
-    expect(gallery.querySelectorAll('img')).toHaveLength(47);
+    expect(
+      within(gallery).getByText(`sprite gallery (${tavernSprites.length})`),
+    ).toBeTruthy();
+    expect(gallery.querySelectorAll('img')).toHaveLength(tavernSprites.length);
   });
 });

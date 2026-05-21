@@ -1,5 +1,9 @@
 .tavern {
+  /* Thickness of the wall frame, proportional to the tavern's width
+     (container-type: inline-size, below) and capped at both ends. See Walls.tsx. */
+  --wall-thickness: clamp(22px, 4cqw, 48px);
   position: relative;
+  container-type: inline-size;
   width: min(96vw, 1100px);
   aspect-ratio: 5 / 3;
   background-color: #241710;
@@ -19,28 +23,59 @@
   font-style: italic;
 }
 
-.zone {
+/* Structural wall frame around the tavern's edges (Walls.tsx). The top and
+   bottom rails span the full width and own the corners; the side stiles are
+   inset between them, so the planks butt-joint like a picture frame. */
+.walls {
   position: absolute;
-  transform: translate(-50%, -50%);
-  border: 1px dashed rgba(243, 228, 197, 0.25);
-  border-radius: 50%;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
+  inset: 0;
   pointer-events: none;
+  z-index: 0;
 }
 
-.zone-label {
-  font-size: 0.7rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink-dim);
-  transform: translateY(110%);
-  white-space: nowrap;
+.wall {
+  position: absolute;
+  image-rendering: pixelated;
 }
 
-.zone-door {
-  border-color: rgba(210, 156, 84, 0.4);
+.wall-top,
+.wall-bottom {
+  left: 0;
+  right: 0;
+  height: var(--wall-thickness);
+  background-image: url('../assets/tavern/wall_horizontal.png');
+  background-repeat: repeat-x;
+  background-size: auto 100%;
+}
+
+.wall-left,
+.wall-right {
+  top: var(--wall-thickness);
+  bottom: var(--wall-thickness);
+  width: var(--wall-thickness);
+  background-image: url('../assets/tavern/wall_vertical.png');
+  background-repeat: repeat-y;
+  background-size: 100% auto;
+}
+
+.wall-top {
+  top: 0;
+  box-shadow: inset 0 -7px 9px -5px rgba(8, 4, 2, 0.7);
+}
+
+.wall-bottom {
+  bottom: 0;
+  box-shadow: inset 0 7px 9px -5px rgba(8, 4, 2, 0.7);
+}
+
+.wall-left {
+  left: 0;
+  box-shadow: inset -7px 0 9px -5px rgba(8, 4, 2, 0.7);
+}
+
+.wall-right {
+  right: 0;
+  box-shadow: inset 7px 0 9px -5px rgba(8, 4, 2, 0.7);
 }
 
 .furnishings {
@@ -94,4 +129,62 @@
   height: 12px;
   margin-left: -0.75px;
   background: var(--accent-strong);
+}
+
+.furniture-scale-handle {
+  position: absolute;
+  right: -7px;
+  bottom: -7px;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--accent-strong);
+  border: 1.5px solid #1d130a;
+  cursor: nwse-resize;
+}
+
+/* Layer toolbar on the selected piece: send back / forward through the stack.
+   Counter-rotated inline so the buttons stay upright on a rotated piece. */
+.furniture-layer-bar {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  margin-top: 9px;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 2px;
+  background: rgba(15, 12, 8, 0.96);
+  border: 1px solid #3a2a1c;
+  border-radius: 4px;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.furniture-layer-bar button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  padding: 0;
+  font-size: 11px;
+  line-height: 1;
+  color: #1d130a;
+  background: var(--accent-strong);
+  border: 1px solid #1d130a;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.furniture-layer-bar button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.furniture-layer-pos {
+  padding: 0 3px;
+  font-size: 9px;
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
 }
