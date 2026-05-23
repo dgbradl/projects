@@ -83,7 +83,9 @@ body,
   justify-content: center;
   background: rgba(20, 14, 8, 0.7);
   backdrop-filter: blur(2px);
-  z-index: 10;
+  /* Above SELECTED_Z (1000) in Furnishings.tsx so a furniture piece that
+     was being edited at the moment of pause can't pop over the overlay. */
+  z-index: 9999;
 }
 
 .pause-card {

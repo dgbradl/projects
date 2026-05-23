@@ -296,7 +296,12 @@ export function Furnishings() {
               top: `${piece.y}%`,
               width: `${width}%`,
               transform: `translate(-50%, -50%) rotate(${piece.rotation}deg)`,
-              zIndex: selected ? SELECTED_Z : index + 1,
+              // Furniture layering is driven by DOM/array order — every
+              // piece shares z:1 (above walls/NPCs, below overlays); the
+              // selected piece pops to SELECTED_Z so its handles stay
+              // grabbable. An explicit per-piece z would race the pause /
+              // welcome / intervention overlays as the layout grows.
+              zIndex: selected ? SELECTED_Z : 1,
             }}
             onPointerDown={(e) => startMove(piece, e)}
           >
