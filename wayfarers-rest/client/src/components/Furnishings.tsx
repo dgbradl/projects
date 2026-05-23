@@ -8,6 +8,7 @@ import {
 import type { FurniturePiece } from '@shared/types';
 import { spriteByName } from '../assets/tavernSprites.ts';
 import { api, type PatchFurnitureInput } from '../api.ts';
+import { WIDTH_BY_CATEGORY, DEFAULT_WIDTH_PCT } from '../furniture/bbox.ts';
 import { useDispatch, useStore } from '../state/store.tsx';
 
 type Drag =
@@ -37,18 +38,6 @@ const MAX_SCALE = 3;
 // z-index for the piece being edited, so it and its handles stay reachable
 // above the rest regardless of its resting layer.
 const SELECTED_Z = 1000;
-
-// Rendered width as a percent of the tavern, by sprite category.
-const WIDTH_BY_CATEGORY: Record<string, number> = {
-  tables: 12,
-  chairs: 8,
-  barrels: 7,
-  plants: 5,
-  food: 4,
-  glassware: 3,
-  candles: 4,
-  decor: 8,
-};
 
 function clamp(value: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, value));
@@ -328,7 +317,8 @@ export function Furnishings() {
         const asset = spriteByName[piece.sprite];
         if (!asset) return null;
         const selected = piece.id === selectedId;
-        const width = (WIDTH_BY_CATEGORY[asset.category] ?? 6) * piece.scale;
+        const width =
+          (WIDTH_BY_CATEGORY[asset.category] ?? DEFAULT_WIDTH_PCT) * piece.scale;
         return (
           <div
             key={piece.id}

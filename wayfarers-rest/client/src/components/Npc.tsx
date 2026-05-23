@@ -1,4 +1,5 @@
 import type { Npc as NpcT, StaffRole } from '@shared/types';
+import { displaceFromFurniture } from '../furniture/bbox.ts';
 import { useStore } from '../state/store.tsx';
 import { NpcSprite } from '../sprites/NpcSprite.tsx';
 import { InteractionBubble } from './InteractionBubble.tsx';
@@ -23,16 +24,23 @@ export function Npc({
   currentSubTick,
   subTicksPerDay,
 }: Props) {
-  const { interactingNpcs } = useStore();
+  const { interactingNpcs, furniture } = useStore();
   const flash = interactingNpcs[npc.id];
   const interacting = !!flash && flash.expiresAt > Date.now();
   const isRegular = (npc.visitCount ?? 0) > 1;
   const isStaff = npc.isStaff ?? false;
   const staffRoleLabel = isStaff ? STAFF_ROLE_ABBREV[npc.staffRole ?? 'waitstaff'] : null;
 
+  // F4: visually push the NPC out of any furniture bbox it would render
+  // inside. The CSS transition on top/left smooths the offset over a
+  // sub-tick so it doesn't snap.
+  const pos = displaceFromFurniture(
+    { x: npc.position.x, y: npc.position.y },
+    furniture,
+  );
   const style: React.CSSProperties = {
-    left: `${npc.position.x}%`,
-    top: `${npc.position.y}%`,
+    left: `${pos.x}%`,
+    top: `${pos.y}%`,
   };
 
   let subTicksSinceArrival: number | null = null;
