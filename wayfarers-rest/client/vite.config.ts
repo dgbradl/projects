@@ -25,6 +25,7 @@ export default defineConfig({
       '/interventions': SERVER_URL,
       '/control': SERVER_URL,
       '/staff': SERVER_URL,
+      '/furniture': SERVER_URL,
       '/stream': { target: SERVER_URL, changeOrigin: true, ws: false },
     },
   },
