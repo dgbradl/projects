@@ -14,12 +14,16 @@ import type { WorldStateManager } from '../state.ts';
 import { rngInt, seededRng } from '../world/rng.ts';
 
 /** The tavern's starting purse, in coin. */
-export const COIN_INITIAL_DEFAULT = 200;
+export const COIN_INITIAL_DEFAULT = 300;
 
-/** Fixed daily cost no matter how busy the tavern is (candles, firewood). */
-const UPKEEP_BASE = 14;
+/**
+ * Fixed daily cost no matter how busy the tavern is (candles, firewood).
+ * Tuned 2026-05-23 from 14 → 8: real-game traffic is bursty, and quiet days
+ * shouldn't drain the purse faster than a single guest can refill it.
+ */
+const UPKEEP_BASE = 8;
 /** Added cost per guest who passed through that day (food stock). */
-const UPKEEP_PER_GUEST = 3;
+const UPKEEP_PER_GUEST = 2;
 /** Seeded jitter added to upkeep, drawn from [0, UPKEEP_JITTER]. */
 const UPKEEP_JITTER = 6;
 

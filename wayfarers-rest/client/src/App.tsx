@@ -5,6 +5,7 @@ import { DebugPanel } from './components/DebugPanel.tsx';
 import { FavorIndicator } from './components/FavorIndicator.tsx';
 import { InterventionPicker } from './components/InterventionPicker.tsx';
 import { LandingAnimation } from './components/LandingAnimation.tsx';
+import { MenuButton } from './components/MenuButton.tsx';
 import { PauseOverlay } from './components/PauseOverlay.tsx';
 import { StatusBar } from './components/StatusBar.tsx';
 import { Tavern } from './components/Tavern.tsx';
@@ -84,7 +85,10 @@ function Bootstrap() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>The Wayfarer's Rest</h1>
+        <div className="app-header-top">
+          <h1>The Wayfarer's Rest</h1>
+          <MenuButton />
+        </div>
         <StatusBar />
       </header>
       <main className="app-main">

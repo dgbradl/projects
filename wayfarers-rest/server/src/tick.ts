@@ -49,7 +49,9 @@ export class TickScheduler {
     while (this.shouldTickNow()) {
       this.fireOneTick();
       fired += 1;
-      if (this.stateManager.getState().status === 'paused') break;
+      // Any non-running status (paused via 7-day unattended, or manual
+      // pause/stop) breaks the catch-up loop.
+      if (this.stateManager.getState().status !== 'running') break;
     }
     return fired;
   }
@@ -93,17 +95,27 @@ export function engage(
   stateManager: WorldStateManager,
   scheduler: TickScheduler,
   bus: WorldEventBus,
+  clock?: Clock,
 ): WorldState {
   const before = stateManager.getState();
-  const wasPaused = before.status === 'paused';
+  const wasIdle = before.status !== 'running';
 
   stateManager.setState({
     ...before,
     unattendedTicks: 0,
+    // Resume from manual pause or sleep-mode stop as well as auto-pause.
     status: 'running',
+    // When a clock is provided and the world was idle, snap the tick clock so
+    // the tavern doesn't immediately fire a flurry of catch-up ticks for the
+    // wall-clock time spent paused/stopped. The clock arg is optional for
+    // backward compatibility with tests that exercise auto-pause catch-up.
+    lastTickAt:
+      wasIdle && clock
+        ? new Date(clock.now()).toISOString()
+        : before.lastTickAt,
   });
 
-  if (wasPaused) {
+  if (wasIdle) {
     bus.publish({ type: 'resume', gameDay: stateManager.getState().gameDay });
     scheduler.runCatchUp();
   }

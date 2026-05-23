@@ -20,6 +20,8 @@ import type { Persistence } from '../persistence.ts';
 import type { WorldStateManager } from '../state.ts';
 import type { ThreadRunner } from '../threads/runner.ts';
 import { engage, TickScheduler } from '../tick.ts';
+import { pauseGame, resetGame, stopGame, type ControlDeps } from '../control.ts';
+import type { SubTickScheduler } from '../subtick.ts';
 import { TAVERN_ZONES } from '../world/tavern.ts';
 import type { RumorsManager } from '../world/rumors.ts';
 import type { WorldTagsManager } from '../world/tags.ts';
@@ -44,6 +46,8 @@ export interface ApiDeps {
   worldTags?: WorldTagsManager;
   rumors?: RumorsManager;
   favorsMax?: number;
+  /** Optional: enables POST /control/reset to snap day-tracking on the sub-tick scheduler. */
+  subTickScheduler?: SubTickScheduler;
 }
 
 export interface FlavorStatus {
@@ -57,8 +61,34 @@ export function registerRoutes(app: FastifyInstance, deps: ApiDeps): void {
   app.get('/state', async () => deps.stateManager.getState());
 
   app.post('/engagement', async () =>
-    engage(deps.stateManager, deps.scheduler, deps.bus),
+    engage(deps.stateManager, deps.scheduler, deps.bus, deps.clock),
   );
+
+  // ----- Phase 7 menu: Pause / Stop / Resume / Reset -----
+  //
+  // Resume is implemented via the existing engage() — same semantics whether
+  // the keeper paused manually, the tavern auto-paused, or the keeper stopped.
+  // The reset route requires the world/threads/runner wiring; if those aren't
+  // present (a stripped-down test harness), it's omitted.
+  if (deps.threadRunner && deps.worldTags) {
+    const controlDeps: ControlDeps = {
+      persistence: deps.persistence,
+      clock: deps.clock,
+      bus: deps.bus,
+      stateManager: deps.stateManager,
+      npcManager: deps.npcManager,
+      threadRunner: deps.threadRunner,
+      worldTags: deps.worldTags,
+      chroniclePipeline: deps.chroniclePipeline,
+      subTickScheduler: deps.subTickScheduler,
+    };
+    app.post('/control/reset', async () => resetGame(controlDeps));
+    app.post('/control/pause', async () => pauseGame(controlDeps));
+    app.post('/control/stop', async () => stopGame(controlDeps));
+    app.post('/control/resume', async () =>
+      engage(deps.stateManager, deps.scheduler, deps.bus, deps.clock),
+    );
+  }
 
   app.get<{ Querystring: { since?: string } }>(
     '/events',

@@ -422,7 +422,11 @@ export class Persistence {
       .prepare('SELECT * FROM world_state WHERE id = 1')
       .get() as WorldStateRow | undefined;
     if (!row) return null;
-    if (row.status !== 'running' && row.status !== 'paused') {
+    if (
+      row.status !== 'running' &&
+      row.status !== 'paused' &&
+      row.status !== 'stopped'
+    ) {
       throw new Error(`Invalid status in DB: ${row.status}`);
     }
     let markedNpcIds: string[] = [];
@@ -1179,6 +1183,33 @@ export class Persistence {
 
   close(): void {
     this.db.close();
+  }
+
+  /**
+   * Wipe every table that holds per-game state, leaving only the flavor cache
+   * (and schema_meta) intact. Used by POST /control/reset to give the keeper a
+   * fresh tavern without paying for LLM regeneration of all pool content.
+   *
+   * The world_state row is deleted; the caller is expected to re-seed a fresh
+   * state via WorldStateManager.reset() and then re-run the world init.
+   */
+  wipeGameTables(): void {
+    this.db.exec(`
+      BEGIN;
+      DELETE FROM world_state;
+      DELETE FROM tick_events;
+      DELETE FROM events;
+      DELETE FROM threads;
+      DELETE FROM world_tags;
+      DELETE FROM rumors;
+      DELETE FROM scheduled_arrivals;
+      DELETE FROM chronicles;
+      DELETE FROM chronicle_prologues;
+      DELETE FROM interventions;
+      DELETE FROM characters;
+      DELETE FROM daily_ledgers;
+      COMMIT;
+    `);
   }
 }
 

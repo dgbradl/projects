@@ -163,6 +163,8 @@ async function main(): Promise<void> {
     flavorCache,
     mode,
     FLAVOR_WORKER_INTERVAL_MS,
+    undefined,
+    () => stateManager.getState().status,
   );
 
   // ----- NPC + scheduler wiring (reuses Phase 3 surfaces) -----
@@ -379,6 +381,7 @@ async function main(): Promise<void> {
     stateManager,
     chronicleGenerator,
     { workerIntervalMs: CHRONICLE_WORKER_INTERVAL_MS },
+    () => stateManager.getState().status,
   );
 
   const app = Fastify({ logger: true });
@@ -401,6 +404,7 @@ async function main(): Promise<void> {
     worldTags,
     rumors,
     favorsMax: FAVORS_MAX_DEFAULT,
+    subTickScheduler,
   };
 
   app.addHook('onClose', async () => {

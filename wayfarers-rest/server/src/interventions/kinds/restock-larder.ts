@@ -13,8 +13,11 @@ import type {
 
 /** Highest larder stock level. */
 export const LARDER_MAX = 5;
-/** Coin cost of one restock. */
-export const RESTOCK_LARDER_COST = 40;
+/**
+ * Coin cost of one restock. Tuned 2026-05-23 from 40 → 25 so the verb has a
+ * realistic payback at typical traffic levels.
+ */
+export const RESTOCK_LARDER_COST = 25;
 
 export interface RestockLarderDeps {
   stateManager: WorldStateManager;

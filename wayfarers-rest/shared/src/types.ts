@@ -1,7 +1,7 @@
 export interface WorldState {
   gameDay: number;
   lastTickAt: string;
-  status: 'running' | 'paused';
+  status: 'running' | 'paused' | 'stopped';
   unattendedTicks: number;
   seed: string;
   subTick: number;

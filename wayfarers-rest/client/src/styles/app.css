@@ -122,3 +122,164 @@ body,
   opacity: 0.6;
   cursor: progress;
 }
+
+.status-stopped {
+  color: var(--danger);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+}
+
+/* ---------- Hamburger menu (Phase 7) ---------- */
+
+.app-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.menu-button {
+  position: relative;
+}
+
+.menu-button-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 1px solid #3a2a1c;
+  background: var(--panel);
+  color: var(--ink);
+  border-radius: 0.3rem;
+  cursor: pointer;
+}
+
+.menu-button-toggle:hover {
+  border-color: var(--accent);
+}
+
+.menu-button-bars {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 1.1rem;
+}
+
+.menu-button-bars > span {
+  display: block;
+  height: 2px;
+  background: var(--ink);
+  border-radius: 1px;
+}
+
+.menu-dropdown {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  min-width: 18rem;
+  background: var(--panel);
+  border: 1px solid #3a2a1c;
+  border-radius: 0.4rem;
+  padding: 0.4rem;
+  z-index: 10000;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.menu-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  padding: 0.55rem 0.7rem;
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: var(--ink);
+  background: transparent;
+  border: none;
+  border-radius: 0.25rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-item:hover:not(:disabled) {
+  background: rgba(210, 156, 84, 0.12);
+}
+
+.menu-item:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
+
+.menu-item-label {
+  font-weight: 600;
+}
+
+.menu-item-hint {
+  font-size: 0.8rem;
+  color: var(--ink-dim);
+  line-height: 1.25;
+}
+
+.menu-item-dangerous .menu-item-label {
+  color: var(--danger);
+}
+
+.menu-divider {
+  height: 1px;
+  background: #3a2a1c;
+  margin: 0.3rem 0.2rem;
+}
+
+.menu-reset-confirm {
+  padding: 0.6rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.menu-reset-confirm p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--ink-dim);
+  line-height: 1.35;
+}
+
+.menu-reset-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.menu-reset-cancel,
+.menu-reset-confirm-button {
+  flex: 1;
+  padding: 0.4rem 0.6rem;
+  font-family: inherit;
+  font-size: 0.85rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+.menu-reset-cancel {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid #3a2a1c;
+}
+
+.menu-reset-confirm-button {
+  background: var(--danger);
+  color: #1d160e;
+  border: 1px solid var(--danger);
+  font-weight: 600;
+}
+
+.menu-reset-confirm-button:disabled,
+.menu-reset-cancel:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}

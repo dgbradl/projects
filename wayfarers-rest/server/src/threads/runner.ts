@@ -289,6 +289,11 @@ export class ThreadRunner {
     }
   }
 
+  /** Clear per-day spawn counters; used by POST /control/reset. */
+  reset(): void {
+    this.spawnCounters.clear();
+  }
+
   private mintThreadId(type: string, gameDay: number): string {
     const key = `${gameDay}|${type}`;
     const persisted = this.persistence.countThreadsStartedOnDay(type, gameDay);

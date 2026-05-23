@@ -29,6 +29,14 @@ export class SubTickScheduler {
 
     stateManager.on('state', (state) => {
       if (state.gameDay !== this.lastGameDay) {
+        // gameDay moving backwards only happens via POST /control/reset.
+        // Snap to the fresh day without firing the day-change pipeline —
+        // resetGame() will re-seed the world itself.
+        if (state.gameDay < this.lastGameDay) {
+          this.lastGameDay = state.gameDay;
+          this.nextDueAtMs = this.clock.now() + this.config.subTickIntervalMs;
+          return;
+        }
         this.onDayChange?.(state.gameDay);
         this.npcManager.onMacroTick(state.gameDay);
         this.threadRunner?.runDay(state.gameDay, state, state.seed);
@@ -59,6 +67,16 @@ export class SubTickScheduler {
       clearInterval(this.interval);
       this.interval = null;
     }
+  }
+
+  /**
+   * Snap the cached `lastGameDay` / due-tick clock back to whatever the
+   * current world state says. Used by POST /control/reset so day-change
+   * handling doesn't get stranded on the pre-reset gameDay.
+   */
+  resetDayTracking(): void {
+    this.lastGameDay = this.stateManager.getState().gameDay;
+    this.nextDueAtMs = this.clock.now() + this.config.subTickIntervalMs;
   }
 
   advance(ms: number): number {

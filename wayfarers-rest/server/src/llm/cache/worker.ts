@@ -19,6 +19,12 @@ export class FlavorWorker {
     private readonly mode: FlavorModeManager,
     private readonly intervalMs: number,
     private readonly logger?: { warn: (msg: string, err?: unknown) => void },
+    /**
+     * When provided and returning 'stopped', the worker idles entirely
+     * (skipping both generation and backoff decrements). Used by the menu's
+     * Stop action so the server goes truly idle.
+     */
+    private readonly getWorldStatus?: () => 'running' | 'paused' | 'stopped',
   ) {}
 
   start(): void {
@@ -40,6 +46,9 @@ export class FlavorWorker {
    */
   async tickOnce(): Promise<void> {
     if (this.running) return; // single-threaded
+    // Sleep-mode Stop fully idles the worker, including backoff decay, so a
+    // resumed Stop continues from the exact backoff state it was paused in.
+    if (this.getWorldStatus?.() === 'stopped') return;
     const mode = this.mode.getMode();
     if (mode !== 'llm' && mode !== 'recorded') {
       this.tickBackoffs();

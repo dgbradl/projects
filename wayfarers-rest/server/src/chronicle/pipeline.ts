@@ -29,10 +29,20 @@ export class ChroniclePipeline extends EventEmitter {
     private readonly stateManager: WorldStateManager,
     private readonly generator: ChronicleGenerator,
     private readonly config: ChroniclePipelineConfig,
+    /**
+     * When provided and returning 'stopped', the pipeline's worker tick is a
+     * no-op so the keeper's Stop action puts the LLM-driven workers to sleep.
+     */
+    private readonly getWorldStatus?: () => 'running' | 'paused' | 'stopped',
   ) {
     super();
     this.lastSeenGameDay = stateManager.getState().gameDay;
     stateManager.on('state', (state: WorldState) => {
+      // gameDay moving backwards only happens via POST /control/reset.
+      if (state.gameDay < this.lastSeenGameDay) {
+        this.lastSeenGameDay = state.gameDay;
+        return;
+      }
       if (state.gameDay <= this.lastSeenGameDay) return;
       // Days [lastSeenGameDay, state.gameDay - 1] have ended; enqueue rows.
       for (let d = this.lastSeenGameDay; d < state.gameDay; d += 1) {
@@ -63,9 +73,19 @@ export class ChroniclePipeline extends EventEmitter {
     this.interval = null;
   }
 
+  /**
+   * After POST /control/reset wipes the chronicles table and resets gameDay
+   * to 1, snap `lastSeenGameDay` back so the day-tick hook fires again on
+   * subsequent day advances.
+   */
+  resetDayTracking(): void {
+    this.lastSeenGameDay = this.stateManager.getState().gameDay;
+  }
+
   /** Pop one pending chronicle and generate it. Exposed for tests. */
   async tickOnce(): Promise<DailyChronicle | null> {
     if (this.running) return null;
+    if (this.getWorldStatus?.() === 'stopped') return null;
     const pending = this.persistence.loadPendingChronicleGameDays();
     if (pending.length === 0) return null;
     this.running = true;

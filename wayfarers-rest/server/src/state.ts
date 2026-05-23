@@ -14,6 +14,7 @@ const defaultSeedFactory: SeedFactory = () =>
 export class WorldStateManager extends EventEmitter {
   private state: WorldState;
   private wasColdStart: boolean;
+  private readonly seedFactory: SeedFactory;
 
   constructor(
     private readonly persistence: Persistence,
@@ -21,29 +22,46 @@ export class WorldStateManager extends EventEmitter {
     seedFactory: SeedFactory = defaultSeedFactory,
   ) {
     super();
+    this.seedFactory = seedFactory;
     const existing = persistence.loadState();
     if (existing) {
       this.state = existing;
       this.wasColdStart = false;
     } else {
-      const nowIso = new Date(clock.now()).toISOString();
-      this.state = {
-        gameDay: 1,
-        lastTickAt: nowIso,
-        status: 'running',
-        unattendedTicks: 0,
-        seed: seedFactory(),
-        subTick: 0,
-        lastAcknowledgedGameDay: 0,
-        favors: 3,
-        favorsLastRegenGameDay: 0,
-        markedNpcIds: [],
-        coin: COIN_INITIAL_DEFAULT,
-        prosperity: PROSPERITY_INITIAL,
-      };
+      this.state = this.freshState();
       persistence.saveState(this.state);
       this.wasColdStart = true;
     }
+  }
+
+  private freshState(): WorldState {
+    const nowIso = new Date(this.clock.now()).toISOString();
+    return {
+      gameDay: 1,
+      lastTickAt: nowIso,
+      status: 'running',
+      unattendedTicks: 0,
+      seed: this.seedFactory(),
+      subTick: 0,
+      lastAcknowledgedGameDay: 0,
+      favors: 3,
+      favorsLastRegenGameDay: 0,
+      markedNpcIds: [],
+      coin: COIN_INITIAL_DEFAULT,
+      prosperity: PROSPERITY_INITIAL,
+    };
+  }
+
+  /**
+   * Replace the in-memory + persisted state with a brand-new fresh state.
+   * Used by POST /control/reset after the persistence tables have been wiped.
+   * Emits `state` so SSE subscribers see the new starting world.
+   */
+  reset(): WorldState {
+    this.state = this.freshState();
+    this.persistence.saveState(this.state);
+    this.emit('state', this.getState());
+    return this.getState();
   }
 
   getState(): WorldState {

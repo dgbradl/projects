@@ -37,6 +37,15 @@ export const api = {
     if (!res.ok) throw new Error(`POST /engagement failed: ${res.status}`);
     return (await res.json()) as WorldState;
   },
+  // Phase 7 menu actions. Resume reuses /engagement under the hood; we expose
+  // it here as /control/resume so the client can use a single namespace.
+  postControl: async (
+    action: 'pause' | 'stop' | 'resume' | 'reset',
+  ): Promise<WorldState> => {
+    const res = await fetch(`/control/${action}`, { method: 'POST' });
+    if (!res.ok) throw new Error(`POST /control/${action} failed: ${res.status}`);
+    return (await res.json()) as WorldState;
+  },
   postAcknowledge: async (acknowledgedGameDay: number): Promise<WorldState> => {
     const res = await fetch('/chronicles/acknowledge', {
       method: 'POST',

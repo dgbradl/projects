@@ -49,7 +49,9 @@ const DRINK_BAND: Record<NpcArchetype, readonly [number, number]> = {
 
 const MEAL_BAND: readonly [number, number] = [3, 8];
 const ROOM_BAND: readonly [number, number] = [8, 15];
-const TIP_BAND: readonly [number, number] = [0, 4];
+// Tuned 2026-05-23 from [0,4] → [1,5]: every guest tips at least a little,
+// so a first-time stranger with no affinity still contributes more than zero.
+const TIP_BAND: readonly [number, number] = [1, 5];
 /** Chance a guest who is not staying overnight still buys a meal. */
 const MEAL_CHANCE = 0.55;
 
@@ -85,11 +87,13 @@ export function computeGuestSpend(input: GuestSpendInput): GuestSpendBreakdown {
 
   // 2) meal — always draw both the roll and the amount so the stream position
   //    is fixed; an overnight guest always eats, otherwise it is a chance.
-  //    Economy (E3): a stocked larder lifts meal spend (+10% per level).
+  //    Economy (E3): a stocked larder lifts meal spend (+15% per level —
+  //    tuned 2026-05-23 from +10% so restocking pays back faster, given that
+  //    the larder also decays one level per day).
   const mealRoll = rng();
   const mealAmount = rngInt(rng, MEAL_BAND[0], MEAL_BAND[1] + 1);
   const eats = input.stayedOvernight || mealRoll < MEAL_CHANCE;
-  let meal = eats ? mealAmount * (1 + (input.larderStock ?? 0) * 0.1) : 0;
+  let meal = eats ? mealAmount * (1 + (input.larderStock ?? 0) * 0.15) : 0;
 
   // 3) room — always draw; only an overnight stay is actually charged.
   //    Economy (E3): a finer hearth lifts room spend (+12% per level).

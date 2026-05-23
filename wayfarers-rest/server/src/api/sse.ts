@@ -42,6 +42,11 @@ export function registerSSE(
       ) {
         writeEvent(reply, 'flavor_status', buildFlavorStatus(deps));
       }
+      // A fresh `init` is published when POST /control/reset wipes the world.
+      // Push the roster snapshot so the client doesn't keep a stale npcs map.
+      if (entry.event.type === 'init') {
+        writeEvent(reply, 'npcs_snapshot', npcManager.getRoster());
+      }
     };
 
     const onChronicleReady = (chronicle: DailyChronicle) =>
