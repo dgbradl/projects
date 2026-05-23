@@ -197,5 +197,8 @@ export function buildWorldSnapshot(deps: ApiDeps): WorldSnapshot {
       SNAPSHOT_WINDOW_DAYS,
     ),
     rumors: deps.persistence.loadAllRumors(),
+    // Furniture (F2) lands the persistence + manager. Empty until then so the
+    // shape is stable on the wire and the client can already read .furniture.
+    furniture: [],
   };
 }

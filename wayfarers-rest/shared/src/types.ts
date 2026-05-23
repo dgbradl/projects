@@ -628,6 +628,26 @@ export interface WorldSnapshot {
   threads: Thread[];
   pendingArrivals: ScheduledArrival[];
   rumors: Rumor[];
+  /** Server-owned furniture layout. Back→front = paint order (lowest layer first). */
+  furniture: FurniturePiece[];
+}
+
+// ---------- Furniture (server-owned tavern layout) ----------
+
+/**
+ * A single decorative piece placed on the tavern floor. Coordinates are
+ * percentages of the tavern's width/height (0..100, center-anchored).
+ * `layer` is an explicit integer so re-stacking is O(1) per piece — read
+ * sorted ascending for paint order (lowest = furthest back).
+ */
+export interface FurniturePiece {
+  id: string;
+  sprite: string;
+  x: number;
+  y: number;
+  rotation: number;
+  scale: number;
+  layer: number;
 }
 
 // ---------- Epic E: Staff ----------
