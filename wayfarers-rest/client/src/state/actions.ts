@@ -4,6 +4,7 @@ import type {
   EventLogEntry,
   FlavorMode,
   FlavorPoolStatus,
+  FurniturePiece,
   InterventionOptionsResponse,
   InterventionRecord,
   Npc,
@@ -41,4 +42,8 @@ export type Action =
   | { type: 'INTERVENTION_OPTIONS_LOADED'; payload: InterventionOptionsResponse }
   | { type: 'INTERVENTION_PICKER_OPENED' }
   | { type: 'INTERVENTION_PICKER_CLOSED' }
-  | { type: 'INTERVENTION_LANDED'; payload: InterventionRecord };
+  | { type: 'INTERVENTION_LANDED'; payload: InterventionRecord }
+  // F3: server-owned furniture layout, mirrored in the store.
+  | { type: 'FURNITURE_SET'; payload: FurniturePiece[] }
+  | { type: 'FURNITURE_UPSERT'; payload: FurniturePiece }
+  | { type: 'FURNITURE_REMOVE'; payload: { id: string } };

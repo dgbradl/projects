@@ -5,16 +5,10 @@ import {
   type DragEvent as ReactDragEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
+import type { FurniturePiece } from '@shared/types';
 import { spriteByName } from '../assets/tavernSprites.ts';
-
-interface FurniturePiece {
-  id: string;
-  sprite: string;
-  x: number;
-  y: number;
-  rotation: number;
-  scale?: number;
-}
+import { api, type PatchFurnitureInput } from '../api.ts';
+import { useDispatch, useStore } from '../state/store.tsx';
 
 type Drag =
   | { mode: 'move'; id: string; rect: DOMRect; offX: number; offY: number }
@@ -28,19 +22,21 @@ type Drag =
       startScale: number;
     };
 
-// A piece's layer is its index in `pieces` — earlier in the array = further back.
+// A piece's layer is its `layer` field — earlier (lower) = further back.
 type LayerMove = 'back' | 'backward' | 'forward' | 'front';
 
+/**
+ * Pre-F3 layouts lived in localStorage; we migrate them to the server once
+ * per browser. Kept exported so tests and the migration sentinel can see it.
+ */
 export const STORAGE_KEY = 'wayfarers.furniture.v3';
+const MIGRATED_SENTINEL = 'wayfarers.furniture.migrated.v1';
+
 const MIN_SCALE = 0.2;
 const MAX_SCALE = 3;
 // z-index for the piece being edited, so it and its handles stay reachable
 // above the rest regardless of its resting layer.
 const SELECTED_Z = 1000;
-
-// The floor starts empty; pieces are added by dropping sprites from the
-// debug-panel gallery onto the tavern.
-const DEFAULT_LAYOUT: FurniturePiece[] = [];
 
 // Rendered width as a percent of the tavern, by sprite category.
 const WIDTH_BY_CATEGORY: Record<string, number> = {
@@ -58,40 +54,65 @@ function clamp(value: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, value));
 }
 
-function loadLayout(): FurniturePiece[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    const parsed: unknown = raw ? JSON.parse(raw) : null;
-    if (Array.isArray(parsed)) {
-      return (parsed as FurniturePiece[]).map((p) => ({
-        ...p,
-        scale: typeof p.scale === 'number' && p.scale > 0 ? p.scale : 1,
-      }));
-    }
-  } catch {
-    // corrupt or unavailable storage — fall through to the default layout
-  }
-  return DEFAULT_LAYOUT;
-}
-
 export function Furnishings() {
+  const dispatch = useDispatch();
+  const pieces = useStore().furniture;
   const layerRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<Drag | null>(null);
   const ctrlRef = useRef<AbortController | null>(null);
-  const seqRef = useRef(0);
-  const clipboardRef = useRef<Omit<FurniturePiece, 'id'> | null>(null);
-  const [pieces, setPieces] = useState<FurniturePiece[]>(loadLayout);
+  const piecesRef = useRef<FurniturePiece[]>(pieces);
+  const clipboardRef = useRef<Omit<FurniturePiece, 'id' | 'layer'> | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
+  // Keep a ref to the latest pieces so the drag callbacks (which capture
+  // their closure at pointerdown) can see post-dispatch values at pointerup.
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(pieces));
-    } catch {
-      // ignore storage failures
-    }
+    piecesRef.current = pieces;
   }, [pieces]);
 
   useEffect(() => () => ctrlRef.current?.abort(), []);
+
+  // F3: one-time migration of pre-existing localStorage layouts to the
+  // server. Runs once per browser, gated by a sentinel; skips if the server
+  // already has furniture so we never double-import.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (localStorage.getItem(MIGRATED_SENTINEL)) return;
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      localStorage.setItem(MIGRATED_SENTINEL, '1');
+      return;
+    }
+    void (async () => {
+      try {
+        const current = await api.listFurniture();
+        if (current.length > 0) {
+          localStorage.setItem(MIGRATED_SENTINEL, '1');
+          return;
+        }
+        const legacy = JSON.parse(raw) as Array<{
+          sprite: string;
+          x: number;
+          y: number;
+          rotation?: number;
+          scale?: number;
+        }>;
+        for (const p of legacy) {
+          const created = await api.placeFurniture({
+            sprite: p.sprite,
+            x: p.x,
+            y: p.y,
+            rotation: p.rotation ?? 0,
+            scale: p.scale ?? 1,
+          });
+          dispatch({ type: 'FURNITURE_UPSERT', payload: created });
+        }
+        localStorage.setItem(MIGRATED_SENTINEL, '1');
+      } catch {
+        // best-effort; leave sentinel unset so it retries next mount
+      }
+    })();
+  }, [dispatch]);
 
   // Clipboard: Cmd/Ctrl+C copies the selected piece, Cmd/Ctrl+V pastes it.
   useEffect(() => {
@@ -109,7 +130,7 @@ export function Furnishings() {
       }
       const key = e.key.toLowerCase();
       if (key === 'c' && selectedId) {
-        const piece = pieces.find((p) => p.id === selectedId);
+        const piece = piecesRef.current.find((p) => p.id === selectedId);
         if (piece) {
           e.preventDefault();
           clipboardRef.current = {
@@ -117,7 +138,7 @@ export function Furnishings() {
             x: piece.x,
             y: piece.y,
             rotation: piece.rotation,
-            scale: piece.scale ?? 1,
+            scale: piece.scale,
           };
         }
       } else if (key === 'v' && clipboardRef.current) {
@@ -125,49 +146,74 @@ export function Furnishings() {
         const c = clipboardRef.current;
         const x = clamp(c.x + 4, 0, 100);
         const y = clamp(c.y + 4, 0, 100);
-        const id = `${c.sprite}-${Date.now().toString(36)}-${seqRef.current++}`;
-        setPieces((prev) => [...prev, { ...c, id, x, y }]);
-        setSelectedId(id);
-        clipboardRef.current = { ...c, x, y };
+        void api
+          .placeFurniture({
+            sprite: c.sprite,
+            x,
+            y,
+            rotation: c.rotation,
+            scale: c.scale,
+          })
+          .then((created) => {
+            dispatch({ type: 'FURNITURE_UPSERT', payload: created });
+            setSelectedId(created.id);
+            clipboardRef.current = { ...c, x, y };
+          })
+          .catch(() => {});
       }
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [pieces, selectedId]);
+  }, [dispatch, selectedId]);
 
-  function patch(id: string, next: Partial<FurniturePiece>) {
-    setPieces((prev) => prev.map((p) => (p.id === id ? { ...p, ...next } : p)));
+  function patch(id: string, next: Partial<FurniturePiece>): void {
+    const current = piecesRef.current.find((p) => p.id === id);
+    if (!current) return;
+    dispatch({ type: 'FURNITURE_UPSERT', payload: { ...current, ...next } });
   }
 
-  // Restack a piece within `pieces` — array order is paint order, back to front.
-  function moveLayer(id: string, move: LayerMove) {
-    setPieces((prev) => {
-      const i = prev.findIndex((p) => p.id === id);
-      if (i < 0) return prev;
-      const target =
-        move === 'back'
-          ? 0
-          : move === 'front'
-            ? prev.length - 1
-            : move === 'backward'
-              ? i - 1
-              : i + 1;
-      const j = clamp(target, 0, prev.length - 1);
-      if (j === i) return prev;
-      const next = prev.slice();
-      const [piece] = next.splice(i, 1);
-      next.splice(j, 0, piece);
-      return next;
-    });
+  // Restack a piece within `pieces` — optimistically reorder locally, then
+  // reconcile with the server's authoritative renumbering.
+  function moveLayer(id: string, move: LayerMove): void {
+    const ordered = piecesRef.current.slice();
+    const idx = ordered.findIndex((p) => p.id === id);
+    if (idx < 0) return;
+    const target =
+      move === 'back'
+        ? 0
+        : move === 'front'
+          ? ordered.length - 1
+          : move === 'backward'
+            ? idx - 1
+            : idx + 1;
+    const j = clamp(target, 0, ordered.length - 1);
+    if (j === idx) return;
+    const [piece] = ordered.splice(idx, 1);
+    ordered.splice(j, 0, piece);
+    const renumbered = ordered.map((p, i) => ({ ...p, layer: i + 1 }));
+    dispatch({ type: 'FURNITURE_SET', payload: renumbered });
+    void api
+      .moveFurnitureLayer(id, move)
+      .then((server) => dispatch({ type: 'FURNITURE_SET', payload: server }))
+      .catch(() => {});
   }
 
-  function endDrag() {
+  function endDrag(): void {
+    const drag = dragRef.current;
     dragRef.current = null;
     ctrlRef.current?.abort();
     ctrlRef.current = null;
+    if (!drag) return;
+    const piece = piecesRef.current.find((p) => p.id === drag.id);
+    if (!piece) return;
+    let body: PatchFurnitureInput;
+    if (drag.mode === 'move') body = { x: piece.x, y: piece.y };
+    else if (drag.mode === 'rotate') body = { rotation: piece.rotation };
+    else body = { scale: piece.scale };
+    void api.patchFurniture(drag.id, body).catch(() => {});
   }
 
-  function onMove(e: PointerEvent) {
+  function onMove(e: PointerEvent): void {
     const drag = dragRef.current;
     if (!drag) return;
     if (drag.mode === 'move') {
@@ -192,7 +238,7 @@ export function Furnishings() {
     }
   }
 
-  function beginDrag(drag: Drag) {
+  function beginDrag(drag: Drag): void {
     endDrag();
     dragRef.current = drag;
     const ctrl = new AbortController();
@@ -209,7 +255,7 @@ export function Furnishings() {
     };
   }
 
-  function startMove(piece: FurniturePiece, e: ReactPointerEvent) {
+  function startMove(piece: FurniturePiece, e: ReactPointerEvent): void {
     e.stopPropagation();
     setSelectedId(piece.id);
     const layer = layerRef.current;
@@ -225,7 +271,7 @@ export function Furnishings() {
     });
   }
 
-  function startRotate(piece: FurniturePiece, e: ReactPointerEvent) {
+  function startRotate(piece: FurniturePiece, e: ReactPointerEvent): void {
     e.stopPropagation();
     const layer = layerRef.current;
     if (!layer) return;
@@ -233,7 +279,7 @@ export function Furnishings() {
     beginDrag({ mode: 'rotate', id: piece.id, cx, cy });
   }
 
-  function startScale(piece: FurniturePiece, e: ReactPointerEvent) {
+  function startScale(piece: FurniturePiece, e: ReactPointerEvent): void {
     e.stopPropagation();
     const layer = layerRef.current;
     if (!layer) return;
@@ -244,28 +290,26 @@ export function Furnishings() {
       cx,
       cy,
       startDist: Math.hypot(e.clientX - cx, e.clientY - cy),
-      startScale: piece.scale ?? 1,
+      startScale: piece.scale,
     });
   }
 
   // Drop a sprite dragged from the debug-panel gallery onto the floor.
-  function handleDrop(e: ReactDragEvent) {
+  function handleDrop(e: ReactDragEvent): void {
     e.preventDefault();
     const sprite = e.dataTransfer.getData('text/plain');
     const layer = layerRef.current;
     if (!sprite || !spriteByName[sprite] || !layer) return;
     const rect = layer.getBoundingClientRect();
-    const id = `${sprite}-${Date.now().toString(36)}-${seqRef.current++}`;
-    const piece: FurniturePiece = {
-      id,
-      sprite,
-      x: clamp(((e.clientX - rect.left) / rect.width) * 100, 0, 100),
-      y: clamp(((e.clientY - rect.top) / rect.height) * 100, 0, 100),
-      rotation: 0,
-      scale: 1,
-    };
-    setPieces((prev) => [...prev, piece]);
-    setSelectedId(id);
+    const x = clamp(((e.clientX - rect.left) / rect.width) * 100, 0, 100);
+    const y = clamp(((e.clientY - rect.top) / rect.height) * 100, 0, 100);
+    void api
+      .placeFurniture({ sprite, x, y, rotation: 0, scale: 1 })
+      .then((created) => {
+        dispatch({ type: 'FURNITURE_UPSERT', payload: created });
+        setSelectedId(created.id);
+      })
+      .catch(() => {});
   }
 
   return (
@@ -284,8 +328,7 @@ export function Furnishings() {
         const asset = spriteByName[piece.sprite];
         if (!asset) return null;
         const selected = piece.id === selectedId;
-        const width =
-          (WIDTH_BY_CATEGORY[asset.category] ?? 6) * (piece.scale ?? 1);
+        const width = (WIDTH_BY_CATEGORY[asset.category] ?? 6) * piece.scale;
         return (
           <div
             key={piece.id}

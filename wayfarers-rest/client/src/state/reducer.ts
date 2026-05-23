@@ -5,6 +5,7 @@ import type {
   EventLogEntry,
   FlavorMode,
   FlavorPoolStatus,
+  FurniturePiece,
   InterventionOptionsResponse,
   InterventionRecord,
   Npc,
@@ -48,6 +49,8 @@ export interface AppState {
   recentInterventions: InterventionRecord[];
   /** Wall-clock ms timestamp until which the landing animation should show. */
   landingAnimationUntil: number | null;
+  /** F3: server-owned furniture layout (back→front = paint order). */
+  furniture: FurniturePiece[];
 }
 
 export const initialState: AppState = {
@@ -67,6 +70,7 @@ export const initialState: AppState = {
   interventionOptions: null,
   recentInterventions: [],
   landingAnimationUntil: null,
+  furniture: [],
 };
 
 const LANDING_ANIMATION_MS = 1_500;
@@ -110,6 +114,7 @@ export function reducer(state: AppState, action: Action): AppState {
         threads: action.payload.threads,
         pendingArrivals: action.payload.pendingArrivals,
         rumors: action.payload.rumors,
+        furniture: action.payload.furniture ?? state.furniture,
       };
     case 'WORLD_EVENT': {
       const trimmed = [action.payload, ...state.recentEvents].slice(
@@ -171,6 +176,23 @@ export function reducer(state: AppState, action: Action): AppState {
         landingAnimationUntil: Date.now() + LANDING_ANIMATION_MS,
       };
     }
+    case 'FURNITURE_SET':
+      return { ...state, furniture: action.payload };
+    case 'FURNITURE_UPSERT': {
+      const piece = action.payload;
+      const i = state.furniture.findIndex((p) => p.id === piece.id);
+      const next = state.furniture.slice();
+      if (i >= 0) next[i] = piece;
+      else next.push(piece);
+      // Keep paint order = ascending layer.
+      next.sort((a, b) => a.layer - b.layer);
+      return { ...state, furniture: next };
+    }
+    case 'FURNITURE_REMOVE':
+      return {
+        ...state,
+        furniture: state.furniture.filter((p) => p.id !== action.payload.id),
+      };
     default:
       return state;
   }

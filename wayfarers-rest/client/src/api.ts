@@ -3,6 +3,7 @@ import type {
   DailyChronicleWithLedger,
   FlavorMode,
   FlavorPoolStatus,
+  FurniturePiece,
   InterventionExecuteResponse,
   InterventionKind,
   InterventionOptionsResponse,
@@ -15,6 +16,23 @@ import type {
 export interface FlavorStatusResponse {
   mode: FlavorMode;
   pools: FlavorPoolStatus[];
+}
+
+export type LayerMove = 'back' | 'backward' | 'forward' | 'front';
+
+export interface PlaceFurnitureInput {
+  sprite: string;
+  x: number;
+  y: number;
+  rotation?: number;
+  scale?: number;
+}
+
+export interface PatchFurnitureInput {
+  x?: number;
+  y?: number;
+  rotation?: number;
+  scale?: number;
 }
 
 async function jsonGet<T>(url: string): Promise<T> {
@@ -55,6 +73,50 @@ export const api = {
     if (!res.ok) throw new Error(`POST /chronicles/acknowledge failed: ${res.status}`);
     return (await res.json()) as WorldState;
   },
+  // ----- F3 furniture -----
+  listFurniture: () => jsonGet<FurniturePiece[]>('/furniture'),
+  placeFurniture: async (input: PlaceFurnitureInput): Promise<FurniturePiece> => {
+    const res = await fetch('/furniture', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    if (!res.ok) throw new Error(`POST /furniture failed: ${res.status}`);
+    return (await res.json()) as FurniturePiece;
+  },
+  patchFurniture: async (
+    id: string,
+    patch: PatchFurnitureInput,
+  ): Promise<FurniturePiece> => {
+    const res = await fetch(`/furniture/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    });
+    if (!res.ok) throw new Error(`PATCH /furniture/${id} failed: ${res.status}`);
+    return (await res.json()) as FurniturePiece;
+  },
+  moveFurnitureLayer: async (
+    id: string,
+    move: LayerMove,
+  ): Promise<FurniturePiece[]> => {
+    const res = await fetch(`/furniture/${encodeURIComponent(id)}/layer`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ move }),
+    });
+    if (!res.ok)
+      throw new Error(`POST /furniture/${id}/layer failed: ${res.status}`);
+    return (await res.json()) as FurniturePiece[];
+  },
+  deleteFurniture: async (id: string): Promise<void> => {
+    const res = await fetch(`/furniture/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok && res.status !== 204)
+      throw new Error(`DELETE /furniture/${id} failed: ${res.status}`);
+  },
+
   getInterventionOptions: () =>
     jsonGet<InterventionOptionsResponse>('/interventions/options'),
   postIntervention: async (
