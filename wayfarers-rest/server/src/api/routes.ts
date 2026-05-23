@@ -15,6 +15,7 @@ import type { WorldEventBus } from '../events/emitter.ts';
 import type { Clock } from '../lib/clock.ts';
 import type { FlavorCache } from '../llm/cache/manager.ts';
 import type { FlavorModeManager } from '../llm/mode.ts';
+import type { FurnitureManager } from '../furniture/manager.ts';
 import type { NpcManager } from '../npc/manager.ts';
 import type { Persistence } from '../persistence.ts';
 import type { WorldStateManager } from '../state.ts';
@@ -26,6 +27,7 @@ import { TAVERN_ZONES } from '../world/tavern.ts';
 import type { RumorsManager } from '../world/rumors.ts';
 import type { WorldTagsManager } from '../world/tags.ts';
 import { registerChronicleRoutes } from './chronicle-routes.ts';
+import { registerFurnitureRoutes } from './furniture-routes.ts';
 import { registerInterventionRoutes } from './intervention-routes.ts';
 
 export interface ApiDeps {
@@ -45,6 +47,7 @@ export interface ApiDeps {
   threadRunner?: ThreadRunner;
   worldTags?: WorldTagsManager;
   rumors?: RumorsManager;
+  furnitureManager?: FurnitureManager;
   favorsMax?: number;
   /** Optional: enables POST /control/reset to snap day-tracking on the sub-tick scheduler. */
   subTickScheduler?: SubTickScheduler;
@@ -178,6 +181,10 @@ export function registerRoutes(app: FastifyInstance, deps: ApiDeps): void {
       favorsMax: deps.favorsMax ?? 5,
     });
   }
+
+  if (deps.furnitureManager) {
+    registerFurnitureRoutes(app, deps.furnitureManager);
+  }
 }
 
 export function buildFlavorStatus(deps: ApiDeps): FlavorStatus {
@@ -197,8 +204,6 @@ export function buildWorldSnapshot(deps: ApiDeps): WorldSnapshot {
       SNAPSHOT_WINDOW_DAYS,
     ),
     rumors: deps.persistence.loadAllRumors(),
-    // Furniture (F2) lands the persistence + manager. Empty until then so the
-    // shape is stable on the wire and the client can already read .furniture.
-    furniture: [],
+    furniture: deps.furnitureManager?.list() ?? [],
   };
 }

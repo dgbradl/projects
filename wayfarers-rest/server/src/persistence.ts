@@ -5,6 +5,7 @@ import type {
   DailyChronicle,
   DailyLedger,
   EventLogEntry,
+  FurniturePiece,
   InterventionRecord,
   Rumor,
   ScheduledArrival,
@@ -212,6 +213,18 @@ export class Persistence {
         available INTEGER NOT NULL,
         origin_location_id TEXT
       );
+
+      CREATE TABLE IF NOT EXISTS furniture (
+        id        TEXT PRIMARY KEY,
+        sprite    TEXT NOT NULL,
+        x         REAL NOT NULL,
+        y         REAL NOT NULL,
+        rotation  REAL NOT NULL,
+        scale     REAL NOT NULL,
+        layer     INTEGER NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_furniture_layer ON furniture(layer);
 
       CREATE TABLE IF NOT EXISTS scheduled_arrivals (
         npc_id TEXT PRIMARY KEY,
@@ -651,6 +664,50 @@ export class Persistence {
       value: r.value,
       setOnGameDay: r.set_on_game_day,
     }));
+  }
+
+  // ---------- furniture (server-owned tavern layout) ----------
+
+  saveFurniturePiece(piece: FurniturePiece): void {
+    this.db
+      .prepare(
+        `INSERT INTO furniture (id, sprite, x, y, rotation, scale, layer)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           sprite = excluded.sprite,
+           x = excluded.x,
+           y = excluded.y,
+           rotation = excluded.rotation,
+           scale = excluded.scale,
+           layer = excluded.layer`,
+      )
+      .run(piece.id, piece.sprite, piece.x, piece.y, piece.rotation, piece.scale, piece.layer);
+  }
+
+  loadAllFurniture(): FurniturePiece[] {
+    const rows = this.db
+      .prepare(
+        'SELECT id, sprite, x, y, rotation, scale, layer FROM furniture ORDER BY layer ASC, id ASC',
+      )
+      .all() as FurniturePiece[];
+    return rows.map((r) => ({
+      id: r.id,
+      sprite: r.sprite,
+      x: r.x,
+      y: r.y,
+      rotation: r.rotation,
+      scale: r.scale,
+      layer: r.layer,
+    }));
+  }
+
+  deleteFurniturePiece(id: string): boolean {
+    const res = this.db.prepare('DELETE FROM furniture WHERE id = ?').run(id);
+    return res.changes > 0;
+  }
+
+  deleteAllFurniture(): void {
+    this.db.exec('DELETE FROM furniture');
   }
 
   saveWorldTag(tag: WorldTag): void {
