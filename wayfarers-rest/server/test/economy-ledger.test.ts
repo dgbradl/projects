@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { closeLedgerForDay, computeUpkeep } from '../src/economy/ledger.ts';
+import {
+  COIN_INITIAL_DEFAULT,
+  closeLedgerForDay,
+  computeUpkeep,
+} from '../src/economy/ledger.ts';
 import { WorldEventBus } from '../src/events/emitter.ts';
 import { FakeClock } from '../src/lib/clock.ts';
 import { Persistence } from '../src/persistence.ts';
@@ -85,9 +89,11 @@ describe('closeLedgerForDay', () => {
       expense,
       net: 60 - expense,
       guestCount: 3,
-      coinAfter: 200 + 60 - expense,
+      coinAfter: COIN_INITIAL_DEFAULT + 60 - expense,
     });
-    expect(stateManager.getState().coin).toBe(200 + 60 - expense);
+    expect(stateManager.getState().coin).toBe(
+      COIN_INITIAL_DEFAULT + 60 - expense,
+    );
     expect(persistence.loadDailyLedger(1)).toEqual(ledger);
   });
 
@@ -101,7 +107,11 @@ describe('closeLedgerForDay', () => {
       true,
     );
     const closed = events.find((e) => e.type === 'ledger_closed');
-    expect(closed).toMatchObject({ gameDay: 1, income: 40, coinBefore: 200 });
+    expect(closed).toMatchObject({
+      gameDay: 1,
+      income: 40,
+      coinBefore: COIN_INITIAL_DEFAULT,
+    });
   });
 
   it('only counts events from the closing day', () => {
