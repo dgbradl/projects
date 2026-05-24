@@ -25,8 +25,8 @@
   /* One 64x64 cell of the archetype sheet, scaled to the tavern. The Mana
      Seed character art sits within the cell with padding above/below — tune
      this clamp to taste once real sheets are in. */
-  width: clamp(44px, 7cqw, 72px);
-  height: clamp(44px, 7cqw, 72px);
+  width: clamp(55px, 8.75cqw, 90px);
+  height: clamp(55px, 8.75cqw, 90px);
   background-repeat: no-repeat;
   image-rendering: pixelated;
 }
