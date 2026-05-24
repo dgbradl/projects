@@ -21,7 +21,7 @@ export const ACTIVE_STAFF: StaffDefinition[] = [
     personality:
       "Gruff and close-mouthed, but remembers every regular's order and knows which secrets to keep.",
     skills: { pourQuality: 8, gossipNetwork: 9, conflictMitigation: 6 },
-    homeZone: 'bar',
+    homeZone: 'bar_back',
   },
   {
     id: 'staff_waitstaff_tomas',
@@ -59,7 +59,7 @@ export const REPLACEMENT_POOL: StaffDefinition[] = [
     personality:
       'Retired sailor who took the job reluctantly. Gruff in a resigned way, not a cruel one.',
     skills: { pourQuality: 6, gossipNetwork: 5, conflictMitigation: 8 },
-    homeZone: 'bar',
+    homeZone: 'bar_back',
   },
   {
     id: 'staff_waitstaff_emmett',

@@ -81,7 +81,7 @@ describe('REST API', () => {
     openApps.push(app);
     const res = await app.inject({ method: 'GET', url: '/tavern' });
     const body = res.json();
-    expect(body.zones).toHaveLength(6);
+    expect(body.zones).toHaveLength(7);
     expect(body.subTicksPerDay).toBe(SUB_TICKS_PER_DAY);
     expect(body.subTickIntervalMs).toBe(SUBTICK_MS);
   });

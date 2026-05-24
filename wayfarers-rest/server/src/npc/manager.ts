@@ -113,17 +113,21 @@ export class NpcManager extends EventEmitter {
   }
 
   hydrate(snapshot: RosterSnapshot): void {
-    // Z1: any NPC loaded with a position inside the wall band drifts inward
-    // immediately, so old DB rows from before WALKABLE existed don't render
-    // on the wall. Idempotent for fresh data.
+    // Z1: clamp loaded positions into WALKABLE (old DB rows from before
+    // WALKABLE existed snap inward). Z2: defensively reseat any non-staff
+    // NPC stuck in the bar_back zone (impossible going forward, but covers
+    // pre-Z2 rows). Both passes are idempotent for fresh data.
     this.roster = new Map(
       snapshot.npcs.map((n) => {
+        let next: Npc = n;
         const clamped = clampToWalkable(n.position);
-        const npc: Npc =
-          clamped.x === n.position.x && clamped.y === n.position.y
-            ? n
-            : { ...n, position: clamped };
-        return [npc.id, npc];
+        if (clamped.x !== n.position.x || clamped.y !== n.position.y) {
+          next = { ...next, position: clamped };
+        }
+        if (next.zone === 'bar_back' && !next.isStaff) {
+          next = { ...next, zone: 'bar' };
+        }
+        return [next.id, next];
       }),
     );
     this.spawnQueue = [...snapshot.spawnQueue];

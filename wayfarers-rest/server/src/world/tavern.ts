@@ -12,6 +12,10 @@ export { WALKABLE };
 // wall band.
 export const TAVERN_ZONES: readonly Zone[] = Object.freeze([
   { name: 'door', x: 50, y: 86, radius: 6 },
+  // bar_back sits above the bar (staff-only — see server/src/npc/zones.ts).
+  // Centered at y=14 with radius 5 → y range 9..19, just inside the walkable
+  // rectangle's top edge (WALKABLE.minY = 8).
+  { name: 'bar_back', x: 50, y: 14, radius: 5 },
   { name: 'bar', x: 50, y: 20, radius: 12 },
   { name: 'hearth', x: 16, y: 50, radius: 8 },
   { name: 'table_a', x: 30, y: 60, radius: 7 },

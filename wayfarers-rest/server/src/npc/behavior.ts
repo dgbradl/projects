@@ -1,14 +1,35 @@
-import type { Npc, NpcStatus, ZoneName } from '@shared/types';
+import type { Npc, NpcStatus, StaffRole, ZoneName } from '@shared/types';
 import { WALKABLE } from '@shared/space';
 import { TABLE_ZONES, zoneByName } from '../world/tavern.ts';
 import { rngFloat, rngInt, rngPick, seededRng } from '../world/rng.ts';
 import { absoluteSubTick } from './spawn.ts';
+import { filterAllowed } from './zones.ts';
 
-const STAFF_ZONES_BY_ROLE: Record<string, ZoneName[]> = {
-  bartender: ['bar', 'hearth'],
-  waitstaff: ['table_a', 'table_b', 'table_c', 'bar'],
-  cleaner: ['hearth', 'table_a', 'table_b', 'table_c'],
+/**
+ * Z2: zone *preferences* per staff role (not fences). Bartender stays in
+ * the bar area; waitstaff/cleaner pick from their preferences ~80% of the
+ * time and drift to any allowed non-door zone the other ~20%.
+ *
+ * Duplicates in the bias pool weight repeated entries — e.g. bartender
+ * weights `bar_back` twice so the bartender mostly stands behind the
+ * counter but occasionally steps out in front.
+ */
+const STAFF_PREF_BY_ROLE: Record<StaffRole, ZoneName[]> = {
+  bartender: ['bar_back', 'bar_back', 'bar', 'hearth'],
+  waitstaff: ['table_a', 'table_b', 'table_c', 'bar', 'hearth'],
+  cleaner: ['hearth', 'table_a', 'table_b', 'table_c', 'bar'],
 };
+
+const ALL_NON_DOOR_ZONES: readonly ZoneName[] = [
+  'bar',
+  'bar_back',
+  'hearth',
+  'table_a',
+  'table_b',
+  'table_c',
+];
+
+const STAFF_DRIFT_PROB = 0.2;
 
 export interface BehaviorContext {
   absSubTick: number;
@@ -103,23 +124,30 @@ export function decideNextState(npc: Npc, ctx: BehaviorContext): BehaviorResult 
 function decideStaffBehavior(npc: Npc, ctx: BehaviorContext): BehaviorResult {
   const { absSubTick, worldSeed } = ctx;
   const rng = seededRng(worldSeed, 'staff', npc.id, absSubTick);
-  const role = npc.staffRole ?? 'waitstaff';
-  const zones = STAFF_ZONES_BY_ROLE[role] ?? TABLE_ZONES;
+  const role: StaffRole = npc.staffRole ?? 'waitstaff';
+  const prefs = STAFF_PREF_BY_ROLE[role] ?? TABLE_ZONES;
 
   switch (role) {
     case 'bartender': {
-      const stayAtBar = rng() > 0.15;
-      const target: ZoneName = stayAtBar ? 'bar' : 'hearth';
-      const nextStatus: NpcStatus = stayAtBar ? 'at_bar' : 'wandering';
+      // Bartender stays restricted to the bar-area pool — never drifts.
+      const target = rngPick(rng, prefs);
+      const nextStatus: NpcStatus =
+        target === 'bar' || target === 'bar_back' ? 'at_bar' : 'wandering';
       return transition(npc, nextStatus, target, rng, ctx, rngInt(rng, 8, 20));
     }
     case 'waitstaff': {
-      const target = rngPick(rng, zones);
-      const nextStatus: NpcStatus = target === 'bar' ? 'at_bar' : 'wandering';
+      // 80% pick from prefs, 20% drift to any allowed non-door zone.
+      const drift = rng() < STAFF_DRIFT_PROB;
+      const pool = drift ? filterAllowed(ALL_NON_DOOR_ZONES, npc) : prefs;
+      const target = rngPick(rng, pool.length ? pool : prefs);
+      const nextStatus: NpcStatus =
+        target === 'bar' || target === 'bar_back' ? 'at_bar' : 'wandering';
       return transition(npc, nextStatus, target, rng, ctx, rngInt(rng, 5, 12));
     }
     case 'cleaner': {
-      const target = rngPick(rng, zones);
+      const drift = rng() < STAFF_DRIFT_PROB;
+      const pool = drift ? filterAllowed(ALL_NON_DOOR_ZONES, npc) : prefs;
+      const target = rngPick(rng, pool.length ? pool : prefs);
       return transition(npc, 'wandering', target, rng, ctx, rngInt(rng, 18, 40));
     }
     default:

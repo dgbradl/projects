@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { NpcStatus } from '@shared/types';
+import type { NpcStatus, ZoneName } from '@shared/types';
+import { WALKABLE } from '@shared/space';
 import { WorldEventBus } from '../src/events/emitter.ts';
 import { FakeClock } from '../src/lib/clock.ts';
 import { NpcManager } from '../src/npc/manager.ts';
 import { Persistence } from '../src/persistence.ts';
+import { seedStaffIfMissing } from '../src/npc/staff-roster.ts';
 import { WorldStateManager } from '../src/state.ts';
 import { SubTickScheduler } from '../src/subtick.ts';
 import { TickScheduler } from '../src/tick.ts';
@@ -13,7 +15,7 @@ const SUBTICK_MS = 100;
 const TICK_INTERVAL = SUBTICK_MS * SUB_TICKS_PER_DAY;
 const START = Date.parse('2026-01-01T00:00:00.000Z');
 
-function buildHarness() {
+function buildHarness(opts: { withStaff?: boolean } = {}) {
   const persistence = new Persistence(':memory:');
   const clock = new FakeClock(START);
   const stateManager = new WorldStateManager(
@@ -26,6 +28,9 @@ function buildHarness() {
     { worldSeed: stateManager.getState().seed, subTicksPerDay: SUB_TICKS_PER_DAY },
     { persistence, bus },
   );
+  if (opts.withStaff) {
+    seedStaffIfMissing(persistence, stateManager.getState().gameDay);
+  }
   npcManager.onMacroTick(stateManager.getState().gameDay);
   const tickScheduler = new TickScheduler(
     stateManager,
@@ -114,8 +119,7 @@ describe('NPC behavior over a full game day', () => {
 
   // Z1: every server-picked position lands inside the walkable rectangle
   // (the inner area not covered by the visual wall band).
-  it('npcs never land inside the wall band', async () => {
-    const { WALKABLE } = await import('@shared/space');
+  it('npcs never land inside the wall band', () => {
     const h = buildHarness();
     for (let i = 0; i < SUB_TICKS_PER_DAY * 2; i += 1) {
       h.subTickScheduler.advance(SUBTICK_MS);
@@ -125,6 +129,66 @@ describe('NPC behavior over a full game day', () => {
         expect(npc.position.y).toBeGreaterThanOrEqual(WALKABLE.minY);
         expect(npc.position.y).toBeLessThanOrEqual(WALKABLE.maxY);
       }
+    }
+  });
+
+  // Z2: customer zone permissions exclude bar_back.
+  it('customers never end up in the bar_back zone', () => {
+    const h = buildHarness();
+    for (let i = 0; i < SUB_TICKS_PER_DAY * 3; i += 1) {
+      h.subTickScheduler.advance(SUBTICK_MS);
+      for (const npc of h.npcManager.getRoster()) {
+        if (npc.isStaff) continue;
+        expect(npc.zone, `customer ${npc.id} entered bar_back`).not.toBe('bar_back');
+      }
+    }
+  });
+
+  // Z2: the bartender stays in bar / bar_back / hearth.
+  it('bartender stays in the bar area', () => {
+    const h = buildHarness({ withStaff: true });
+    const allowed = new Set<ZoneName>(['bar', 'bar_back', 'hearth', 'door']);
+    let observed = 0;
+    for (let i = 0; i < SUB_TICKS_PER_DAY * 2; i += 1) {
+      h.subTickScheduler.advance(SUBTICK_MS);
+      for (const npc of h.npcManager.getRoster()) {
+        if (npc.staffRole !== 'bartender') continue;
+        observed += 1;
+        if (npc.zone) {
+          expect(allowed.has(npc.zone), `bartender at ${npc.zone}`).toBe(true);
+        }
+      }
+    }
+    expect(observed).toBeGreaterThan(0);
+  });
+
+  // Z2: waitstaff & cleaner aren't fenced into their home zone any more —
+  // over a few days they should cover a broad swath of zones, not just
+  // their preference pool. Exact zone coverage is seed-dependent so the
+  // assertion is "visits ≥ 4 distinct non-door zones".
+  it('waitstaff and cleaner roam broadly across the tavern', () => {
+    const h = buildHarness({ withStaff: true });
+    const byRole = new Map<string, Set<ZoneName>>([
+      ['waitstaff', new Set()],
+      ['cleaner', new Set()],
+    ]);
+    // Cleaner dwells 18–40 sub-ticks, so it gets very few decisions per day.
+    // 8 game days × 60 sub-ticks gives waitstaff ~70 decisions and cleaner
+    // ~16, which is enough to cover at least 3 distinct zones on the
+    // worst-case seed while still proving they're not pinned to one.
+    for (let i = 0; i < SUB_TICKS_PER_DAY * 8; i += 1) {
+      h.subTickScheduler.advance(SUBTICK_MS);
+      for (const npc of h.npcManager.getRoster()) {
+        const role = npc.staffRole;
+        if (role !== 'waitstaff' && role !== 'cleaner') continue;
+        if (npc.zone && npc.zone !== 'door') byRole.get(role)!.add(npc.zone);
+      }
+    }
+    for (const [role, zones] of byRole) {
+      expect(
+        zones.size,
+        `${role} only visited ${[...zones].join(',') || '<none>'}`,
+      ).toBeGreaterThanOrEqual(3);
     }
   });
 });

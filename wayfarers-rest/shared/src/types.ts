@@ -38,6 +38,7 @@ export interface TickEvent {
 export type ZoneName =
   | 'door'
   | 'bar'
+  | 'bar_back'
   | 'hearth'
   | 'table_a'
   | 'table_b'
