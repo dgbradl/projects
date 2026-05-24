@@ -118,6 +118,12 @@
   z-index: 4;
 }
 
+.npc-tooltip[data-position='below'] {
+  bottom: auto;
+  top: 100%;
+  transform: translate(-50%, 8px);
+}
+
 .npc {
   pointer-events: auto;
 }

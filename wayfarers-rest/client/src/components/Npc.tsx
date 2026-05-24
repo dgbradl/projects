@@ -42,6 +42,10 @@ export function Npc({
     left: `${pos.x}%`,
     top: `${pos.y}%`,
   };
+  // Flip the tooltip below the NPC when it's near the top of the tavern,
+  // so it doesn't clip into the bar / room edge. Threshold is tuned so the
+  // full tooltip (~5–7 rows) clears the chrome at default zoom.
+  const tooltipBelow = pos.y < 18;
 
   let subTicksSinceArrival: number | null = null;
   if (
@@ -79,7 +83,11 @@ export function Npc({
           </span>
         )}
       </span>
-      <div className="npc-tooltip" role="tooltip">
+      <div
+        className="npc-tooltip"
+        role="tooltip"
+        data-position={tooltipBelow ? 'below' : 'above'}
+      >
         <div className="npc-tooltip-name">{npc.displayName}</div>
         {npc.tagline && (
           <div className="npc-tooltip-tagline">{npc.tagline}</div>
