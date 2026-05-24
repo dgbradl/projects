@@ -106,7 +106,6 @@ export function Furnishings() {
   // Clipboard: Cmd/Ctrl+C copies the selected piece, Cmd/Ctrl+V pastes it.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (!(e.metaKey || e.ctrlKey)) return;
       const t = e.target as HTMLElement | null;
       if (
         t &&
@@ -117,6 +116,12 @@ export function Furnishings() {
       ) {
         return;
       }
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
+        e.preventDefault();
+        removeSelected(selectedId);
+        return;
+      }
+      if (!(e.metaKey || e.ctrlKey)) return;
       const key = e.key.toLowerCase();
       if (key === 'c' && selectedId) {
         const piece = piecesRef.current.find((p) => p.id === selectedId);
@@ -154,6 +159,17 @@ export function Furnishings() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [dispatch, selectedId]);
+
+  function removeSelected(id: string): void {
+    dispatch({ type: 'FURNITURE_REMOVE', payload: { id } });
+    setSelectedId(null);
+    void api.deleteFurniture(id).catch(() => {
+      void api
+        .listFurniture()
+        .then((list) => dispatch({ type: 'FURNITURE_SET', payload: list }))
+        .catch(() => {});
+    });
+  }
 
   function patch(id: string, next: Partial<FurniturePiece>): void {
     const current = piecesRef.current.find((p) => p.id === id);
@@ -401,6 +417,16 @@ export function Furnishings() {
                     onClick={() => moveLayer(piece.id, 'front')}
                   >
                     ⤒
+                  </button>
+                  <button
+                    type="button"
+                    className="furniture-delete"
+                    title="Delete"
+                    aria-label="Delete"
+                    data-testid={`furniture-delete-${piece.id}`}
+                    onClick={() => removeSelected(piece.id)}
+                  >
+                    🗑
                   </button>
                 </div>
               </>
