@@ -17,48 +17,88 @@ const sheetModules = import.meta.glob('../assets/npc/*/*.png', {
   import: 'default',
 });
 
-const sheetByArchetype: Record<string, string> = {};
+// Multiple sheets per archetype are supported — drop in as many variants as
+// you like and individual NPCs deterministically pick one based on their id,
+// so a returning regular looks like themselves visit after visit.
+const sheetsByArchetype: Record<string, string[]> = {};
 for (const [path, url] of Object.entries(sheetModules)) {
   const archetype = path.split('/').at(-2);
   // `staff` is not an archetype — it gets its own per-member sheets below.
-  if (archetype && archetype !== 'staff' && !sheetByArchetype[archetype]) {
-    sheetByArchetype[archetype] = String(url);
+  if (archetype && archetype !== 'staff') {
+    (sheetsByArchetype[archetype] ??= []).push(String(url));
   }
+}
+// Sort each variant list so the per-id pick is stable across machines (the
+// glob result order is not guaranteed).
+for (const list of Object.values(sheetsByArchetype)) list.sort();
+
+/** Stable djb2-ish hash for picking a sprite variant from an NPC id. */
+function hashString(s: string): number {
+  let h = 5381;
+  for (let i = 0; i < s.length; i += 1) {
+    h = (((h << 5) + h) ^ s.charCodeAt(i)) | 0;
+  }
+  return h >>> 0;
 }
 
 // Staff are individually-named characters, not a generic archetype. Each gets
-// an optional sheet in assets/npc/staff/, named for the staff member's id
-// (e.g. staff_bartender_mirela.png) — see the server staff roster.
+// an optional sheet in assets/npc/staff/. The filename can be either the
+// staff member's character id (`staff_bartender_mirela.png`) or just their
+// display name (`Mirela.png`) — whichever you prefer; case and accents are
+// ignored.
 const staffSheetModules = import.meta.glob('../assets/npc/staff/*.png', {
   eager: true,
   query: '?url',
   import: 'default',
 });
 
-const sheetByStaffId: Record<string, string> = {};
-for (const [path, url] of Object.entries(staffSheetModules)) {
-  const id = path.split('/').at(-1)?.replace(/\.png$/, '');
-  if (id) sheetByStaffId[id] = String(url);
+/** Lowercase + strip diacritics, so `Tomás` and `tomas` collide. */
+function staffKey(s: string): string {
+  return s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 }
 
-/** The sprite sheet for an archetype, or undefined if none has been added. */
-export function spriteSheetFor(
-  archetype: string | undefined,
-): string | undefined {
-  return archetype ? sheetByArchetype[archetype] : undefined;
+const sheetByStaffKey: Record<string, string> = {};
+for (const [path, url] of Object.entries(staffSheetModules)) {
+  const name = path.split('/').at(-1)?.replace(/\.png$/, '');
+  if (name) sheetByStaffKey[staffKey(name)] = String(url);
 }
 
 /**
- * The sprite sheet for an NPC: a staff member's own sheet when one exists,
- * otherwise the archetype sheet. Undefined if neither has been added.
+ * The sprite sheet for an archetype, or undefined if none has been added.
+ * When multiple variants exist in the archetype folder, one is picked
+ * deterministically from `npcId` so the same NPC always renders the same.
+ */
+export function spriteSheetFor(
+  archetype: string | undefined,
+  npcId?: string,
+): string | undefined {
+  if (!archetype) return undefined;
+  const variants = sheetsByArchetype[archetype];
+  if (!variants || variants.length === 0) return undefined;
+  if (variants.length === 1 || !npcId) return variants[0];
+  return variants[hashString(npcId) % variants.length];
+}
+
+/**
+ * The sprite sheet for an NPC: a staff member's own sheet when one exists
+ * (matched by either character id or display name), otherwise the archetype
+ * sheet. Undefined if neither has been added.
  */
 export function spriteSheetForNpc(npc: {
   id: string;
+  displayName?: string;
   isStaff?: boolean;
   archetype?: string;
 }): string | undefined {
-  if (npc.isStaff && sheetByStaffId[npc.id]) return sheetByStaffId[npc.id];
-  return spriteSheetFor(npc.archetype);
+  if (npc.isStaff) {
+    const byId = sheetByStaffKey[staffKey(npc.id)];
+    if (byId) return byId;
+    if (npc.displayName) {
+      const byName = sheetByStaffKey[staffKey(npc.displayName)];
+      if (byName) return byName;
+    }
+  }
+  return spriteSheetFor(npc.archetype, npc.id);
 }
 
 // --- Animations -----------------------------------------------------------

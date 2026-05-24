@@ -20,6 +20,10 @@ Sheets are the standard **1024x1024**, a 16x16 grid of 64x64 cells (the
 Customizer exports exactly this). Until a folder has a sheet, that archetype
 renders the old status-coloured dot — so you can add them one at a time.
 
+**Multiple sheets per folder are fine** — drop in as many variants as you
+like and each NPC deterministically picks one based on their character id,
+so a returning regular looks like themselves visit after visit.
+
 Tavern staff are named individuals rather than an archetype — their sheets go
 in `staff/`, one per person. See `staff/README.md`.
 
