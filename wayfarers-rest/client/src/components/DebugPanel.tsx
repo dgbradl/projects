@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { tavernSprites, tavernSpritesByCategory } from '../assets/tavernSprites.ts';
-import { useStore } from '../state/store.tsx';
+import { api } from '../api.ts';
+import { useDispatch, useStore } from '../state/store.tsx';
 
 export function DebugPanel() {
   const {
@@ -11,7 +12,10 @@ export function DebugPanel() {
     rumors,
     flavorMode,
     flavorPools,
+    zones,
+    debugZonesEnabled,
   } = useStore();
+  const dispatch = useDispatch();
   const [collapsed, setCollapsed] = useState(false);
 
   const arrivalsByDay = useMemo(() => {
@@ -181,6 +185,60 @@ export function DebugPanel() {
             </div>
           </div>
         ))}
+      </details>
+
+      <details open data-testid="debug-zones">
+        <summary>zones ({zones.length})</summary>
+        <div className="debug-zones">
+          <label className="debug-zones-toggle">
+            <input
+              type="checkbox"
+              checked={debugZonesEnabled}
+              onChange={() => dispatch({ type: 'DEBUG_ZONES_TOGGLED' })}
+              data-testid="debug-zones-toggle"
+            />
+            edit on tavern
+          </label>
+          <div className="debug-zones-actions">
+            <button
+              type="button"
+              data-testid="debug-zone-add"
+              onClick={async () => {
+                const name = window.prompt('Name for new zone (letters, digits, _ or -):');
+                if (!name) return;
+                try {
+                  const z = await api.placeZone({ name, x: 50, y: 50, radius: 6 });
+                  dispatch({ type: 'ZONES_UPSERT', payload: z });
+                } catch (err) {
+                  window.alert((err as Error).message);
+                }
+              }}
+            >
+              + add
+            </button>
+            <button
+              type="button"
+              data-testid="debug-zone-reset"
+              onClick={async () => {
+                if (!window.confirm('Reset all zones to defaults?')) return;
+                const next = await api.resetZones();
+                dispatch({ type: 'ZONES_SET', payload: next });
+              }}
+            >
+              reset
+            </button>
+          </div>
+          <ul className="debug-list debug-zones-list">
+            {zones.map((z) => (
+              <li key={z.name}>
+                <span className="debug-key">{z.name}</span>{' '}
+                <span className="debug-dim">
+                  ({Math.round(z.x)}, {Math.round(z.y)}) r {Math.round(z.radius)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
       </details>
     </aside>
   );

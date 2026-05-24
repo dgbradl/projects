@@ -12,6 +12,7 @@ import type {
   TavernConfig,
   WorldSnapshot,
   WorldState,
+  Zone,
 } from '@shared/types';
 
 export interface InteractionFlash {
@@ -46,4 +47,9 @@ export type Action =
   // F3: server-owned furniture layout, mirrored in the store.
   | { type: 'FURNITURE_SET'; payload: FurniturePiece[] }
   | { type: 'FURNITURE_UPSERT'; payload: FurniturePiece }
-  | { type: 'FURNITURE_REMOVE'; payload: { id: string } };
+  | { type: 'FURNITURE_REMOVE'; payload: { id: string } }
+  // D2: debug-editable zone layout, mirrored in the store.
+  | { type: 'ZONES_SET'; payload: Zone[] }
+  | { type: 'ZONES_UPSERT'; payload: Zone }
+  | { type: 'ZONES_REMOVE'; payload: { name: string } }
+  | { type: 'DEBUG_ZONES_TOGGLED' };

@@ -11,6 +11,7 @@ import type {
   TavernConfig,
   WorldSnapshot,
   WorldState,
+  Zone,
 } from '@shared/types';
 
 export interface FlavorStatusResponse {
@@ -33,6 +34,19 @@ export interface PatchFurnitureInput {
   y?: number;
   rotation?: number;
   scale?: number;
+}
+
+export interface PlaceZoneInput {
+  name: string;
+  x: number;
+  y: number;
+  radius: number;
+}
+
+export interface PatchZoneInput {
+  x?: number;
+  y?: number;
+  radius?: number;
 }
 
 async function jsonGet<T>(url: string): Promise<T> {
@@ -115,6 +129,44 @@ export const api = {
     });
     if (!res.ok && res.status !== 204)
       throw new Error(`DELETE /furniture/${id} failed: ${res.status}`);
+  },
+
+  // ----- D2 zones (debug editor) -----
+  listZones: () => jsonGet<Zone[]>('/zones'),
+  placeZone: async (input: PlaceZoneInput): Promise<Zone> => {
+    const res = await fetch('/zones', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(
+        (body as { error?: string }).error ?? `POST /zones failed: ${res.status}`,
+      );
+    }
+    return (await res.json()) as Zone;
+  },
+  patchZone: async (name: string, patch: PatchZoneInput): Promise<Zone> => {
+    const res = await fetch(`/zones/${encodeURIComponent(name)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    });
+    if (!res.ok) throw new Error(`PATCH /zones/${name} failed: ${res.status}`);
+    return (await res.json()) as Zone;
+  },
+  removeZone: async (name: string): Promise<void> => {
+    const res = await fetch(`/zones/${encodeURIComponent(name)}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok && res.status !== 204)
+      throw new Error(`DELETE /zones/${name} failed: ${res.status}`);
+  },
+  resetZones: async (): Promise<Zone[]> => {
+    const res = await fetch('/zones/reset', { method: 'POST' });
+    if (!res.ok) throw new Error(`POST /zones/reset failed: ${res.status}`);
+    return (await res.json()) as Zone[];
   },
 
   getInterventionOptions: () =>

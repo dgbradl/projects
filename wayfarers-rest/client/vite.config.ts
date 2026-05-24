@@ -26,6 +26,7 @@ export default defineConfig({
       '/control': SERVER_URL,
       '/staff': SERVER_URL,
       '/furniture': SERVER_URL,
+      '/zones': SERVER_URL,
       '/stream': { target: SERVER_URL, changeOrigin: true, ws: false },
     },
   },

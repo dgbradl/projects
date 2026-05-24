@@ -7,6 +7,7 @@ import type {
   FlavorPoolStatus,
   FurniturePiece,
   InterventionOptionsResponse,
+  Zone,
   InterventionRecord,
   Npc,
   Rumor,
@@ -51,6 +52,10 @@ export interface AppState {
   landingAnimationUntil: number | null;
   /** F3: server-owned furniture layout (back→front = paint order). */
   furniture: FurniturePiece[];
+  /** D1/D2: server-owned zone layout (defaults + any debug edits). */
+  zones: Zone[];
+  /** D2: whether the debug zone overlay is visible / draggable. */
+  debugZonesEnabled: boolean;
 }
 
 export const initialState: AppState = {
@@ -71,6 +76,8 @@ export const initialState: AppState = {
   recentInterventions: [],
   landingAnimationUntil: null,
   furniture: [],
+  zones: [],
+  debugZonesEnabled: false,
 };
 
 const LANDING_ANIMATION_MS = 1_500;
@@ -91,7 +98,13 @@ function buildWelcome(payload: ChroniclesSinceResponse): WelcomeSlice {
 export function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case 'INIT_TAVERN':
-      return { ...state, tavern: action.payload };
+      // Seed the zone slice from the initial tavern config too, so the
+      // debug overlay has data even before the first /world snapshot.
+      return {
+        ...state,
+        tavern: action.payload,
+        zones: state.zones.length === 0 ? action.payload.zones : state.zones,
+      };
     case 'INIT_STATE':
     case 'STATE_UPDATE':
       return { ...state, world: action.payload };
@@ -115,6 +128,7 @@ export function reducer(state: AppState, action: Action): AppState {
         pendingArrivals: action.payload.pendingArrivals,
         rumors: action.payload.rumors,
         furniture: action.payload.furniture ?? state.furniture,
+        zones: action.payload.zones ?? state.zones,
       };
     case 'WORLD_EVENT': {
       const trimmed = [action.payload, ...state.recentEvents].slice(
@@ -193,6 +207,23 @@ export function reducer(state: AppState, action: Action): AppState {
         ...state,
         furniture: state.furniture.filter((p) => p.id !== action.payload.id),
       };
+    case 'ZONES_SET':
+      return { ...state, zones: action.payload };
+    case 'ZONES_UPSERT': {
+      const z = action.payload;
+      const i = state.zones.findIndex((existing) => existing.name === z.name);
+      const next = state.zones.slice();
+      if (i >= 0) next[i] = z;
+      else next.push(z);
+      return { ...state, zones: next };
+    }
+    case 'ZONES_REMOVE':
+      return {
+        ...state,
+        zones: state.zones.filter((z) => z.name !== action.payload.name),
+      };
+    case 'DEBUG_ZONES_TOGGLED':
+      return { ...state, debugZonesEnabled: !state.debugZonesEnabled };
     default:
       return state;
   }

@@ -258,3 +258,99 @@
   color: var(--ink-dim);
   font-variant-numeric: tabular-nums;
 }
+
+/* ---------- Debug zone overlay (D2) ---------- */
+
+.zone-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3; /* above furniture (z:1), below pause overlay (z:9999) */
+}
+
+.zone-debug {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border: 1.5px dashed rgba(210, 156, 84, 0.7);
+  border-radius: 50%;
+  background: rgba(210, 156, 84, 0.06);
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+.zone-debug-handle {
+  position: absolute;
+  pointer-events: auto;
+  padding: 0;
+  border-radius: 50%;
+  cursor: grab;
+  touch-action: none;
+}
+
+.zone-debug-handle:active {
+  cursor: grabbing;
+}
+
+/* Center handle: small filled dot at the zone center. */
+.zone-debug-move {
+  left: 50%;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  background: var(--accent-strong);
+  border: 1.5px solid #1d130a;
+}
+
+/* Right-edge handle: small square just outside the dashed circle. */
+.zone-debug-resize {
+  right: -8px;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  margin-top: -6px;
+  border-radius: 2px;
+  background: var(--accent);
+  border: 1.5px solid #1d130a;
+  cursor: ew-resize;
+}
+
+.zone-debug-label {
+  position: absolute;
+  left: 50%;
+  bottom: -1.8rem;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 1px 6px;
+  background: rgba(15, 12, 8, 0.92);
+  border: 1px solid #3a2a1c;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  color: var(--ink);
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  pointer-events: auto;
+}
+
+.zone-debug-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid #3a2a1c;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.zone-debug-delete:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}
