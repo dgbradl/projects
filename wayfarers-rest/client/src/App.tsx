@@ -34,6 +34,8 @@ function Bootstrap() {
               threads: [],
               pendingArrivals: [],
               rumors: [],
+              furniture: [],
+              zones: [],
             }),
           ),
           api.getFlavor().catch(() => ({ mode: 'placeholder' as const, pools: [] })),

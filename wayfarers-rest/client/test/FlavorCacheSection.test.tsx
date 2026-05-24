@@ -25,6 +25,8 @@ const EMPTY_SNAPSHOT: WorldSnapshot = {
   threads: [],
   pendingArrivals: [],
   rumors: [],
+  furniture: [],
+  zones: [],
 };
 
 const POOLS: FlavorPoolStatus[] = [

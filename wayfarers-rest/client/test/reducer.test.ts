@@ -78,6 +78,8 @@ const WORLD_SNAPSHOT: WorldSnapshot = {
   threads: [THREAD],
   pendingArrivals: [ARRIVAL],
   rumors: [RUMOR],
+  furniture: [],
+  zones: [],
 };
 
 describe('reducer', () => {
@@ -160,7 +162,14 @@ describe('reducer', () => {
 
     const cleared = reducer(next, {
       type: 'WORLD_SNAPSHOT',
-      payload: { worldTags: [], threads: [], pendingArrivals: [], rumors: [] },
+      payload: {
+        worldTags: [],
+        threads: [],
+        pendingArrivals: [],
+        rumors: [],
+        furniture: [],
+        zones: [],
+      },
     });
     expect(cleared.worldTags).toEqual([]);
     expect(cleared.threads).toEqual([]);

@@ -68,6 +68,8 @@ const SNAPSHOT: WorldSnapshot = {
   threads: THREADS,
   pendingArrivals: ARRIVALS,
   rumors: RUMORS,
+  furniture: [],
+  zones: [],
 };
 
 const WORLD: WorldState = {
