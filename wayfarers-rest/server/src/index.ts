@@ -181,6 +181,7 @@ async function main(): Promise<void> {
       rumors,
       threadRunner,
       flavorCache,
+      furnitureManager,
     },
   );
   npcManager.hydrate(persistence.loadRoster());

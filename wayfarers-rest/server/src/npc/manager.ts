@@ -11,6 +11,7 @@ import type {
 import { tierForScore } from '@shared/types';
 import { computeGuestSpend, totalSpend } from '../economy/spend.ts';
 import type { WorldEventBus } from '../events/emitter.ts';
+import type { FurnitureManager } from '../furniture/manager.ts';
 import type { FlavorCache } from '../llm/cache/manager.ts';
 import type { ArrivalInput } from '../llm/slots/arrival.ts';
 import type { Persistence } from '../persistence.ts';
@@ -91,6 +92,9 @@ export interface NpcManagerDeps {
   rumors?: RumorsManager;
   threadRunner?: ThreadRunner;
   flavorCache?: FlavorCache;
+  /** Z3: when present, NPCs snap to chair sprites and cluster around
+   *  furniture during their decision tick. Tests can omit. */
+  furnitureManager?: FurnitureManager;
   /**
    * Called after a sub-tick has applied its NPC changes. Used by index.ts to
    * run interaction detection + resolution. Tests can omit.
@@ -297,6 +301,10 @@ export class NpcManager extends EventEmitter {
     this.spawnQueue = remainingQueue;
 
     // 2) Re-evaluate NPCs whose next decision is due.
+    // Z3: snapshot furniture + roster once per sub-tick so every NPC's
+    // decision sees the same picture (no order-dependence inside the loop).
+    const furniture = this.deps.furnitureManager?.list();
+    const rosterSnapshot = [...this.roster.values()];
     for (const [id, npc] of this.roster) {
       if (diff.added.find((a) => a.id === id)) continue;
       if (absSubTick < npc.nextDecisionSubTick) continue;
@@ -304,6 +312,9 @@ export class NpcManager extends EventEmitter {
         absSubTick,
         worldSeed,
         subTicksPerDay,
+        furniture,
+        roster: rosterSnapshot,
+        selfId: id,
       });
       if (next.status === 'departed') {
         this.roster.delete(id);

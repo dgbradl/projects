@@ -1,8 +1,13 @@
-import type { Npc, NpcStatus, StaffRole, ZoneName } from '@shared/types';
+import type { FurniturePiece, Npc, NpcStatus, StaffRole, ZoneName } from '@shared/types';
 import { WALKABLE } from '@shared/space';
 import { TABLE_ZONES, zoneByName } from '../world/tavern.ts';
 import { rngFloat, rngInt, rngPick, seededRng } from '../world/rng.ts';
 import { absoluteSubTick } from './spawn.ts';
+import {
+  pickFreeChair,
+  positionBesideChair,
+  zoneCentroidOfOthers,
+} from './seating.ts';
 import { filterAllowed } from './zones.ts';
 
 /**
@@ -35,7 +40,18 @@ export interface BehaviorContext {
   absSubTick: number;
   worldSeed: string;
   subTicksPerDay: number;
+  /** Z3: live furniture list, used to snap seated NPCs onto chair sprites.
+   *  Optional so old call sites (and tests that don't care) keep working. */
+  furniture?: FurniturePiece[];
+  /** Z3: current roster, used for chair-occupancy and same-zone clustering. */
+  roster?: Npc[];
+  /** Z3: id of the NPC whose decision is being made; excluded from
+   *  centroid/occupancy calculations so an NPC doesn't cluster around
+   *  itself or count its current chair as taken. */
+  selfId?: string;
 }
+
+const CLUSTER_BIAS_PROB = 0.6;
 
 export interface BehaviorResult {
   npc: Npc;
@@ -164,7 +180,7 @@ function transition(
   dwellSubTicks: number,
 ): BehaviorResult {
   const position = nextZone
-    ? jitterInsideZone(nextZone, rng)
+    ? pickPositionInZone(nextZone, rng, { ...ctx, selfId: ctx.selfId ?? npc.id })
     : npc.position;
   const nextDecisionSubTick = ctx.absSubTick + Math.max(1, dwellSubTicks);
   const updated: Npc = {
@@ -180,6 +196,45 @@ function transition(
     position.x !== npc.position.x ||
     position.y !== npc.position.y;
   return { npc: updated, changed };
+}
+
+/**
+ * Pick a position inside `zoneName` taking furniture and other NPCs into
+ * account. Order of preference:
+ *   1. If a free chair sprite sits in the zone, snap beside it.
+ *   2. Else, with probability CLUSTER_BIAS_PROB, sample within half the
+ *      zone's radius of the centroid of other NPCs in that zone.
+ *   3. Else fall back to a uniform jitter inside the zone (existing math).
+ * All results are clamped to the walkable rectangle.
+ */
+export function pickPositionInZone(
+  zoneName: ZoneName,
+  rng: ReturnType<typeof seededRng>,
+  ctx: BehaviorContext,
+): { x: number; y: number } {
+  const zone = zoneByName(zoneName);
+  const furniture = ctx.furniture ?? [];
+  const roster = ctx.roster ?? [];
+  const selfId = ctx.selfId ?? '';
+
+  if (furniture.length > 0) {
+    const chair = pickFreeChair(zone, furniture, roster, rng, selfId);
+    if (chair) return clampToWalkable(positionBesideChair(chair, rng));
+  }
+
+  if (roster.length > 0) {
+    const centroid = zoneCentroidOfOthers(zoneName, roster, selfId);
+    if (centroid && rng() < CLUSTER_BIAS_PROB) {
+      const angle = rngFloat(rng, 0, Math.PI * 2);
+      const distance = Math.sqrt(rng()) * zone.radius * 0.5;
+      return clampToWalkable({
+        x: centroid.x + Math.cos(angle) * distance,
+        y: centroid.y + Math.sin(angle) * distance,
+      });
+    }
+  }
+
+  return jitterInsideZone(zoneName, rng);
 }
 
 export function jitterInsideZone(
