@@ -8,6 +8,7 @@ import {
 import type { FurniturePiece } from '@shared/types';
 import { spriteByName } from '../assets/tavernSprites.ts';
 import { api, type PatchFurnitureInput } from '../api.ts';
+import { DoorPiece, isDoorSprite } from './DoorPiece.tsx';
 import { WIDTH_BY_CATEGORY, DEFAULT_WIDTH_PCT } from '../furniture/bbox.ts';
 import { useDispatch, useStore } from '../state/store.tsx';
 
@@ -354,7 +355,11 @@ export function Furnishings() {
             }}
             onPointerDown={(e) => startMove(piece, e)}
           >
-            <img src={asset.url} alt={piece.sprite} draggable={false} />
+            {isDoorSprite(piece.sprite) ? (
+              <DoorPiece sprite={piece.sprite} />
+            ) : (
+              <img src={asset.url} alt={piece.sprite} draggable={false} />
+            )}
             {selected && (
               <>
                 <div

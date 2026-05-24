@@ -18,6 +18,7 @@ export const WIDTH_BY_CATEGORY: Record<string, number> = {
   glassware: 3,
   candles: 4,
   decor: 8,
+  doors: 5,
 };
 
 export const DEFAULT_WIDTH_PCT = 6;
