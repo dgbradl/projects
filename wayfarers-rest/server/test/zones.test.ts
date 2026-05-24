@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { Npc } from '@shared/types';
-import { ZONE_RULES, filterAllowed, isZoneAllowed } from '../src/npc/zones.ts';
+import {
+  ZONE_RULES,
+  filterAllowed,
+  isAudienceAllowed,
+  isZoneAllowed,
+} from '../src/npc/zones.ts';
 
 function npc(overrides: Partial<Npc> = {}): Npc {
   return {
@@ -68,5 +73,41 @@ describe('filterAllowed', () => {
     expect(filterAllowed(all, npc({ isStaff: true, staffRole: 'bartender' }))).toEqual(
       ['bar', 'bar_back', 'hearth'],
     );
+  });
+});
+
+// Z4: archetype-level rules (mechanism only — no defaults shipped).
+describe('isAudienceAllowed with archetype rules', () => {
+  it('forbiddenArchetypes blocks the listed archetype but lets others in', () => {
+    const rule = { forbiddenArchetypes: ['merchant'] as const };
+    expect(isAudienceAllowed(rule, npc({ archetype: 'merchant' }))).toBe(false);
+    expect(isAudienceAllowed(rule, npc({ archetype: 'pilgrim' }))).toBe(true);
+  });
+
+  it('allowedArchetypes only admits NPCs whose archetype is listed', () => {
+    const rule = { allowedArchetypes: ['knight', 'mage'] as const };
+    expect(isAudienceAllowed(rule, npc({ archetype: 'knight' }))).toBe(true);
+    expect(isAudienceAllowed(rule, npc({ archetype: 'mage' }))).toBe(true);
+    expect(isAudienceAllowed(rule, npc({ archetype: 'wanderer' }))).toBe(false);
+  });
+
+  it('forbiddenArchetypes wins when both lists name the same archetype', () => {
+    const rule = {
+      allowedArchetypes: ['merchant'] as const,
+      forbiddenArchetypes: ['merchant'] as const,
+    };
+    expect(isAudienceAllowed(rule, npc({ archetype: 'merchant' }))).toBe(false);
+  });
+
+  it('staff are exempt from archetype gating', () => {
+    const rule = { forbiddenArchetypes: ['merchant'] as const };
+    expect(
+      isAudienceAllowed(rule, npc({ isStaff: true, staffRole: 'waitstaff', archetype: 'merchant' })),
+    ).toBe(true);
+  });
+
+  it('an NPC without an archetype is rejected by an allow-list', () => {
+    const rule = { allowedArchetypes: ['knight'] as const };
+    expect(isAudienceAllowed(rule, npc({ archetype: undefined as never }))).toBe(false);
   });
 });
