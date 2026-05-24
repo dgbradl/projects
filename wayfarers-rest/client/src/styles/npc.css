@@ -132,6 +132,15 @@
   opacity: 1;
 }
 
+/* .npc carries a transform, which creates a new stacking context — so the
+   tooltip's z-index only ranks it within that context, and furniture
+   (z-index: 1) covers it. Lift the whole .npc on hover so the tooltip
+   and label clear furniture; resting NPCs still sit behind tall pieces
+   like the bar, which is the desired depth cue. */
+.npc:hover {
+  z-index: 50;
+}
+
 .npc-tooltip-name {
   font-weight: bold;
   color: var(--accent-strong);
