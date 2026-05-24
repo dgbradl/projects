@@ -26,9 +26,11 @@ import type { SubTickScheduler } from '../subtick.ts';
 import { TAVERN_ZONES } from '../world/tavern.ts';
 import type { RumorsManager } from '../world/rumors.ts';
 import type { WorldTagsManager } from '../world/tags.ts';
+import type { ZoneManager } from '../world/zone-manager.ts';
 import { registerChronicleRoutes } from './chronicle-routes.ts';
 import { registerFurnitureRoutes } from './furniture-routes.ts';
 import { registerInterventionRoutes } from './intervention-routes.ts';
+import { registerZoneRoutes } from './zone-routes.ts';
 
 export interface ApiDeps {
   stateManager: WorldStateManager;
@@ -48,6 +50,7 @@ export interface ApiDeps {
   worldTags?: WorldTagsManager;
   rumors?: RumorsManager;
   furnitureManager?: FurnitureManager;
+  zoneManager?: ZoneManager;
   favorsMax?: number;
   /** Optional: enables POST /control/reset to snap day-tracking on the sub-tick scheduler. */
   subTickScheduler?: SubTickScheduler;
@@ -106,7 +109,7 @@ export function registerRoutes(app: FastifyInstance, deps: ApiDeps): void {
   app.get('/npcs', async () => deps.npcManager.getRoster());
 
   app.get('/tavern', async (): Promise<TavernConfig> => ({
-    zones: [...TAVERN_ZONES],
+    zones: deps.zoneManager?.list() ?? [...TAVERN_ZONES],
     subTickIntervalMs: deps.subTickIntervalMs,
     subTicksPerDay: deps.subTicksPerDay,
   }));
@@ -185,6 +188,10 @@ export function registerRoutes(app: FastifyInstance, deps: ApiDeps): void {
   if (deps.furnitureManager) {
     registerFurnitureRoutes(app, deps.furnitureManager);
   }
+
+  if (deps.zoneManager) {
+    registerZoneRoutes(app, deps.zoneManager);
+  }
 }
 
 export function buildFlavorStatus(deps: ApiDeps): FlavorStatus {
@@ -205,5 +212,6 @@ export function buildWorldSnapshot(deps: ApiDeps): WorldSnapshot {
     ),
     rumors: deps.persistence.loadAllRumors(),
     furniture: deps.furnitureManager?.list() ?? [],
+    zones: deps.zoneManager?.list() ?? [...TAVERN_ZONES],
   };
 }

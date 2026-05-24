@@ -5,6 +5,7 @@ import Fastify from 'fastify';
 import type { FlavorMode, Npc } from '@shared/types';
 import { registerRoutes, type ApiDeps } from './api/routes.ts';
 import { FurnitureManager } from './furniture/manager.ts';
+import { ZoneManager } from './world/zone-manager.ts';
 import { registerSSE } from './api/sse.ts';
 import { ChronicleGenerator } from './chronicle/generator.ts';
 import { ChroniclePipeline } from './chronicle/pipeline.ts';
@@ -122,6 +123,7 @@ async function main(): Promise<void> {
   const worldTags = new WorldTagsManager(persistence, bus);
   const rumors = new RumorsManager(persistence, bus);
   const furnitureManager = new FurnitureManager(persistence);
+  const zoneManager = new ZoneManager(persistence);
   const threadRunner = new ThreadRunner(persistence, bus, worldTags, rumors);
 
   // Phase 7 (A2/B3): keep character memory current as events flow, and spawn
@@ -409,6 +411,7 @@ async function main(): Promise<void> {
     favorsMax: FAVORS_MAX_DEFAULT,
     subTickScheduler,
     furnitureManager,
+    zoneManager,
   };
 
   app.addHook('onClose', async () => {

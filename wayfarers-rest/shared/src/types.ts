@@ -45,7 +45,9 @@ export type ZoneName =
   | 'table_c';
 
 export interface Zone {
-  name: ZoneName;
+  /** Zone identifier. Built-in zones use ZoneName values; debug-mode zones
+   *  may use arbitrary string names that do not drive NPC behaviour. */
+  name: string;
   x: number;
   y: number;
   radius: number;
@@ -631,6 +633,8 @@ export interface WorldSnapshot {
   rumors: Rumor[];
   /** Server-owned furniture layout. Back→front = paint order (lowest layer first). */
   furniture: FurniturePiece[];
+  /** Current zone layout (defaults from TAVERN_ZONES + any debug edits). */
+  zones: Zone[];
 }
 
 // ---------- Furniture (server-owned tavern layout) ----------

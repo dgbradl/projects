@@ -226,6 +226,13 @@ export class Persistence {
 
       CREATE INDEX IF NOT EXISTS idx_furniture_layer ON furniture(layer);
 
+      CREATE TABLE IF NOT EXISTS zones (
+        name    TEXT PRIMARY KEY,
+        x       REAL NOT NULL,
+        y       REAL NOT NULL,
+        radius  REAL NOT NULL
+      );
+
       CREATE TABLE IF NOT EXISTS scheduled_arrivals (
         npc_id TEXT PRIMARY KEY,
         display_name TEXT NOT NULL,
@@ -708,6 +715,35 @@ export class Persistence {
 
   deleteAllFurniture(): void {
     this.db.exec('DELETE FROM furniture');
+  }
+
+  // ---------- zones (debug-editable tavern zones) ----------
+
+  saveZone(zone: { name: string; x: number; y: number; radius: number }): void {
+    this.db
+      .prepare(
+        `INSERT INTO zones (name, x, y, radius) VALUES (?, ?, ?, ?)
+         ON CONFLICT(name) DO UPDATE SET
+           x = excluded.x,
+           y = excluded.y,
+           radius = excluded.radius`,
+      )
+      .run(zone.name, zone.x, zone.y, zone.radius);
+  }
+
+  loadAllZones(): Array<{ name: string; x: number; y: number; radius: number }> {
+    return this.db
+      .prepare('SELECT name, x, y, radius FROM zones ORDER BY name ASC')
+      .all() as Array<{ name: string; x: number; y: number; radius: number }>;
+  }
+
+  deleteZone(name: string): boolean {
+    const res = this.db.prepare('DELETE FROM zones WHERE name = ?').run(name);
+    return res.changes > 0;
+  }
+
+  deleteAllZones(): void {
+    this.db.exec('DELETE FROM zones');
   }
 
   saveWorldTag(tag: WorldTag): void {

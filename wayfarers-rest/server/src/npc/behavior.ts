@@ -207,12 +207,22 @@ function transition(
  *   3. Else fall back to a uniform jitter inside the zone (existing math).
  * All results are clamped to the walkable rectangle.
  */
+/** Centre of the walkable rectangle — used as the safe fallback whenever a
+ *  position is asked for inside a zone that the user has deleted. */
+const WALKABLE_CENTER = {
+  x: (WALKABLE.minX + WALKABLE.maxX) / 2,
+  y: (WALKABLE.minY + WALKABLE.maxY) / 2,
+} as const;
+
 export function pickPositionInZone(
   zoneName: ZoneName,
   rng: ReturnType<typeof seededRng>,
   ctx: BehaviorContext,
 ): { x: number; y: number } {
   const zone = zoneByName(zoneName);
+  // Zone removed via the debug editor — drop to the walkable centre so the
+  // tick loop never throws on stale zone references.
+  if (!zone) return WALKABLE_CENTER;
   const furniture = ctx.furniture ?? [];
   const roster = ctx.roster ?? [];
   const selfId = ctx.selfId ?? '';
@@ -242,6 +252,7 @@ export function jitterInsideZone(
   rng: ReturnType<typeof seededRng>,
 ): { x: number; y: number } {
   const zone = zoneByName(zoneName);
+  if (!zone) return WALKABLE_CENTER;
   // Sample a uniform point inside the zone's radius.
   const angle = rngFloat(rng, 0, Math.PI * 2);
   const distance = Math.sqrt(rng()) * zone.radius;
