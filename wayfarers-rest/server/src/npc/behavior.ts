@@ -1,4 +1,5 @@
 import type { Npc, NpcStatus, ZoneName } from '@shared/types';
+import { WALKABLE } from '@shared/space';
 import { TABLE_ZONES, zoneByName } from '../world/tavern.ts';
 import { rngFloat, rngInt, rngPick, seededRng } from '../world/rng.ts';
 import { absoluteSubTick } from './spawn.ts';
@@ -161,9 +162,20 @@ export function jitterInsideZone(
   // Sample a uniform point inside the zone's radius.
   const angle = rngFloat(rng, 0, Math.PI * 2);
   const distance = Math.sqrt(rng()) * zone.radius;
+  return clampToWalkable({
+    x: zone.x + Math.cos(angle) * distance,
+    y: zone.y + Math.sin(angle) * distance,
+  });
+}
+
+/**
+ * Clamp a point to the inner walkable rectangle (excludes the wall band).
+ * Used by every position emitter so NPCs never land in wall territory.
+ */
+export function clampToWalkable(p: { x: number; y: number }): { x: number; y: number } {
   return {
-    x: clamp(zone.x + Math.cos(angle) * distance, 0, 100),
-    y: clamp(zone.y + Math.sin(angle) * distance, 0, 100),
+    x: clamp(p.x, WALKABLE.minX, WALKABLE.maxX),
+    y: clamp(p.y, WALKABLE.minY, WALKABLE.maxY),
   };
 }
 

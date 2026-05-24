@@ -4,6 +4,8 @@
      Proportional to the tavern width (container-type: inline-size, below),
      capped at both ends. See Walls.tsx. */
   --wall-thickness: clamp(22px, 4cqw, 48px);
+  /* Width of the wall band; must agree with WALL_INSET_PCT (=8) in
+     shared/src/space.ts so server NPC positions never land in wall art. */
   --wall-depth: clamp(46px, 8cqw, 96px);
   position: relative;
   container-type: inline-size;

@@ -111,4 +111,20 @@ describe('NPC behavior over a full game day', () => {
       }
     }
   });
+
+  // Z1: every server-picked position lands inside the walkable rectangle
+  // (the inner area not covered by the visual wall band).
+  it('npcs never land inside the wall band', async () => {
+    const { WALKABLE } = await import('@shared/space');
+    const h = buildHarness();
+    for (let i = 0; i < SUB_TICKS_PER_DAY * 2; i += 1) {
+      h.subTickScheduler.advance(SUBTICK_MS);
+      for (const npc of h.npcManager.getRoster()) {
+        expect(npc.position.x).toBeGreaterThanOrEqual(WALKABLE.minX);
+        expect(npc.position.x).toBeLessThanOrEqual(WALKABLE.maxX);
+        expect(npc.position.y).toBeGreaterThanOrEqual(WALKABLE.minY);
+        expect(npc.position.y).toBeLessThanOrEqual(WALKABLE.maxY);
+      }
+    }
+  });
 });

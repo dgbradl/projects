@@ -18,7 +18,7 @@ import { locationById, randomLocation } from '../world/locations.ts';
 import { rngPick, seededRng } from '../world/rng.ts';
 import type { RumorsManager } from '../world/rumors.ts';
 import type { ThreadRunner } from '../threads/runner.ts';
-import { decideNextState, jitterInsideZone } from './behavior.ts';
+import { clampToWalkable, decideNextState, jitterInsideZone } from './behavior.ts';
 import {
   emptyMemory,
   rememberBeckon,
@@ -113,7 +113,19 @@ export class NpcManager extends EventEmitter {
   }
 
   hydrate(snapshot: RosterSnapshot): void {
-    this.roster = new Map(snapshot.npcs.map((n) => [n.id, n]));
+    // Z1: any NPC loaded with a position inside the wall band drifts inward
+    // immediately, so old DB rows from before WALKABLE existed don't render
+    // on the wall. Idempotent for fresh data.
+    this.roster = new Map(
+      snapshot.npcs.map((n) => {
+        const clamped = clampToWalkable(n.position);
+        const npc: Npc =
+          clamped.x === n.position.x && clamped.y === n.position.y
+            ? n
+            : { ...n, position: clamped };
+        return [npc.id, npc];
+      }),
+    );
     this.spawnQueue = [...snapshot.spawnQueue];
   }
 
