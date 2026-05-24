@@ -5,7 +5,7 @@ import {
   type DragEvent as ReactDragEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
-import type { FurniturePiece } from '@shared/types';
+import type { FurniturePiece, Npc } from '@shared/types';
 import { spriteByName } from '../assets/tavernSprites.ts';
 import { api, type PatchFurnitureInput } from '../api.ts';
 import { DoorPiece, isDoorSprite } from './DoorPiece.tsx';
@@ -44,15 +44,68 @@ function clamp(value: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, value));
 }
 
+/**
+ * Watches NPC status transitions and bumps a per-door play-token whenever
+ * an NPC newly enters `arriving` or `leaving` state — the token is keyed
+ * by the *nearest* door piece (by Euclidean distance in % coords), so
+ * placing doors in multiple rooms only animates the relevant one. NPCs
+ * already in transit at mount don't trigger (avoids a play storm on
+ * first paint).
+ */
+function useDoorPlayTokens(
+  pieces: FurniturePiece[],
+  npcs: Record<string, Npc>,
+): Record<string, number> {
+  const tokensRef = useRef<Record<string, number>>({});
+  const prevStatusRef = useRef<Record<string, string>>({});
+  const [, force] = useState(0);
+
+  useEffect(() => {
+    const doors = pieces.filter((p) => isDoorSprite(p.sprite));
+    const prev = prevStatusRef.current;
+    let changed = false;
+    for (const id in npcs) {
+      const n = npcs[id];
+      const was = prev[id];
+      const isTransit = n.status === 'arriving' || n.status === 'leaving';
+      if (was !== n.status && isTransit && was !== undefined && doors.length) {
+        let nearest = doors[0];
+        let best = Infinity;
+        for (const d of doors) {
+          const dx = d.x - n.position.x;
+          const dy = d.y - n.position.y;
+          const dist = dx * dx + dy * dy;
+          if (dist < best) {
+            best = dist;
+            nearest = d;
+          }
+        }
+        tokensRef.current = {
+          ...tokensRef.current,
+          [nearest.id]: (tokensRef.current[nearest.id] ?? 0) + 1,
+        };
+        changed = true;
+      }
+    }
+    const next: Record<string, string> = {};
+    for (const id in npcs) next[id] = npcs[id].status;
+    prevStatusRef.current = next;
+    if (changed) force((n) => n + 1);
+  }, [npcs, pieces]);
+
+  return tokensRef.current;
+}
+
 export function Furnishings() {
   const dispatch = useDispatch();
-  const pieces = useStore().furniture;
+  const { furniture: pieces, npcs } = useStore();
   const layerRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<Drag | null>(null);
   const ctrlRef = useRef<AbortController | null>(null);
   const piecesRef = useRef<FurniturePiece[]>(pieces);
   const clipboardRef = useRef<Omit<FurniturePiece, 'id' | 'layer'> | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const doorPlayTokens = useDoorPlayTokens(pieces, npcs);
 
   // Keep a ref to the latest pieces so the drag callbacks (which capture
   // their closure at pointerdown) can see post-dispatch values at pointerup.
@@ -356,7 +409,10 @@ export function Furnishings() {
             onPointerDown={(e) => startMove(piece, e)}
           >
             {isDoorSprite(piece.sprite) ? (
-              <DoorPiece sprite={piece.sprite} />
+              <DoorPiece
+                sprite={piece.sprite}
+                playToken={doorPlayTokens[piece.id] ?? 0}
+              />
             ) : (
               <img src={asset.url} alt={piece.sprite} draggable={false} />
             )}

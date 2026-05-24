@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { spriteByName } from '../assets/tavernSprites.ts';
-import { useStore } from '../state/store.tsx';
 
 // The 4 cut frames live in client/src/assets/tavern/doors/. Order matters:
 // frame 1 is closed, frame 4 is wide open. The cycle plays 1→2→3→4→3→2→1
-// over ~700ms whenever an NPC enters or leaves the tavern.
+// over ~700ms whenever the parent ticks `playToken`.
 const FRAMES = [
   'door_01_closed',
   'door_02_ajar',
@@ -22,36 +21,27 @@ export function isDoorSprite(sprite: string): boolean {
 }
 
 /**
- * Renders a door piece's <img>, advancing through the 4-frame open/close
- * sequence whenever an NPC newly transitions into `arriving` or `leaving`
- * status. Concurrent triggers while a cycle is already running are ignored
- * (the existing cycle finishes first), keeping the visual deterministic
- * even when a wave of patrons arrives at once.
+ * Renders a door piece's <img>. The cycle is driven by `playToken`: a
+ * change in its value (incremented by the parent) starts one play of
+ * the 7-frame sequence. While a cycle is running, further token changes
+ * are ignored so the visual stays deterministic if a wave of patrons
+ * arrives in the same tick.
  */
-export function DoorPiece({ sprite }: { sprite: string }) {
-  const { npcs } = useStore();
+export function DoorPiece({
+  sprite,
+  playToken,
+}: {
+  sprite: string;
+  playToken: number;
+}) {
   const [frameIdx, setFrameIdx] = useState(0);
   const playingRef = useRef(false);
-  const prevStatusRef = useRef<Record<string, string>>({});
+  const lastTokenRef = useRef(playToken);
 
   useEffect(() => {
-    // Detect newly arriving/leaving NPCs by diffing against last tick's
-    // status map. Initial mount populates the map without triggering, so
-    // we don't fire on first paint for NPCs already in transit.
-    const prev = prevStatusRef.current;
-    let triggered = false;
-    for (const id in npcs) {
-      const status = npcs[id].status;
-      const was = prev[id];
-      if (was !== status && (status === 'arriving' || status === 'leaving')) {
-        if (was !== undefined) triggered = true;
-      }
-    }
-    const next: Record<string, string> = {};
-    for (const id in npcs) next[id] = npcs[id].status;
-    prevStatusRef.current = next;
-
-    if (!triggered || playingRef.current) return;
+    if (playToken === lastTokenRef.current) return;
+    lastTokenRef.current = playToken;
+    if (playingRef.current) return;
     playingRef.current = true;
     let i = 0;
     setFrameIdx(0);
@@ -66,7 +56,7 @@ export function DoorPiece({ sprite }: { sprite: string }) {
       setFrameIdx(i);
     }, FRAME_MS);
     return () => window.clearInterval(tick);
-  }, [npcs]);
+  }, [playToken]);
 
   // Fall back to the placed sprite if the cycle frame is missing (e.g. the
   // doors/ folder hasn't been built yet) — keeps the piece visible either way.
