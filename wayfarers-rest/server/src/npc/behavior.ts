@@ -20,7 +20,9 @@ import { filterAllowed } from './zones.ts';
  * counter but occasionally steps out in front.
  */
 const STAFF_PREF_BY_ROLE: Record<StaffRole, ZoneName[]> = {
-  bartender: ['bar_back', 'bar_back', 'bar', 'hearth'],
+  // Bartender lives behind the counter and occasionally steps out front;
+  // never leaves the bar area for the hearth or tables.
+  bartender: ['bar_back', 'bar_back', 'bar_back', 'bar'],
   waitstaff: ['table_a', 'table_b', 'table_c', 'bar', 'hearth'],
   cleaner: ['hearth', 'table_a', 'table_b', 'table_c', 'bar'],
 };
@@ -147,9 +149,9 @@ function decideStaffBehavior(npc: Npc, ctx: BehaviorContext): BehaviorResult {
     case 'bartender': {
       // Bartender stays restricted to the bar-area pool — never drifts.
       const target = rngPick(rng, prefs);
-      const nextStatus: NpcStatus =
-        target === 'bar' || target === 'bar_back' ? 'at_bar' : 'wandering';
-      return transition(npc, nextStatus, target, rng, ctx, rngInt(rng, 8, 20));
+      // Every destination in the bartender pool is a bar-area zone, so
+      // status is always at_bar.
+      return transition(npc, 'at_bar', target, rng, ctx, rngInt(rng, 8, 20));
     }
     case 'waitstaff': {
       // 80% pick from prefs, 20% drift to any allowed non-door zone.

@@ -144,10 +144,11 @@ describe('NPC behavior over a full game day', () => {
     }
   });
 
-  // Z2: the bartender stays in bar / bar_back / hearth.
+  // Z2: the bartender stays at the bar — never the hearth or tables.
+  // (`door` allowed only because that's the initial arrival zone.)
   it('bartender stays in the bar area', () => {
     const h = buildHarness({ withStaff: true });
-    const allowed = new Set<ZoneName>(['bar', 'bar_back', 'hearth', 'door']);
+    const allowed = new Set<ZoneName>(['bar', 'bar_back', 'door']);
     let observed = 0;
     for (let i = 0; i < SUB_TICKS_PER_DAY * 2; i += 1) {
       h.subTickScheduler.advance(SUBTICK_MS);
