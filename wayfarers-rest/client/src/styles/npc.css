@@ -111,6 +111,7 @@
   border-radius: 0.25rem;
   font-size: 0.7rem;
   white-space: nowrap;
+  min-width: 11rem;
   pointer-events: none;
   opacity: 0;
   transition: opacity 120ms ease-out;
@@ -143,7 +144,7 @@
   font-style: italic;
   color: var(--ink-dim);
   margin-bottom: 0.3rem;
-  max-width: 14rem;
+  width: 14rem;
   white-space: normal;
 }
 
