@@ -241,6 +241,14 @@ export interface Character {
   personality?: string;
   /** Epic E (E3): true if this staff member is currently on the active roster. */
   isActiveStaff?: boolean;
+  /**
+   * Phase 9 (H2): an honorific name earned after enough visits — e.g.
+   * "Old Marrick" or "Marrick the Wayward". Stuck to the Character once
+   * generated; the tooltip + sprite label prefer this over displayName.
+   */
+  earnedName?: string;
+  /** Phase 9 (H2): a short tagline assigned alongside the earned name. */
+  earnedTagline?: string;
 }
 
 /** Phase 7 (A2): one other character this character has crossed paths with. */

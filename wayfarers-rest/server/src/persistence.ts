@@ -140,6 +140,9 @@ interface CharacterRow {
   skills: string | null;
   personality: string | null;
   is_active_staff: number | null;
+  /** Phase 9 (H2): earned honorific name + tagline. */
+  earned_name: string | null;
+  earned_tagline: string | null;
 }
 
 interface ScheduledArrivalRow {
@@ -380,6 +383,9 @@ export class Persistence {
     this.addColumnIfMissing('characters', 'skills', 'TEXT');
     this.addColumnIfMissing('characters', 'personality', 'TEXT');
     this.addColumnIfMissing('characters', 'is_active_staff', 'INTEGER NOT NULL DEFAULT 0');
+    // Phase 9 (H2): earned regular name + tagline. Sticky once awarded.
+    this.addColumnIfMissing('characters', 'earned_name', 'TEXT');
+    this.addColumnIfMissing('characters', 'earned_tagline', 'TEXT');
     this.addColumnIfMissing('rumors', 'player_origin', 'INTEGER NOT NULL DEFAULT 0');
     this.addColumnIfMissing('rumors', 'tone', 'TEXT');
     this.addColumnIfMissing(
@@ -1190,8 +1196,8 @@ export class Persistence {
     this.db
       .prepare(
         `INSERT INTO characters
-          (id, display_name, archetype, first_seen_game_day, last_seen_game_day, visit_count, memory, is_staff, staff_role, skills, personality, is_active_staff)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          (id, display_name, archetype, first_seen_game_day, last_seen_game_day, visit_count, memory, is_staff, staff_role, skills, personality, is_active_staff, earned_name, earned_tagline)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET
            display_name = excluded.display_name,
            archetype = excluded.archetype,
@@ -1203,7 +1209,9 @@ export class Persistence {
            staff_role = excluded.staff_role,
            skills = excluded.skills,
            personality = excluded.personality,
-           is_active_staff = excluded.is_active_staff`,
+           is_active_staff = excluded.is_active_staff,
+           earned_name = excluded.earned_name,
+           earned_tagline = excluded.earned_tagline`,
       )
       .run(
         character.id,
@@ -1218,6 +1226,8 @@ export class Persistence {
         character.skills ? JSON.stringify(character.skills) : null,
         character.personality ?? null,
         character.isActiveStaff ? 1 : 0,
+        character.earnedName ?? null,
+        character.earnedTagline ?? null,
       );
   }
 
@@ -1265,6 +1275,8 @@ export class Persistence {
     skills: r.skills ? (JSON.parse(r.skills) as StaffSkills) : undefined,
     personality: r.personality ?? undefined,
     isActiveStaff: r.is_active_staff === 1 ? true : undefined,
+    earnedName: r.earned_name ?? undefined,
+    earnedTagline: r.earned_tagline ?? undefined,
   });
 
   // ---------- daily_ledgers (Economy E1) ----------

@@ -28,6 +28,7 @@ import {
   rememberRumors,
 } from './character-memory.ts';
 import { generateDesires } from './desires.ts';
+import { buildEarnedName, EARNED_NAME_THRESHOLD } from './earned-names.ts';
 import {
   ALL_STAFF_DEFINITIONS,
   makeStaffNpc,
@@ -575,7 +576,34 @@ function materializeArrival(
         visitCount: 1,
         memory,
       };
+
+  // Phase 9 (H2): once a regular has reached the threshold, dress up their
+  // placeholder name with an archetype-flavoured epithet. Sticky once
+  // generated — earned names persist for the life of the Character.
+  if (
+    !character.earnedName &&
+    character.visitCount >= EARNED_NAME_THRESHOLD &&
+    !character.isStaff
+  ) {
+    const earned = buildEarnedName({
+      baseDisplayName: character.displayName,
+      archetype: character.archetype,
+      characterId: character.id,
+      worldSeed,
+    });
+    if (earned) {
+      character.earnedName = earned.displayName;
+      character.earnedTagline = earned.tagline;
+    }
+  }
+
   persistence.upsertCharacter(character);
+
+  // Phase 9 (H2): prefer the earned name on the live Npc so the sprite
+  // label + tooltip show "Old Marrick" instead of "Marrick" the moment
+  // the threshold is crossed. The base displayName stays on Character
+  // for replay / debug, but isn't surfaced past this point.
+  const liveDisplayName = character.earnedName ?? displayName;
 
   // Phase 8 (A1): each non-staff arrival picks up 1–2 desires deterministically
   // from their archetype's pool. The roster shows them in the hover tooltip;
@@ -626,7 +654,9 @@ function materializeArrival(
 
   return {
     id: arrival.npcId,
-    displayName,
+    // Phase 9 (H2): a regular past EARNED_NAME_THRESHOLD shows their
+    // honorific name on the sprite label + tooltip from arrival on.
+    displayName: liveDisplayName,
     status: 'arriving',
     position: jitterInsideZone('door', rng),
     zone: 'door',
@@ -638,7 +668,9 @@ function materializeArrival(
     carriedRumorIds: rumorIds,
     originLocationId: arrival.originLocationId,
     archetype,
-    tagline: garnish.tagline || undefined,
+    // Phase 9 (H2): earned tagline wins over the arrival garnish tagline
+    // once a character has earned one — it's the stickier "who they are".
+    tagline: character.earnedTagline ?? garnish.tagline ?? undefined,
     item: garnish.item || undefined,
     mood,
     wasBeckoned: arrival.wasBeckoned,
