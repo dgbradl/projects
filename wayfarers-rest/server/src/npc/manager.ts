@@ -252,8 +252,9 @@ export class NpcManager extends EventEmitter {
     this.ensureStaffOnDuty(newGameDay, 0);
 
     const worldTags = this.deps.persistence?.getAllWorldTags() ?? [];
+    const tavernState = this.deps.persistence?.loadState();
     // Economy (E2): the tavern's prosperity shapes how full the next day is.
-    const prosperity = this.deps.persistence?.loadState()?.prosperity;
+    const prosperity = tavernState?.prosperity;
     this.spawnQueue = generateSpawnQueue({
       worldSeed: this.config.worldSeed,
       gameDay: newGameDay,
@@ -261,6 +262,8 @@ export class NpcManager extends EventEmitter {
       worldTags,
       prosperityTier:
         prosperity != null ? tierForScore(prosperity) : undefined,
+      // Phase 8 (D3): the keeper's chosen identity tilts the archetype mix.
+      tavernTraits: tavernState?.tavernTraits,
     });
 
     // Merge thread-scheduled arrivals into today's queue.

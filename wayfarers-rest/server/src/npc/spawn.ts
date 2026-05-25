@@ -1,4 +1,9 @@
-import type { ProsperityTier, ScheduledArrival, WorldTag } from '@shared/types';
+import type {
+  ProsperityTier,
+  ScheduledArrival,
+  TavernTrait,
+  WorldTag,
+} from '@shared/types';
 import { PLACEHOLDER_NAMES } from '../data/placeholderNames.ts';
 import { rngFloat, rngInt, seededRng, type Rng } from '../world/rng.ts';
 
@@ -9,6 +14,8 @@ export interface SpawnConfig {
   worldTags?: WorldTag[];
   /** Economy (E2): tavern prosperity tier, modulating arrival count + mix. */
   prosperityTier?: ProsperityTier;
+  /** Phase 8 (D3): the keeper's chosen identity, modulating arrival mix. */
+  tavernTraits?: TavernTrait[];
 }
 
 export interface DepartureConfig {
@@ -68,6 +75,7 @@ export function generateSpawnQueue(cfg: SpawnConfig): ScheduledArrival[] {
       refugeeBoost,
       merchantBoost,
       prosperityHigh,
+      tavernTraits: cfg.tavernTraits,
     });
     arrivals.push({
       npcId: `npc_d${gameDay}_${i}`,
@@ -110,6 +118,42 @@ function pickName(rng: Rng, used: Set<string>): string {
 }
 
 /**
+ * Phase 8 (D3): per-trait multiplicative archetype nudges. Each trait
+ * multiplies the listed archetypes' weights in the fall-through pool; the
+ * resulting distribution is normalized and any archetype exceeding 60% of
+ * total share is clamped down (a safety belt for pathological stacking;
+ * realistic two-trait combos land in the 15-25% range).
+ */
+const TRAIT_NUDGES: Record<TavernTrait, Partial<Record<string, number>>> = {
+  bardic_stage: { bard: 1.3, rogue: 1.05 },
+  scholars_quiet: { scholar: 1.25, pilgrim: 1.1, soldier: 0.85 },
+  martial_billet: { soldier: 1.3, knight: 1.15 },
+  smugglers_welcome: { rogue: 1.3, knight: 0.8 },
+  hearthside_refuge: { refugee: 1.2, pilgrim: 1.1 },
+  pilgrims_pause: { pilgrim: 1.25, scholar: 1.1 },
+  frontier_post: { wanderer: 1.2, hunter: 1.25, refugee: 1.1 },
+  arcane_haven: { mage: 1.3, scholar: 1.15, rogue: 1.1 },
+  trade_crossroads: { merchant: 1.3, wanderer: 1.1 },
+  hunters_lodge: { hunter: 1.35, knight: 1.1 },
+};
+
+const BASE_ARCHETYPES = [
+  'wanderer',
+  'merchant',
+  'pilgrim',
+  'soldier',
+  'scholar',
+  'rogue',
+  'mage',
+  'knight',
+  'bard',
+  'hunter',
+] as const;
+
+/** Phase 8 (D3): max share any single archetype may claim post-trait nudge. */
+const MAX_SINGLE_SHARE = 0.6;
+
+/**
  * Picks a canonical archetype (matches the NpcArchetype union; the LLM
  * arrival pool is keyed by these strings). `refugee` is omitted from the
  * base pool — it only enters via the war-in-north boost above.
@@ -120,26 +164,52 @@ function pickArchetype(
     refugeeBoost: boolean;
     merchantBoost: boolean;
     prosperityHigh: boolean;
+    tavernTraits?: TavernTrait[];
   },
 ): string {
   const r = rng();
   if (opts.refugeeBoost && r < 0.5) return 'refugee';
   if (opts.merchantBoost && r < 0.3) return 'merchant';
   if (opts.prosperityHigh && r < 0.25) return 'merchant';
-  // Otherwise pick from the full canonical archetype set.
-  const archetypes = [
-    'wanderer',
-    'merchant',
-    'pilgrim',
-    'soldier',
-    'scholar',
-    'rogue',
-    'mage',
-    'knight',
-    'bard',
-    'hunter',
-  ];
-  return archetypes[Math.floor(rng() * archetypes.length)];
+
+  // Build the trait-aware weight table. Each archetype starts at weight 1;
+  // each chosen trait multiplies the listed archetypes' weights.
+  const weights: Record<string, number> = {};
+  for (const a of BASE_ARCHETYPES) weights[a] = 1;
+  for (const trait of opts.tavernTraits ?? []) {
+    const nudges = TRAIT_NUDGES[trait];
+    if (!nudges) continue;
+    for (const [archetype, mult] of Object.entries(nudges)) {
+      if (archetype in weights && typeof mult === 'number') {
+        weights[archetype] *= mult;
+      }
+    }
+  }
+  // Safety clamp: if any single archetype exceeds MAX_SINGLE_SHARE of the
+  // total, scale it down. Converges in one pass for realistic inputs.
+  let total = 0;
+  for (const w of Object.values(weights)) total += w;
+  for (const a of Object.keys(weights)) {
+    const share = weights[a] / total;
+    if (share > MAX_SINGLE_SHARE) {
+      // Find the weight value that gives exactly MAX_SINGLE_SHARE:
+      //   w / (w + (total - w_original)) = MAX_SINGLE_SHARE
+      // → w = MAX_SINGLE_SHARE / (1 - MAX_SINGLE_SHARE) * (total - w_original)
+      const others = total - weights[a];
+      weights[a] =
+        (MAX_SINGLE_SHARE / (1 - MAX_SINGLE_SHARE)) * others;
+      total = others + weights[a];
+    }
+  }
+
+  // Weighted pick.
+  const draw = rng() * total;
+  let cursor = 0;
+  for (const a of BASE_ARCHETYPES) {
+    cursor += weights[a];
+    if (draw < cursor) return a;
+  }
+  return BASE_ARCHETYPES[BASE_ARCHETYPES.length - 1];
 }
 
 export function generateDeparture(cfg: DepartureConfig): {
