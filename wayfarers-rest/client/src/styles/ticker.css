@@ -1,0 +1,98 @@
+/* Phase 8 (B2): live event ticker — parchment column on the right margin.
+   Mirrors the Welcome chronicle's palette so the live feed and the day-end
+   summary feel like the same voice in two registers. */
+
+.event-ticker {
+  --parchment: #f3e6c4;
+  --parchment-edge: #e1cb95;
+  --ink: #2a1f12;
+  --ink-soft: #5a4a32;
+  --ink-fade: #8b7a5d;
+
+  position: fixed;
+  top: 9rem;
+  right: 1rem;
+  width: 18rem;
+  max-height: 60vh;
+  z-index: 5;
+  background:
+    linear-gradient(180deg, var(--parchment) 0%, var(--parchment-edge) 100%);
+  border: 1px solid #b89a5e;
+  border-radius: 0.4rem;
+  box-shadow: 0 4px 16px rgba(20, 14, 8, 0.4);
+  font-family: 'Iowan Old Style', 'Palatino Linotype', Georgia, 'Times New Roman', serif;
+  color: var(--ink);
+  padding: 0.75rem 0.85rem;
+  overflow-y: auto;
+  pointer-events: auto;
+}
+
+.event-ticker-empty {
+  color: var(--ink-fade);
+  font-style: italic;
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 0.5rem 0;
+}
+
+.event-ticker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.event-ticker-entry {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  animation: ticker-entry-fade-in 350ms ease-out;
+}
+
+/* Old entries gently fade so the eye is drawn to the newest at the top. */
+.event-ticker-entry:nth-child(n + 10) {
+  opacity: 0.7;
+}
+.event-ticker-entry:nth-child(n + 16) {
+  opacity: 0.45;
+}
+
+.event-ticker-stamp {
+  flex: 0 0 auto;
+  width: 2.3rem;
+  color: var(--ink-fade);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.72rem;
+  text-align: right;
+  padding-top: 0.05rem;
+}
+
+.event-ticker-text {
+  flex: 1;
+  color: var(--ink);
+}
+
+@keyframes ticker-entry-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Narrow screens — drop to a compact bottom strip rather than overlap the
+   tavern. (B3 may rework this if interactivity demands more room.) */
+@media (max-width: 880px) {
+  .event-ticker {
+    position: static;
+    width: auto;
+    max-height: 22vh;
+    margin: 0.5rem 1rem;
+  }
+}

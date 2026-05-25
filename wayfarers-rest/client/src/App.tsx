@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import type { WorldSnapshot } from '@shared/types';
 import { api } from './api.ts';
 import { DebugPanel } from './components/DebugPanel.tsx';
+import { EventTicker } from './components/EventTicker.tsx';
 import { FavorIndicator } from './components/FavorIndicator.tsx';
 import { InterventionPicker } from './components/InterventionPicker.tsx';
 import { LandingAnimation } from './components/LandingAnimation.tsx';
@@ -102,6 +103,7 @@ function Bootstrap() {
         <FavorIndicator />
         <InterventionPicker />
         <LandingAnimation />
+        <EventTicker />
         {tavern && <DebugPanel />}
       </main>
     </div>

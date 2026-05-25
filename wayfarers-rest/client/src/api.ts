@@ -9,6 +9,7 @@ import type {
   InterventionOptionsResponse,
   Npc,
   TavernConfig,
+  TickerResponse,
   WorldSnapshot,
   WorldState,
   Zone,
@@ -168,6 +169,12 @@ export const api = {
     if (!res.ok) throw new Error(`POST /zones/reset failed: ${res.status}`);
     return (await res.json()) as Zone[];
   },
+
+  // Phase 8 (B1/B2): live ticker feed.
+  getRecentEvents: (sinceEventId: number, limit = 50) =>
+    jsonGet<TickerResponse>(
+      `/events/recent?sinceEventId=${sinceEventId}&limit=${limit}`,
+    ),
 
   getInterventionOptions: () =>
     jsonGet<InterventionOptionsResponse>('/interventions/options'),

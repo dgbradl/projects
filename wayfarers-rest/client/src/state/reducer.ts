@@ -14,6 +14,7 @@ import type {
   ScheduledArrival,
   TavernConfig,
   Thread,
+  TickerEntry,
   WorldSnapshot,
   WorldState,
   WorldTag,
@@ -58,6 +59,10 @@ export interface AppState {
   debugZonesEnabled: boolean;
   /** Phase 8 (QW1): floating "+N coin" tips for guest_spent events. */
   coinTips: CoinTip[];
+  /** Phase 8 (B2): live ticker — server-rendered salient entries, newest first. */
+  tickerEntries: TickerEntry[];
+  /** Highest eventId we have in `tickerEntries` (or have polled past). */
+  tickerLastEventId: number;
 }
 
 export const initialState: AppState = {
@@ -81,7 +86,12 @@ export const initialState: AppState = {
   zones: [],
   debugZonesEnabled: false,
   coinTips: [],
+  tickerEntries: [],
+  tickerLastEventId: 0,
 };
+
+/** Cap on client-side ticker buffer — keeps the scroll list bounded. */
+const TICKER_BUFFER_CAP = 80;
 
 const LANDING_ANIMATION_MS = 1_500;
 
@@ -164,6 +174,31 @@ export function reducer(state: AppState, action: Action): AppState {
       const next = state.coinTips.filter((t) => t.expiresAt > cutoff);
       if (next.length === state.coinTips.length) return state;
       return { ...state, coinTips: next };
+    }
+    case 'TICKER_LOADED': {
+      // Merge: new entries (newest first from server) prepended; dedup by
+      // eventId; cap. lastEventId is monotonically the highest seen.
+      const incoming = action.payload.entries;
+      const seen = new Set<number>(state.tickerEntries.map((e) => e.eventId));
+      const merged: TickerEntry[] = [];
+      for (const e of incoming) {
+        if (!seen.has(e.eventId)) {
+          merged.push(e);
+          seen.add(e.eventId);
+        }
+      }
+      const nextEntries = [...merged.reverse(), ...state.tickerEntries].slice(
+        0,
+        TICKER_BUFFER_CAP,
+      );
+      return {
+        ...state,
+        tickerEntries: nextEntries,
+        tickerLastEventId: Math.max(
+          state.tickerLastEventId,
+          action.payload.lastEventId,
+        ),
+      };
     }
     case 'FLAVOR_STATUS':
       return {

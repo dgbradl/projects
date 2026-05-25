@@ -7,6 +7,7 @@ import './styles/npc.css';
 import './styles/debug.css';
 import './styles/welcome.css';
 import './styles/intervention.css';
+import './styles/ticker.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

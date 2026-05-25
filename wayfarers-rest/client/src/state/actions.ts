@@ -10,6 +10,7 @@ import type {
   Npc,
   NpcDiff,
   TavernConfig,
+  TickerEntry,
   WorldSnapshot,
   WorldState,
   Zone,
@@ -50,6 +51,11 @@ export type Action =
   // Phase 8 (QW1): floating "+N coin" feedback for guest_spent events.
   | { type: 'COIN_TIP'; payload: CoinTip }
   | { type: 'EXPIRE_COIN_TIPS'; payload: { now: number } }
+  // Phase 8 (B2): live event ticker — server-rendered salient entries.
+  | {
+      type: 'TICKER_LOADED';
+      payload: { entries: TickerEntry[]; lastEventId: number };
+    }
   | { type: 'FLAVOR_STATUS'; payload: FlavorStatusPayload }
   | { type: 'WELCOME_OPENED'; payload: ChroniclesSinceResponse }
   | { type: 'CHRONICLE_FILLED'; payload: DailyChronicle }
