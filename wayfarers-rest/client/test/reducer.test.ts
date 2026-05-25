@@ -47,6 +47,8 @@ const WORLD: WorldState = {
   markedNpcIds: [],
   coin: 200,
   prosperity: 50,
+  tavernName: "The Wayfarer\'s Rest",
+  tavernTraits: [],
 };
 
 const TAG: WorldTag = { key: 'season', value: 'spring', setOnGameDay: 1 };

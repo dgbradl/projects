@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { randomBytes } from 'node:crypto';
 import type { WorldState } from '@shared/types';
+import { DEFAULT_TAVERN_NAME } from '@shared/types';
 import { COIN_INITIAL_DEFAULT } from './economy/ledger.ts';
 import { PROSPERITY_INITIAL } from './economy/prosperity.ts';
 import type { Clock } from './lib/clock.ts';
@@ -49,6 +50,10 @@ export class WorldStateManager extends EventEmitter {
       markedNpcIds: [],
       coin: COIN_INITIAL_DEFAULT,
       prosperity: PROSPERITY_INITIAL,
+      // Phase 8 (D1): tavern identity. The keeper hasn't named the place
+      // yet — D2's onboarding modal flips both fields on first run.
+      tavernName: DEFAULT_TAVERN_NAME,
+      tavernTraits: [],
     };
   }
 

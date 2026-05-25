@@ -21,7 +21,52 @@ export interface WorldState {
   larderStock?: number;
   /** Economy (E3): hearth comfort level (0 = base); raises guest room spend. */
   hearthLevel?: number;
+  /**
+   * Phase 8 (D1): the keeper's name for the place. Default is the project's
+   * canonical "The Wayfarer's Rest"; D2 lets the player overwrite it during
+   * onboarding. Threaded into the chronicle prelude so the LLM and fallback
+   * prose both refer to the right name.
+   */
+  tavernName: string;
+  /**
+   * Phase 8 (D1): up to two `TavernTrait` strings the keeper chose at
+   * onboarding. Each trait nudges D3's arrival mix and (later) atmosphere
+   * events. Empty array = no chosen identity (default new tavern).
+   */
+  tavernTraits: TavernTrait[];
 }
+
+/**
+ * Phase 8 (D1): the ten tavern identities the player can pick from at
+ * onboarding. Pick 0–2; D3 maps each to spawn-archetype nudges.
+ */
+export type TavernTrait =
+  | 'hearthside_refuge'
+  | 'bardic_stage'
+  | 'smugglers_welcome'
+  | 'scholars_quiet'
+  | 'martial_billet'
+  | 'pilgrims_pause'
+  | 'frontier_post'
+  | 'arcane_haven'
+  | 'trade_crossroads'
+  | 'hunters_lodge';
+
+export const TAVERN_TRAITS: readonly TavernTrait[] = [
+  'hearthside_refuge',
+  'bardic_stage',
+  'smugglers_welcome',
+  'scholars_quiet',
+  'martial_billet',
+  'pilgrims_pause',
+  'frontier_post',
+  'arcane_haven',
+  'trade_crossroads',
+  'hunters_lodge',
+];
+
+/** Phase 8 (D1): the default tavern name shown until the keeper sets one. */
+export const DEFAULT_TAVERN_NAME = "The Wayfarer's Rest";
 
 /** @deprecated Replaced by EventLogEntry + WorldEvent. Kept for migration. */
 export type TickEventType = 'init' | 'tick' | 'pause' | 'resume';

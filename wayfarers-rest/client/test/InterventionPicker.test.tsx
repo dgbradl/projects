@@ -21,6 +21,8 @@ const WORLD: WorldState = {
   markedNpcIds: [],
   coin: 200,
   prosperity: 50,
+  tavernName: "The Wayfarer\'s Rest",
+  tavernTraits: [],
 };
 
 const OPTIONS: InterventionOptionsResponse = {

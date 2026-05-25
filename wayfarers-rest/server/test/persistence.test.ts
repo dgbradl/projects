@@ -20,6 +20,8 @@ describe('Persistence', () => {
       markedNpcIds: [],
       coin: 200,
       prosperity: 0,
+    tavernName: "The Wayfarer\'s Rest",
+    tavernTraits: [],
     };
     p.saveState(state);
     expect(p.loadState()).toEqual(state);
@@ -124,6 +126,8 @@ describe('Persistence', () => {
       markedNpcIds: [],
       coin: 200,
       prosperity: 0,
+    tavernName: "The Wayfarer\'s Rest",
+    tavernTraits: [],
     };
     p.saveState(existing);
 

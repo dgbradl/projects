@@ -10,12 +10,14 @@ import type {
   Rumor,
   ScheduledArrival,
   StaffSkills,
+  TavernTrait,
   Thread,
   TickEvent,
   WorldEvent,
   WorldState,
   WorldTag,
 } from '@shared/types';
+import { DEFAULT_TAVERN_NAME, TAVERN_TRAITS } from '@shared/types';
 import type { RosterSnapshot } from './npc/manager.ts';
 import { emptyMemory, parseCharacterMemory } from './npc/character-memory.ts';
 import { COIN_INITIAL_DEFAULT } from './economy/ledger.ts';
@@ -38,7 +40,16 @@ interface WorldStateRow {
   prosperity: number;
   larder_stock: number;
   hearth_level: number;
+  /** Phase 8 (D1): tavern identity. */
+  tavern_name: string | null;
+  tavern_traits: string | null;
 }
+
+/** Phase 8 (D1): single-quote-escape the default so it's safe inside the
+ *  inline ALTER TABLE DEFAULT clause below. */
+const DEFAULT_TAVERN_NAME_SQL = DEFAULT_TAVERN_NAME.replace(/'/g, "''");
+
+const VALID_TAVERN_TRAITS = new Set<string>(TAVERN_TRAITS);
 
 interface DailyLedgerRow {
   game_day: number;
@@ -376,6 +387,19 @@ export class Persistence {
       'was_beckoned',
       'INTEGER NOT NULL DEFAULT 0',
     );
+    // Phase 8 (D1): tavern identity. Name defaults to the canonical project
+    // title; traits is a JSON-encoded string array (empty = no chosen
+    // identity, default for a fresh tavern).
+    this.addColumnIfMissing(
+      'world_state',
+      'tavern_name',
+      `TEXT NOT NULL DEFAULT '${DEFAULT_TAVERN_NAME_SQL}'`,
+    );
+    this.addColumnIfMissing(
+      'world_state',
+      'tavern_traits',
+      "TEXT NOT NULL DEFAULT '[]'",
+    );
   }
 
   private addColumnIfMissing(table: string, column: string, decl: string): void {
@@ -458,6 +482,21 @@ export class Persistence {
     } catch {
       markedNpcIds = [];
     }
+    // Phase 8 (D1): tavern identity — default name when the column is
+    // missing (fresh DB before migration); traits is a JSON array of
+    // validated strings.
+    let tavernTraits: TavernTrait[] = [];
+    try {
+      const parsed = JSON.parse(row.tavern_traits ?? '[]');
+      if (Array.isArray(parsed)) {
+        tavernTraits = parsed.filter(
+          (x): x is TavernTrait =>
+            typeof x === 'string' && VALID_TAVERN_TRAITS.has(x),
+        );
+      }
+    } catch {
+      tavernTraits = [];
+    }
     const state: WorldState = {
       gameDay: row.game_day,
       lastTickAt: row.last_tick_at,
@@ -471,6 +510,8 @@ export class Persistence {
       markedNpcIds,
       coin: row.coin ?? COIN_INITIAL_DEFAULT,
       prosperity: row.prosperity ?? PROSPERITY_INITIAL,
+      tavernName: row.tavern_name ?? DEFAULT_TAVERN_NAME,
+      tavernTraits,
     };
     // Economy (E3): larder/hearth are optional — omit at the base level so a
     // fresh tavern's state stays minimal (and round-trips cleanly).
@@ -482,8 +523,8 @@ export class Persistence {
   saveState(state: WorldState): void {
     this.db
       .prepare(
-        `INSERT INTO world_state (id, game_day, last_tick_at, status, unattended_ticks, seed, sub_tick, last_acknowledged_game_day, favors, favors_last_regen_game_day, marked_npc_ids, coin, prosperity, larder_stock, hearth_level)
-         VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO world_state (id, game_day, last_tick_at, status, unattended_ticks, seed, sub_tick, last_acknowledged_game_day, favors, favors_last_regen_game_day, marked_npc_ids, coin, prosperity, larder_stock, hearth_level, tavern_name, tavern_traits)
+         VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET
            game_day = excluded.game_day,
            last_tick_at = excluded.last_tick_at,
@@ -498,7 +539,9 @@ export class Persistence {
            coin = excluded.coin,
            prosperity = excluded.prosperity,
            larder_stock = excluded.larder_stock,
-           hearth_level = excluded.hearth_level`,
+           hearth_level = excluded.hearth_level,
+           tavern_name = excluded.tavern_name,
+           tavern_traits = excluded.tavern_traits`,
       )
       .run(
         state.gameDay,
@@ -515,6 +558,8 @@ export class Persistence {
         state.prosperity,
         state.larderStock ?? 0,
         state.hearthLevel ?? 0,
+        state.tavernName,
+        JSON.stringify(state.tavernTraits ?? []),
       );
   }
 

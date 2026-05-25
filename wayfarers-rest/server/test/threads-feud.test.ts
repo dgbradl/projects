@@ -24,6 +24,8 @@ function fakeWorld(gameDay: number): WorldState {
     markedNpcIds: [],
     coin: 0,
     prosperity: 0,
+    tavernName: "The Wayfarer\'s Rest",
+    tavernTraits: [],
   };
 }
 

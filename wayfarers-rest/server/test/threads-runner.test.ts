@@ -23,6 +23,8 @@ const FAKE_WORLD: WorldState = {
   markedNpcIds: [],
   coin: 200,
   prosperity: 0,
+    tavernName: "The Wayfarer\'s Rest",
+    tavernTraits: [],
 };
 
 function build() {
