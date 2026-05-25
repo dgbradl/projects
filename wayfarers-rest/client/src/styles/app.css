@@ -70,42 +70,117 @@ body,
   }
 }
 
-.status-bar {
+/* ---------- Status chip strip (Redesign 5/7) ---------- */
+
+/* The legacy .status-bar selector is preserved only so the
+   loading-placeholder div (StatusBar.tsx renders it before world data
+   arrives) still occupies the same vertical slot. The real chip strip
+   uses .status-strip below. */
+.status-bar,
+.status-bar-loading {
+  min-height: 1.8rem;
+}
+
+.status-strip {
   display: flex;
   flex-wrap: wrap;
-  gap: 1.25rem;
-  font-size: 0.95rem;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
   color: var(--ink-dim);
 }
 
-.status-item strong {
+.status-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  background: var(--surface-glass-soft);
+  border: 1px solid var(--border-wood);
+  border-radius: var(--radius-pill);
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--ink-dim);
+  line-height: 1.4;
+}
+
+.status-chip strong {
   color: var(--ink);
+  font-weight: 600;
+}
+
+.status-chip-dim {
+  color: var(--ink-fade);
+  font-weight: 400;
+}
+
+/* Interactive chips (play toggle, favor) read as buttons on hover. */
+button.status-chip {
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out-soft),
+              border-color var(--dur-fast) var(--ease-out-soft),
+              color var(--dur-fast) var(--ease-out-soft);
+}
+
+button.status-chip:hover {
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+/* Play-state chip carries the simulation's running/paused/stopped colour
+   on its label so the chip works as a status badge AND a toggle. */
+.status-chip--play .status-running,
+.status-chip--play [data-testid='status-state'] {
+  color: var(--ink);
+}
+
+.status-chip--play.status-running {
+  border-color: var(--accent);
+}
+
+.status-chip--play.status-paused {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.status-chip--play.status-stopped {
+  border-color: var(--danger);
+  color: var(--danger);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-size: var(--text-xs);
+}
+
+.status-chip--favor strong {
+  color: var(--accent-strong);
 }
 
 /* Phase 8 (QW1): floating "+N" coin tip above the coin counter. Each tip
    rises ~16px while fading out over its 1.4s lifetime; multiple in-flight
-   tips stagger naturally because they were dispatched at different times. */
-.status-coin {
+   tips stagger naturally because they were dispatched at different times.
+   Re-anchored to .status-chip--coin in the redesign — same animation. */
+.status-chip--coin {
   position: relative;
 }
 
 .coin-tip {
   position: absolute;
-  left: 0;
+  left: 50%;
   bottom: 100%;
-  font-size: 0.8rem;
+  transform: translateX(-50%);
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--accent-strong);
   white-space: nowrap;
   pointer-events: none;
   opacity: 0;
-  animation: coin-tip-rise 1.4s ease-out forwards;
+  animation: coin-tip-rise 1.4s var(--ease-out-soft) forwards;
 }
 
 @keyframes coin-tip-rise {
   0% {
     opacity: 0;
-    transform: translateY(0);
+    transform: translate(-50%, 0);
   }
   10% {
     opacity: 1;
@@ -115,16 +190,8 @@ body,
   }
   100% {
     opacity: 0;
-    transform: translateY(-16px);
+    transform: translate(-50%, -16px);
   }
-}
-
-.status-running {
-  color: var(--accent-strong);
-}
-
-.status-paused {
-  color: var(--danger);
 }
 
 .pause-overlay {
@@ -173,13 +240,6 @@ body,
 .pause-continue:disabled {
   opacity: 0.6;
   cursor: progress;
-}
-
-.status-stopped {
-  color: var(--danger);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  font-size: 0.85rem;
 }
 
 /* ---------- Hamburger menu (Phase 7) ---------- */

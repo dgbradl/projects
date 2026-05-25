@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import type { WorldSnapshot } from '@shared/types';
 import { api } from './api.ts';
 import { DEFAULT_TAVERN_NAME } from '@shared/types';
-import { FavorIndicator } from './components/FavorIndicator.tsx';
 import { LandingAnimation } from './components/LandingAnimation.tsx';
 import { MenuButton } from './components/MenuButton.tsx';
 import { OpenTavernModal } from './components/OpenTavernModal.tsx';
@@ -130,11 +129,6 @@ function Bootstrap() {
           <Tavern />
           <PauseOverlay />
           <LandingAnimation />
-          {/* FavorIndicator stays mounted until the status-strip favor chip
-              lands in the next slice — without it there's no way to open
-              the favor picker by clicking. The picker itself now lives in
-              the dock's Interventions tab. */}
-          <FavorIndicator />
         </div>
         {tavern && <RightDock />}
       </main>
