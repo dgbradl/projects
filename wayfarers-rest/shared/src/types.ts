@@ -92,6 +92,43 @@ export interface Npc {
   staffRole?: StaffRole;
   /** Epic E (E2): skill ratings carried for fast effect lookup. */
   skills?: StaffSkills;
+  /**
+   * Phase 8 (A1): what this traveller wants from their visit. 1-2 desires
+   * generated deterministically at arrival from archetype + worldSeed; staff
+   * never carry desires. Fulfilled by sim / staff / interventions; unfulfilled
+   * ones surface as a small prosperity ding on departure.
+   */
+  desires?: NpcDesire[];
+}
+
+/** Phase 8 (A1): kinds of desire a traveller may carry into the tavern. */
+export type DesireKind =
+  | 'warm_meal'          // satisfied while seated, raised by waitstaff hospitality / larder
+  | 'bed_for_night'      // satisfied if the stay crosses a day boundary
+  | 'quiet_seat'         // satisfied by N sub-ticks seated alone at a table
+  | 'company_of_kind'    // satisfied by shared_drink with the param archetype
+  | 'news_of_location'   // satisfied by carrying/receiving a rumor from that locationId
+  | 'rumor_of_tone';     // satisfied by carrying/receiving a rumor with that tone
+
+export interface NpcDesire {
+  kind: DesireKind;
+  /**
+   * Context for kinds that need it:
+   *   - 'company_of_kind' → an `NpcArchetype` string ('soldier', 'bard', or 'any')
+   *   - 'news_of_location' → a `LocationId` string
+   *   - 'rumor_of_tone' → a `RumorTone` string
+   *   - other kinds → undefined
+   */
+  param?: string;
+  /** Absolute sub-tick at which this desire was fulfilled, if any. */
+  fulfilledAtSubTick?: number;
+  /**
+   * Who/what fulfilled it. One of:
+   *   - 'sim' (matchmaking, seating, day-boundary stay)
+   *   - 'staff:<role>' (e.g. 'staff:waitstaff')
+   *   - 'keeper:<intervention_kind>' (e.g. 'keeper:plant_rumor')
+   */
+  fulfilledBy?: string;
 }
 
 export type NpcMood =
@@ -187,6 +224,11 @@ export interface CharacterMemory {
   timesMarked: number;
   /** Location this character last departed toward, if any. */
   lastDestinationLocationId?: string;
+  /**
+   * Phase 8 (A5): cumulative counts of desires this character has had
+   * fulfilled vs left unmet across all of their visits.
+   */
+  desireHistory?: { fulfilled: number; denied: number };
 }
 
 export interface TavernConfig {

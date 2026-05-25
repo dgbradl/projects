@@ -25,6 +25,7 @@ import {
   rememberBeckon,
   rememberRumors,
 } from './character-memory.ts';
+import { generateDesires } from './desires.ts';
 import {
   ALL_STAFF_DEFINITIONS,
   makeStaffNpc,
@@ -500,6 +501,15 @@ function materializeArrival(
       };
   persistence.upsertCharacter(character);
 
+  // Phase 8 (A1): each non-staff arrival picks up 1–2 desires deterministically
+  // from their archetype's pool. The roster shows them in the hover tooltip;
+  // later slices wire fulfilment by sim/staff/keeper and the economy outcome.
+  const desires = generateDesires({
+    archetype,
+    npcId: arrival.npcId,
+    worldSeed,
+  });
+
   return {
     id: arrival.npcId,
     displayName,
@@ -519,5 +529,6 @@ function materializeArrival(
     mood,
     wasBeckoned: arrival.wasBeckoned,
     visitCount: character.visitCount,
+    desires: desires.length > 0 ? desires : undefined,
   };
 }

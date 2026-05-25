@@ -1,4 +1,4 @@
-import type { Npc as NpcT, StaffRole } from '@shared/types';
+import type { NpcDesire, Npc as NpcT, StaffRole } from '@shared/types';
 import { displaceFromFurniture } from '../furniture/bbox.ts';
 import { useStore } from '../state/store.tsx';
 import { NpcSprite } from '../sprites/NpcSprite.tsx';
@@ -9,6 +9,38 @@ const STAFF_ROLE_ABBREV: Record<StaffRole, string> = {
   waitstaff: '(wait)',
   cleaner: '(clean)',
 };
+
+// Phase 8 (A1): icon + short text for a desire chip. Mirrors the server-side
+// describeDesire / iconForDesire so the chip the player sees matches the
+// chronicle voice; kept local here to keep the client a leaf consumer of
+// `@shared/types` and avoid pulling a server module into the bundle.
+const DESIRE_ICON: Record<NpcDesire['kind'], string> = {
+  warm_meal: '🍲',
+  bed_for_night: '🛏',
+  quiet_seat: '🪑',
+  company_of_kind: '🤝',
+  news_of_location: '📜',
+  rumor_of_tone: '🜁',
+};
+
+function describeDesire(d: NpcDesire): string {
+  switch (d.kind) {
+    case 'warm_meal':
+      return 'a warm meal';
+    case 'bed_for_night':
+      return 'a bed for the night';
+    case 'quiet_seat':
+      return 'a quiet seat';
+    case 'company_of_kind':
+      return d.param && d.param !== 'any'
+        ? `company of a ${d.param}`
+        : 'company';
+    case 'news_of_location':
+      return d.param ? `news of ${d.param.replace(/_/g, ' ')}` : 'news of afar';
+    case 'rumor_of_tone':
+      return d.param ? `a ${d.param} rumor` : 'a rumor';
+  }
+}
 
 interface Props {
   npc: NpcT;
@@ -125,6 +157,25 @@ export function Npc({
         {npc.carriedRumorIds.length > 0 && (
           <div className="npc-tooltip-row">
             rumors: <span>{npc.carriedRumorIds.join(', ')}</span>
+          </div>
+        )}
+        {!isStaff && npc.desires && npc.desires.length > 0 && (
+          <div className="npc-tooltip-desires">
+            {npc.desires.map((d, i) => {
+              const fulfilled = d.fulfilledAtSubTick !== undefined;
+              return (
+                <span
+                  key={`${d.kind}-${d.param ?? ''}-${i}`}
+                  className={`npc-desire-chip${fulfilled ? ' npc-desire-chip--fulfilled' : ''}`}
+                  title={`wants ${describeDesire(d)}${fulfilled ? ' — fulfilled' : ''}`}
+                >
+                  <span className="npc-desire-chip-icon" aria-hidden>
+                    {DESIRE_ICON[d.kind]}
+                  </span>
+                  <span className="npc-desire-chip-text">{describeDesire(d)}</span>
+                </span>
+              );
+            })}
           </div>
         )}
       </div>

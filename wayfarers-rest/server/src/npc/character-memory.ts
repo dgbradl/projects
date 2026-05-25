@@ -80,7 +80,20 @@ export function parseCharacterMemory(json: string | null | undefined): Character
       typeof raw.lastDestinationLocationId === 'string'
         ? raw.lastDestinationLocationId
         : undefined,
+    desireHistory: readDesireHistory(raw.desireHistory),
   };
+}
+
+/** Phase 8 (A5): tolerate older rows (no field) and malformed blobs. */
+function readDesireHistory(
+  raw: unknown,
+): { fulfilled: number; denied: number } | undefined {
+  if (typeof raw !== 'object' || raw === null) return undefined;
+  const h = raw as Record<string, unknown>;
+  const fulfilled = typeof h.fulfilled === 'number' ? h.fulfilled : 0;
+  const denied = typeof h.denied === 'number' ? h.denied : 0;
+  if (fulfilled === 0 && denied === 0) return undefined;
+  return { fulfilled, denied };
 }
 
 /**

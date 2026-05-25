@@ -167,6 +167,49 @@
   white-space: normal;
 }
 
+/* Phase 8 (A1): desire chips at the foot of the tooltip. Stacks vertically so
+   two desires can each get their own line without ellipsis; matches the
+   warm-dark tooltip palette. */
+.npc-tooltip-desires {
+  margin-top: 0.35rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid #3a2a1c;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  white-space: normal;
+  width: 14rem;
+}
+
+.npc-desire-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.7rem;
+  color: var(--ink-dim);
+}
+
+.npc-desire-chip-icon {
+  font-size: 0.85rem;
+  line-height: 1;
+  filter: grayscale(0.15);
+}
+
+.npc-desire-chip-text {
+  color: var(--ink);
+}
+
+/* Phase 8 (A2 forward): fulfilled chips warm up. The .fulfilled class is
+   added when desire.fulfilledAtSubTick is set; in A1 nothing fulfils yet,
+   but the style is wired so later slices flip the colour without re-render. */
+.npc-desire-chip--fulfilled .npc-desire-chip-icon {
+  filter: drop-shadow(0 0 4px rgba(239, 183, 102, 0.7));
+}
+
+.npc-desire-chip--fulfilled .npc-desire-chip-text {
+  color: var(--accent-strong);
+}
+
 .interaction-bubble {
   position: absolute;
   bottom: 100%;
