@@ -5,7 +5,7 @@
 
 import type { FurniturePiece, Npc, Zone, ZoneName } from '@shared/types';
 import type { seededRng } from '../world/rng.ts';
-import { rngFloat, rngPick } from '../world/rng.ts';
+import { rngPick } from '../world/rng.ts';
 
 /**
  * Half-extent of a chair sprite in tavern percent. Mirror of
@@ -71,16 +71,20 @@ export function pickFreeChair(
 }
 
 /**
- * Position the NPC just outside the chair sprite, in a random direction.
- * Caller is responsible for clamping into the walkable rect.
+ * Sit the NPC AT the chair's centre. The previous random offset placed
+ * NPCs "beside" the chair, which on a chair-against-a-table layout often
+ * landed the NPC inside the table (the random angle pointed inward).
+ * Sitting at the chair makes the sprite stack neatly: chair sprite, NPC
+ * sprite on top (per .npc z-index in npc.css). `rng` is kept in the
+ * signature so future variants (slight jitter around the chair) don't
+ * break callers.
  */
-export function positionBesideChair(chair: FurniturePiece, rng: Rng): Point {
-  const angle = rngFloat(rng, 0, Math.PI * 2);
-  const offset = CHAIR_HW + 0.5;
-  return {
-    x: chair.x + Math.cos(angle) * offset,
-    y: chair.y + Math.sin(angle) * offset,
-  };
+export function positionBesideChair(
+  chair: FurniturePiece,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _rng: Rng,
+): Point {
+  return { x: chair.x, y: chair.y };
 }
 
 /**

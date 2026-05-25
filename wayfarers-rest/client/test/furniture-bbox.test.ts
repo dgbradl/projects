@@ -80,4 +80,23 @@ describe('furniture bbox', () => {
     expect(result.y).toBeGreaterThanOrEqual(0);
     expect(result.y).toBeLessThanOrEqual(100);
   });
+
+  it('displaceFromFurniture treats chairs as seats, not obstacles', () => {
+    // NPC sitting on a chair must stay on the chair, otherwise the seating
+    // logic on the server (which sits NPCs at chair centres) is undone.
+    const pieces = [p({ id: 'c', sprite: 'chair_01', x: 50, y: 50 })];
+    const seated = { x: 50, y: 50 };
+    expect(displaceFromFurniture(seated, pieces)).toEqual(seated);
+  });
+
+  it('displaceFromFurniture still pushes out of tables even with a chair on top', () => {
+    // A chair-on-table layout: the table is the obstacle; the chair is a seat.
+    const pieces = [
+      p({ id: 't', sprite: 'table_round_01', x: 50, y: 50 }), // hw=6
+      p({ id: 'c', sprite: 'chair_01', x: 50, y: 50 }),       // skipped
+    ];
+    const result = displaceFromFurniture({ x: 50, y: 50 }, pieces);
+    // Pushed out of the table bbox.
+    expect(isInside(result, pieceBoundingBox(pieces[0]))).toBe(false);
+  });
 });

@@ -44,10 +44,13 @@
   image-rendering: pixelated;
 }
 
-/* Wall surface — flat dark fill that gives the wall its mass; the beam trim
-   sits on top of it at the outer rim. Rendered behind the corners and edges. */
+/* Wall surface — wood-plank wall texture that gives the wall its mass; the
+   beam trim sits on top of it at the outer rim. Rendered behind the corners
+   and edges. Scaled to the wall band's height (--wall-depth) and tiled
+   horizontally so the planks stay at a believable scale. */
 .wall-fill {
-  background: url('../assets/tavern/wall_fill.png') repeat;
+  background: url('../assets/tavern/wall.png') repeat-x;
+  background-size: auto 100%;
 }
 
 .wall-fill-top,

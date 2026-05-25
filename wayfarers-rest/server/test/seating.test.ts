@@ -96,13 +96,12 @@ describe('pickFreeChair', () => {
 });
 
 describe('positionBesideChair', () => {
-  it('places the NPC just outside the chair bbox', () => {
+  it('sits the NPC at the chair centre (so it visually stacks on the chair)', () => {
     const chair = piece({ id: 'c', sprite: 'chair_01', x: 30, y: 60 });
     const rng = seededRng('seat-seed', 'beside');
     const p = positionBesideChair(chair, rng);
-    const dist = Math.hypot(p.x - chair.x, p.y - chair.y);
-    expect(dist).toBeGreaterThan(CHAIR_HW); // outside the chair
-    expect(dist).toBeLessThan(CHAIR_HW + 1.5); // not far away
+    expect(p.x).toBe(30);
+    expect(p.y).toBe(60);
   });
 });
 
@@ -147,10 +146,10 @@ describe('pickPositionInZone', () => {
       roster: [],
       selfId: 'self',
     });
-    const dist = Math.hypot(p.x - chair.x, p.y - chair.y);
-    // positioned just outside the chair sprite.
-    expect(dist).toBeGreaterThan(CHAIR_HW);
-    expect(dist).toBeLessThan(CHAIR_HW + 1.5);
+    // NPCs sit AT chair centres now (visually stacked); previously we
+    // offset them, which landed seated patrons inside adjacent tables.
+    expect(p.x).toBeCloseTo(chair.x);
+    expect(p.y).toBeCloseTo(chair.y);
   });
 
   it('clusters toward the centroid of co-occupants when no chairs are placed', () => {

@@ -82,16 +82,30 @@ function clampToTavern(p: Point): Point {
   };
 }
 
+/** Furniture an NPC should never visually overlap. Chairs and stools are
+ *  explicitly excluded: the server-side seating logic sits NPCs on chair
+ *  centres on purpose, and pushing them off here would just land them
+ *  inside the table beside the chair. Sit-on-it sprites read as "seat",
+ *  not "obstacle". */
+function isCollisionPiece(piece: FurniturePiece): boolean {
+  const sprite = piece.sprite;
+  if (sprite.startsWith('chair')) return false;
+  if (sprite.startsWith('stool')) return false;
+  return true;
+}
+
 /** Visually displace a point so it doesn't sit inside any furniture piece.
  *  Iterates a few times since pushing out of one bbox can land you inside
- *  another. Returns the original point unchanged when no overlap occurs. */
+ *  another. Returns the original point unchanged when no overlap occurs.
+ *  Chairs are intentionally not collision-active — see isCollisionPiece. */
 export function displaceFromFurniture(
   target: Point,
   furniture: FurniturePiece[],
   maxIterations = 4,
 ): Point {
   if (furniture.length === 0) return target;
-  const bboxes = furniture.map(pieceBoundingBox);
+  const bboxes = furniture.filter(isCollisionPiece).map(pieceBoundingBox);
+  if (bboxes.length === 0) return target;
   let p = target;
   for (let i = 0; i < maxIterations; i++) {
     let moved = false;

@@ -1,5 +1,9 @@
 .npc {
   position: absolute;
+  /* Above .furniture (z:1) and .wall-fill (no z) but below any selected
+     furniture (z:1000) and overlays. An NPC seated on a chair should
+     visually sit ON TOP of the chair, not behind it. */
+  z-index: 2;
   transform: translate(-50%, -50%);
   display: flex;
   flex-direction: column;
