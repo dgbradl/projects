@@ -104,6 +104,10 @@ export function score(event: WorldEvent, ctx: SalienceContext): number {
       // Phase 8 (A2): a guest left wanting. Low-volume but evocative for
       // chronicle prose; just above the cull line.
       return 2;
+    case 'tavern_named':
+      // Phase 8 (D2): the keeper christens the place. A one-time beat that
+      // belongs near the top of the chronicle on the day it happens.
+      return 9;
     default:
       // Excluded: init/tick/pause/resume, all flavor_*, all chronicle_*,
       // favor_regenerated, npc_marked, npc_unmarked, guest_spent,

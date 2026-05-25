@@ -154,6 +154,13 @@ export function renderSentence(entry: EventLogEntry, npcsById: Map<string, Npc>)
       const want = describeWant(ev.desireKind, ev.param);
       return `${name} left without ${want}.`;
     }
+    case 'tavern_named': {
+      const traits =
+        ev.tavernTraits.length > 0
+          ? ` — known as a ${ev.tavernTraits.map((t) => t.replace(/_/g, ' ')).join(' and a ')}`
+          : '';
+      return `The keeper christened the place: ${ev.tavernName}${traits}.`;
+    }
     default:
       return '';
   }

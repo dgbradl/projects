@@ -9,6 +9,7 @@ import type {
   InterventionOptionsResponse,
   Npc,
   TavernConfig,
+  TavernTrait,
   TickerResponse,
   WorldSnapshot,
   WorldState,
@@ -175,6 +176,33 @@ export const api = {
     jsonGet<TickerResponse>(
       `/events/recent?sinceEventId=${sinceEventId}&limit=${limit}`,
     ),
+
+  // Phase 8 (D2): tavern identity onboarding.
+  postTavernIdentity: async (input: {
+    tavernName: string;
+    tavernTraits: TavernTrait[];
+  }): Promise<{
+    tavernName: string;
+    tavernTraits: TavernTrait[];
+    state: WorldState;
+  }> => {
+    const res = await fetch('/tavern/identity', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(
+        (body as { error?: string }).error ?? `POST /tavern/identity failed: ${res.status}`,
+      );
+    }
+    return (await res.json()) as {
+      tavernName: string;
+      tavernTraits: TavernTrait[];
+      state: WorldState;
+    };
+  },
 
   getInterventionOptions: () =>
     jsonGet<InterventionOptionsResponse>('/interventions/options'),

@@ -566,6 +566,16 @@ export type WorldEvent =
       npcId: string;
       desireKind: DesireKind;
       param?: string;
+    }
+  | {
+      /**
+       * Phase 8 (D2): the keeper named their tavern (or shifted its traits).
+       * Surfaces in the chronicle as a small "opening day" beat.
+       */
+      type: 'tavern_named';
+      gameDay: number;
+      tavernName: string;
+      tavernTraits: TavernTrait[];
     };
 
 // ---------- Phase 6: Interventions ----------

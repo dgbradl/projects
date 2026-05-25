@@ -1,0 +1,161 @@
+/* Phase 8 (D2): tavern identity onboarding modal. Parchment palette,
+   center-card layout, same warm-dark sensibility as the Welcome screen. */
+
+.open-tavern {
+  --parchment: #f3e6c4;
+  --parchment-edge: #e1cb95;
+  --ink: #2a1f12;
+  --ink-soft: #5a4a32;
+  --ink-fade: #8b7a5d;
+  --accent: #8b3f00;
+
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at 50% 0%, var(--parchment) 0%, var(--parchment-edge) 70%, #c5ac75 100%);
+  font-family: 'Iowan Old Style', 'Palatino Linotype', Georgia, 'Times New Roman', serif;
+  color: var(--ink);
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+.open-tavern-card {
+  max-width: 38rem;
+  width: 100%;
+  background: rgba(20, 14, 8, 0.04);
+  border: 1px solid #b89a5e;
+  border-radius: 0.4rem;
+  padding: 1.75rem 2rem;
+  box-shadow: 0 4px 18px rgba(20, 14, 8, 0.3);
+}
+
+.open-tavern-title {
+  font-weight: normal;
+  font-size: 1.6rem;
+  margin: 0 0 0.4rem;
+}
+
+.open-tavern-lede {
+  color: var(--ink-soft);
+  margin: 0 0 1.4rem;
+  font-style: italic;
+}
+
+.open-tavern-field {
+  display: block;
+  margin-bottom: 1.3rem;
+}
+
+.open-tavern-label {
+  display: block;
+  font-variant: small-caps;
+  letter-spacing: 0.06em;
+  font-size: 0.85rem;
+  color: var(--ink-fade);
+  margin-bottom: 0.4rem;
+}
+
+.open-tavern-input {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  font-family: inherit;
+  font-size: 1.05rem;
+  background: var(--parchment);
+  border: 1px solid #b89a5e;
+  border-radius: 0.25rem;
+  color: var(--ink);
+}
+
+.open-tavern-input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.open-tavern-traits {
+  border: 0;
+  padding: 0;
+  margin: 0 0 1.2rem;
+}
+
+.open-tavern-traits-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.35rem;
+}
+
+@media (min-width: 600px) {
+  .open-tavern-traits-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.open-tavern-trait {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-start;
+  padding: 0.45rem 0.55rem;
+  border-radius: 0.25rem;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-size: 0.88rem;
+  line-height: 1.35;
+  color: var(--ink-soft);
+}
+
+.open-tavern-trait input {
+  margin-top: 0.2rem;
+  accent-color: var(--accent);
+}
+
+.open-tavern-trait:hover:not(.open-tavern-trait--disabled) {
+  background: rgba(20, 14, 8, 0.06);
+  color: var(--ink);
+}
+
+.open-tavern-trait--checked {
+  background: rgba(139, 63, 0, 0.1);
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.open-tavern-trait--disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.open-tavern-error {
+  color: #8b1f00;
+  margin: 0 0 1rem;
+  font-style: italic;
+}
+
+.open-tavern-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.open-tavern-submit {
+  background: var(--accent);
+  color: #fff7e2;
+  border: 0;
+  border-radius: 0.3rem;
+  padding: 0.7rem 1.4rem;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 120ms ease-out;
+}
+
+.open-tavern-submit:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.open-tavern-submit:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}

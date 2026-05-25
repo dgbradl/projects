@@ -9,11 +9,13 @@ import type {
   StaffRoster,
   StaffSwapRequest,
   TavernConfig,
+  TavernTrait,
   Thread,
   TickerEntry,
   TickerResponse,
   WorldSnapshot,
 } from '@shared/types';
+import { TAVERN_TRAITS } from '@shared/types';
 import { renderSentence } from '../chronicle/fallback.ts';
 import { score as scoreSalience } from '../chronicle/salience.ts';
 import { DEFAULT_ALARMING_VALUES } from '../chronicle/types.ts';
@@ -160,6 +162,55 @@ export function registerRoutes(app: FastifyInstance, deps: ApiDeps): void {
     return {
       active: all.filter((c) => c.isActiveStaff).map(toMember),
       reserve: all.filter((c) => !c.isActiveStaff).map(toMember),
+    };
+  });
+
+  // Phase 8 (D2): tavern identity. Accepts a name + 0-2 traits, validates,
+  // writes to WorldState, emits tavern_named. Idempotent — re-posting with
+  // the same payload is a no-op the player can't observe.
+  app.post<{
+    Body: { tavernName?: string; tavernTraits?: string[] };
+  }>('/tavern/identity', async (req, reply) => {
+    const body = req.body ?? {};
+    const name =
+      typeof body.tavernName === 'string' ? body.tavernName.trim() : '';
+    if (!name || name.length > 64) {
+      return reply.status(400).send({
+        error: 'tavernName must be a non-empty string up to 64 characters',
+      });
+    }
+    const requestedTraits = Array.isArray(body.tavernTraits)
+      ? body.tavernTraits
+      : [];
+    if (requestedTraits.length > 2) {
+      return reply.status(400).send({ error: 'pick at most two traits' });
+    }
+    const knownTraits = new Set<string>(TAVERN_TRAITS);
+    const validTraits: TavernTrait[] = [];
+    for (const t of requestedTraits) {
+      if (typeof t !== 'string' || !knownTraits.has(t)) {
+        return reply.status(400).send({ error: `unknown trait: ${t}` });
+      }
+      if (!validTraits.includes(t as TavernTrait)) {
+        validTraits.push(t as TavernTrait);
+      }
+    }
+    const current = deps.stateManager.getState();
+    deps.stateManager.setState({
+      ...current,
+      tavernName: name,
+      tavernTraits: validTraits,
+    });
+    deps.bus.publish({
+      type: 'tavern_named',
+      gameDay: current.gameDay,
+      tavernName: name,
+      tavernTraits: validTraits,
+    });
+    return {
+      tavernName: name,
+      tavernTraits: validTraits,
+      state: deps.stateManager.getState(),
     };
   });
 

@@ -1,12 +1,14 @@
 import { useEffect } from 'react';
 import type { WorldSnapshot } from '@shared/types';
 import { api } from './api.ts';
+import { DEFAULT_TAVERN_NAME } from '@shared/types';
 import { DebugPanel } from './components/DebugPanel.tsx';
 import { EventTicker } from './components/EventTicker.tsx';
 import { FavorIndicator } from './components/FavorIndicator.tsx';
 import { InterventionPicker } from './components/InterventionPicker.tsx';
 import { LandingAnimation } from './components/LandingAnimation.tsx';
 import { MenuButton } from './components/MenuButton.tsx';
+import { OpenTavernModal } from './components/OpenTavernModal.tsx';
 import { PauseOverlay } from './components/PauseOverlay.tsx';
 import { StatusBar } from './components/StatusBar.tsx';
 import { Tavern } from './components/Tavern.tsx';
@@ -90,11 +92,22 @@ function Bootstrap() {
     return <Welcome />;
   }
 
+  // Phase 8 (D2): first-run onboarding. Block tavern entry until the keeper
+  // has named the place — gated on day 1 with the default name still in
+  // place so existing worlds skip straight through.
+  if (world && world.gameDay === 1 && world.tavernName === DEFAULT_TAVERN_NAME) {
+    return <OpenTavernModal onComplete={() => undefined} />;
+  }
+
+  // Phase 8 (D2): the page <title> tracks the named tavern so the browser
+  // tab reflects the keeper's choice.
+  const tavernName = world?.tavernName ?? DEFAULT_TAVERN_NAME;
+
   return (
     <div className="app">
       <header className="app-header">
         <div className="app-header-top">
-          <h1>The Wayfarer's Rest</h1>
+          <h1>{tavernName}</h1>
           <MenuButton />
         </div>
         <StatusBar />
