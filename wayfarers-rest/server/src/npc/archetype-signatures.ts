@@ -16,14 +16,19 @@
  *     overheard_argument by ×1.2 — pairs nicely with the bartender's
  *     conflictMitigation, which subtracts at apply time.
  *
- * Deferred (signature flags exist on the trait table but no sim wiring):
- *   - studies (scholar): a scholar at the bar may emit a tag-flavoured
- *     rumor; out of scope for this slice, slated for a follow-up.
+ * Implemented in Phase 9:
+ *   - studies (scholar): a non-staff scholar at the bar occasionally
+ *     surfaces a one-line rumor about a non-positive world tag — see
+ *     `ScholarStudyTracker` below. Once per visit per scholar.
+ *
+ * Deferred:
  *   - transacts (merchant): a low-affinity, coin-positive interaction
  *     between a merchant and a non-merchant; needs a new InteractionKind
- *     and ledger plumbing — out of scope here.
+ *     and ledger plumbing — Phase 9 G2.
  */
-import type { Npc, ZoneName } from '@shared/types';
+import type { Npc, WorldTag, ZoneName } from '@shared/types';
+import { DEFAULT_ALARMING_VALUES } from '../chronicle/types.ts';
+import { seededRng } from '../world/rng.ts';
 import { traitsFor } from './archetype-traits.ts';
 
 /**
@@ -85,4 +90,110 @@ export function computeArchetypeModifiers(roster: Npc[]): ArchetypeModifiers {
 export function bothSoldiers(a: Npc | undefined, b: Npc | undefined): boolean {
   if (!a || !b) return false;
   return a.archetype === 'soldier' && b.archetype === 'soldier';
+}
+
+// ---------- Phase 9 (G1): scholar 'studies' signature ----------
+
+export interface ScholarStudyResult {
+  /** The scholar who looked up from their reading. */
+  scholarId: string;
+  scholarName: string;
+  /** The non-positive world tag they're commenting on. */
+  tagKey: string;
+  tagValue: string;
+  /** The one-line rumor text to introduce via RumorsManager. */
+  rumorText: string;
+}
+
+/** Per-sub-tick probability that an eligible scholar surfaces a rumor.
+ *  Tuned low; combined with the "non-staff scholar at the bar" gate and
+ *  the once-per-visit cap, the player sees roughly one scholar-rumor per
+ *  in-tavern scholar visit when alarming tags are present. */
+const SCHOLAR_STUDY_PROB = 0.05;
+
+/** Curated templates per (tagKey, tagValue) pair. Anything not matched falls
+ *  through to the humanized generic so unknown tags still read like prose. */
+const SCHOLAR_RUMOR_TEMPLATES: Record<string, string> = {
+  'war_in_north=escalating': 'The war in the north grows worse by the day.',
+  'war_in_north=simmering': 'The war in the north simmers on, unresolved.',
+  'road_safety_south=poor':
+    'The road south remains unsafe; merchants speak of bandits at dusk.',
+  'harvest=poor':
+    'The harvest is failing this year; granaries will be thin by winter.',
+};
+
+function composeScholarRumorText(tagKey: string, tagValue: string): string {
+  const key = `${tagKey}=${tagValue}`;
+  if (SCHOLAR_RUMOR_TEMPLATES[key]) return SCHOLAR_RUMOR_TEMPLATES[key];
+  return `The ${tagKey.replace(/_/g, ' ')} remains ${tagValue}.`;
+}
+
+/**
+ * Tracks which scholars have already surfaced a rumor this visit so the
+ * effect fires at most once per scholar. The tracker is stateful (a
+ * `Set<npcId>`) and is cleared on departure via `onDeparture(npcId)`;
+ * tests reset between cases via `reset()`.
+ *
+ * The maybeFire path is otherwise pure: same (worldSeed, gameDay, subTick,
+ * eligible scholar id) → same outcome.
+ */
+export class ScholarStudyTracker {
+  private readonly studied = new Set<string>();
+
+  maybeFire(input: {
+    roster: Npc[];
+    worldTags: WorldTag[];
+    worldSeed: string;
+    gameDay: number;
+    subTick: number;
+    alarming?: ReadonlySet<string>;
+  }): ScholarStudyResult | undefined {
+    const alarming = input.alarming ?? DEFAULT_ALARMING_VALUES;
+    // First eligible non-staff scholar at the bar who hasn't studied this visit.
+    const scholar = input.roster.find(
+      (n) =>
+        !n.isStaff &&
+        n.archetype === 'scholar' &&
+        n.zone === 'bar' &&
+        traitsFor(n.archetype).signature === 'studies' &&
+        !this.studied.has(n.id),
+    );
+    if (!scholar) return undefined;
+
+    const concerning = input.worldTags.filter((t) => alarming.has(t.value));
+    if (concerning.length === 0) return undefined;
+
+    const rng = seededRng(
+      input.worldSeed,
+      'scholar-study',
+      scholar.id,
+      input.gameDay,
+      input.subTick,
+    );
+    if (rng() >= SCHOLAR_STUDY_PROB) return undefined;
+
+    // Pick deterministically. rng() returns [0,1); floor gives index.
+    const tag = concerning[Math.floor(rng() * concerning.length)];
+
+    this.studied.add(scholar.id);
+
+    return {
+      scholarId: scholar.id,
+      scholarName: scholar.displayName,
+      tagKey: tag.key,
+      tagValue: tag.value,
+      rumorText: composeScholarRumorText(tag.key, tag.value),
+    };
+  }
+
+  /** Call from the npc_departed bus handler so the slot frees for a later
+   *  arrival reusing the same id. */
+  onDeparture(npcId: string): void {
+    this.studied.delete(npcId);
+  }
+
+  /** For tests — reset between cases. */
+  reset(): void {
+    this.studied.clear();
+  }
 }

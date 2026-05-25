@@ -38,7 +38,10 @@ import {
   buildUpgradeHearth,
 } from './interventions/kinds/index.ts';
 import * as interventionRegistry from './interventions/registry.ts';
-import { computeArchetypeModifiers } from './npc/archetype-signatures.ts';
+import {
+  computeArchetypeModifiers,
+  ScholarStudyTracker,
+} from './npc/archetype-signatures.ts';
 import { CharacterMemoryRecorder } from './npc/character-memory.ts';
 import { DesireResolver } from './npc/desire-resolver.ts';
 import { NpcManager } from './npc/manager.ts';
@@ -226,6 +229,11 @@ async function main(): Promise<void> {
   });
   desireResolver.attach();
 
+  // Phase 9 (G1): scholar 'studies' signature. A non-staff scholar at the bar
+  // occasionally surfaces a one-line rumor about a non-positive world tag.
+  // Once per visit per scholar; tracker is cleared on departure below.
+  const scholarStudies = new ScholarStudyTracker();
+
   (npcManager as unknown as {
     deps: { postSubTickHook: typeof postSubTickHook };
   }).deps.postSubTickHook = postSubTickHook;
@@ -270,6 +278,30 @@ async function main(): Promise<void> {
         'staff:waitstaff',
         gameDay,
         gameDay * SUB_TICKS_PER_DAY + subTick,
+      );
+    }
+
+    // Phase 9 (G1): scholar studies — surface a rumor about a non-positive
+    // world tag if a scholar is at the bar and alarming tags exist. Once
+    // per visit per scholar.
+    const study = scholarStudies.maybeFire({
+      roster,
+      worldTags: worldTags.getAll(),
+      worldSeed: stateManager.getState().seed,
+      gameDay,
+      subTick,
+    });
+    if (study) {
+      rumors.introduce(
+        {
+          text: study.rumorText,
+          placeholderHint: {
+            tagKey: study.tagKey,
+            tagValue: study.tagValue,
+            threadHistoryNote: `surfaced by ${study.scholarName} at the bar`,
+          },
+        },
+        gameDay,
       );
     }
 
@@ -357,6 +389,10 @@ async function main(): Promise<void> {
         ev.gameDay ?? s.gameDay,
       );
     }
+
+    // Phase 9 (G1): free the scholar's "studied this visit" slot so a later
+    // arrival reusing the same id can fire again.
+    scholarStudies.onDeparture(ev.npcId);
   });
 
   const subTickScheduler = new SubTickScheduler(
