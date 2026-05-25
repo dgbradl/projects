@@ -1,0 +1,229 @@
+/*
+ * Right Dock — single column hosting Events / Favors / Build / Inspector.
+ * Mounted in the grid track defined in app.css's .app-main (column 2). Below
+ * 880px the grid collapses to a single column and the dock becomes a drawer
+ * stacked under the tavern.
+ */
+
+.right-dock {
+  display: flex;
+  flex-direction: column;
+  width: 22rem;
+  background: var(--surface-glass);
+  border-left: 1px solid var(--border-wood);
+  box-shadow: var(--shadow-dock);
+  color: var(--ink);
+  font-family: var(--font-serif);
+  min-height: 0; /* allow children to scroll, not the grid track */
+}
+
+.right-dock--collapsed {
+  width: 2.75rem;
+  align-items: center;
+  padding: var(--space-2) 0;
+  gap: var(--space-1);
+}
+
+/* --- Tab strip ------------------------------------------------------- */
+
+.dock-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  padding: 0 var(--space-1);
+  background: var(--surface-wood-mid);
+  border-bottom: 1px solid var(--border-wood);
+}
+
+.dock-tab {
+  flex: 1 1 auto;
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--space-2) var(--space-1);
+  font: inherit;
+  font-size: var(--text-xs);
+  color: var(--ink-dim);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out-soft),
+              border-color var(--dur-fast) var(--ease-out-soft);
+}
+
+.dock-tab:hover {
+  color: var(--ink);
+}
+
+.dock-tab.is-active {
+  color: var(--accent-strong);
+  border-bottom-color: var(--accent-strong);
+}
+
+.dock-tab-icon {
+  font-size: var(--text-md);
+  line-height: 1;
+}
+
+.dock-tab-label {
+  letter-spacing: 0.03em;
+}
+
+.dock-tab-badge {
+  position: absolute;
+  top: 2px;
+  right: 6px;
+  min-width: 1.1rem;
+  padding: 0 0.3rem;
+  font-size: 0.6rem;
+  text-align: center;
+  color: var(--surface-wood-dark);
+  background: var(--accent-strong);
+  border-radius: var(--radius-pill);
+  line-height: 1.2;
+}
+
+.dock-collapse-toggle {
+  flex: 0 0 auto;
+  padding: var(--space-2) var(--space-2);
+  background: transparent;
+  border: none;
+  color: var(--ink-dim);
+  font: inherit;
+  font-size: var(--text-md);
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out-soft);
+}
+
+.dock-collapse-toggle:hover {
+  color: var(--ink);
+}
+
+/* --- Collapsed rail -------------------------------------------------- */
+
+.dock-rail-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--ink-dim);
+  transition: background var(--dur-fast) var(--ease-out-soft),
+              color var(--dur-fast) var(--ease-out-soft);
+}
+
+.dock-rail-tab:hover {
+  color: var(--ink);
+  background: var(--surface-glass-soft);
+}
+
+.dock-rail-tab.is-active {
+  color: var(--accent-strong);
+  border-color: var(--accent-strong);
+}
+
+.dock-rail-icon {
+  font-size: var(--text-md);
+  line-height: 1;
+}
+
+.right-dock--collapsed .dock-tab-badge {
+  top: -4px;
+  right: -4px;
+}
+
+/* --- Content area ---------------------------------------------------- */
+
+.dock-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.dock-body {
+  padding: var(--space-3);
+}
+
+/* When the EventTicker or InterventionPicker is rendered inside the dock,
+   strip the standalone fixed-position / aside styling — the dock owns
+   positioning, width, and elevation now. */
+.dock-body--ticker .event-ticker,
+.dock-body--interventions .intervention-picker,
+.dock-body--inspector .debug-panel {
+  position: static;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  width: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  box-shadow: none;
+  border: none;
+  border-radius: 0;
+}
+
+.dock-body--ticker .event-ticker {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+
+.dock-body--ticker .event-ticker {
+  /* The dock background is already dark; let the parchment palette show
+     only on the entry list, not the wrapping aside. */
+  --ink: var(--ink);
+}
+
+.dock-empty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-2);
+  color: var(--ink-dim);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.dock-empty-cta {
+  align-self: flex-start;
+  padding: var(--space-2) var(--space-3);
+  background: var(--accent);
+  color: var(--surface-wood-dark);
+  border: none;
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out-soft);
+}
+
+.dock-empty-cta:hover {
+  background: var(--accent-strong);
+}
+
+/* --- Responsive: bottom drawer below 880px --------------------------- */
+
+@media (max-width: 880px) {
+  .right-dock {
+    width: 100%;
+    max-height: 40vh;
+    border-left: none;
+    border-top: 1px solid var(--border-wood);
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.45);
+  }
+
+  .right-dock--collapsed {
+    width: 100%;
+    max-height: 2.75rem;
+    flex-direction: row;
+  }
+}
