@@ -38,6 +38,7 @@ import {
   buildUpgradeHearth,
 } from './interventions/kinds/index.ts';
 import * as interventionRegistry from './interventions/registry.ts';
+import { computeArchetypeModifiers } from './npc/archetype-signatures.ts';
 import { CharacterMemoryRecorder } from './npc/character-memory.ts';
 import { DesireResolver } from './npc/desire-resolver.ts';
 import { NpcManager } from './npc/manager.ts';
@@ -287,6 +288,9 @@ async function main(): Promise<void> {
     if (candidates.length === 0) return;
     // Epic E (E2): conflict mitigation — reduce argument weight if bartender present.
     const staffModifiers = { conflictMitigation: computeConflictMitigation(roster) };
+    // Phase 8 (C3): archetype-signature buffs — bard at the hearth lifts
+    // shared_drink there; two soldiers in a zone raise argument odds.
+    const archetypeModifiers = computeArchetypeModifiers(roster);
     const npcsById = new Map(roster.map((n) => [n.id, n]));
     for (const candidate of candidates) {
       interactionResolver.resolve(candidate, {
@@ -296,6 +300,7 @@ async function main(): Promise<void> {
         npcsById,
         perDayCounter: interactionCounter,
         staffModifiers,
+        archetypeModifiers,
       });
     }
   }

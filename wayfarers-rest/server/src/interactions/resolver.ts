@@ -7,6 +7,10 @@ import type {
 } from '@shared/types';
 import type { WorldEventBus } from '../events/emitter.ts';
 import type { FlavorCache } from '../llm/cache/manager.ts';
+import {
+  bothSoldiers,
+  type ArchetypeModifiers,
+} from '../npc/archetype-signatures.ts';
 import { AFFINITY_MAX, AFFINITY_MIN } from '../npc/character-memory.ts';
 import type { Persistence } from '../persistence.ts';
 import type { ThreadRunner } from '../threads/runner.ts';
@@ -43,6 +47,8 @@ export interface ResolverContext {
   npcsById: Map<string, Npc>;
   perDayCounter: { value: number };
   staffModifiers?: StaffModifiers;
+  /** Phase 8 (C3): archetype-signature modifiers (bard performance, soldier brood). */
+  archetypeModifiers?: ArchetypeModifiers;
 }
 
 export class InteractionResolver {
@@ -69,7 +75,14 @@ export class InteractionResolver {
       ctx.gameDay,
       ctx.subTick,
     );
-    const kind = this.pickKind(candidate.zone, a, b, rng, ctx.staffModifiers);
+    const kind = this.pickKind(
+      candidate.zone,
+      a,
+      b,
+      rng,
+      ctx.staffModifiers,
+      ctx.archetypeModifiers,
+    );
     const id = `int_d${ctx.gameDay}_st${ctx.subTick}_${ctx.perDayCounter.value}`;
     ctx.perDayCounter.value += 1;
 
@@ -131,6 +144,7 @@ export class InteractionResolver {
     b: Npc | undefined,
     rng: Rng,
     staffModifiers?: StaffModifiers,
+    archetypeModifiers?: ArchetypeModifiers,
   ): InteractionKind {
     const base = BASE_WEIGHTS[zone] ?? BASE_WEIGHTS.default;
     const weights: Weights = { ...base };
@@ -145,6 +159,20 @@ export class InteractionResolver {
         0,
         weights.overheard_argument - staffModifiers.conflictMitigation,
       );
+    }
+    // Phase 8 (C3): bard performs — buff shared_drink within the
+    // bard's zone (the hearth, today). Multiplicative; default 1.
+    if (
+      archetypeModifiers?.bardPerformZone === zone &&
+      archetypeModifiers.bardPerformBuff > 1
+    ) {
+      weights.shared_drink *= archetypeModifiers.bardPerformBuff;
+    }
+    // Phase 8 (C3): soldier broods — two soldiers raise the argument
+    // probability between themselves. Bartender conflictMitigation has
+    // already been subtracted above, so the net effect honours both.
+    if (archetypeModifiers && bothSoldiers(a, b)) {
+      weights.overheard_argument *= archetypeModifiers.soldierBroodBuff;
     }
     // Phase 7 (B2): two characters who have met recognise each other, and
     // their standing colours the encounter — friends drink, rivals argue.
