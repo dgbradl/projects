@@ -204,6 +204,11 @@ export function renderSentence(
     case 'desire_unfulfilled': {
       const name = npcsById.get(ev.npcId)?.displayName ?? ev.npcId;
       const want = describeWant(ev.desireKind, ev.param);
+      // Phase 9 (H1): if this wish was carried over from a recent visit,
+      // lean into the "still!" — the keeper should feel the repeat.
+      if (ev.carryover) {
+        return `${name} left without ${want} — still.`;
+      }
       return `${name} left without ${want}.`;
     }
     case 'tavern_named': {

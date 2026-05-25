@@ -174,6 +174,13 @@ export interface NpcDesire {
    *   - 'keeper:<intervention_kind>' (e.g. 'keeper:plant_rumor')
    */
   fulfilledBy?: string;
+  /**
+   * Phase 9 (H1): true when this desire was carried over from a recent
+   * previous visit (the character returned with their wish still hanging).
+   * Surfaces in salience as a +3 bump if it ends up unmet *again*, and
+   * in the chronicle prose as a stronger phrasing ("still!").
+   */
+  carryover?: boolean;
 }
 
 export type NpcMood =
@@ -274,6 +281,15 @@ export interface CharacterMemory {
    * fulfilled vs left unmet across all of their visits.
    */
   desireHistory?: { fulfilled: number; denied: number };
+  /**
+   * Phase 9 (H1): desires this character left without on their most recent
+   * departure. If the character returns within a few days (see manager.ts
+   * RECENT_CARRYOVER_DAYS), one of these is re-issued as a carryover desire
+   * on the new arrival.
+   */
+  lastUnfulfilledDesires?: NpcDesire[];
+  /** Phase 9 (H1): game day the lastUnfulfilledDesires snapshot was taken. */
+  lastUnfulfilledAtGameDay?: number;
 }
 
 export interface TavernConfig {
@@ -573,6 +589,12 @@ export type WorldEvent =
       npcId: string;
       desireKind: DesireKind;
       param?: string;
+      /**
+       * Phase 9 (H1): true when the desire was carried over from a previous
+       * visit (returning regular). The salience scorer bumps the score so
+       * the chronicle highlights a wish that's gone unmet two visits running.
+       */
+      carryover?: boolean;
     }
   | {
       /**

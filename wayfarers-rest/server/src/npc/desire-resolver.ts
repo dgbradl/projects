@@ -185,6 +185,9 @@ export class DesireResolver {
           npcId: ev.npcId,
           desireKind: d.kind,
           param: d.param,
+          // Phase 9 (H1): propagate the carryover flag so the chronicle
+          // can score "still unmet on a return" higher.
+          carryover: d.carryover,
         });
       }
     }

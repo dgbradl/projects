@@ -5,6 +5,7 @@ import type {
   DesireKind,
   Npc,
   NpcArchetype,
+  NpcDesire,
   NpcDiff,
   NpcMood,
   ScheduledArrival,
@@ -45,6 +46,13 @@ const MOODS: NpcMood[] = [
   'desperate',
   'smug',
 ];
+
+/**
+ * Phase 9 (H1): a returning character carries their last-visit unmet
+ * desire forward only if the gap between visits is within this many game
+ * days. Past it, the wish has gone stale and the fresh roll wins.
+ */
+export const RECENT_CARRYOVER_DAYS = 10;
 
 const CANONICAL_ARCHETYPES: ReadonlySet<NpcArchetype> = new Set([
   'wanderer',
@@ -572,11 +580,49 @@ function materializeArrival(
   // Phase 8 (A1): each non-staff arrival picks up 1–2 desires deterministically
   // from their archetype's pool. The roster shows them in the hover tooltip;
   // later slices wire fulfilment by sim/staff/keeper and the economy outcome.
-  const desires = generateDesires({
+  let desires = generateDesires({
     archetype,
     npcId: arrival.npcId,
     worldSeed,
   });
+
+  // Phase 9 (H1): if this is a returning character whose last visit ended
+  // with an unmet wish AND the gap since then is short enough that the wish
+  // still feels live, overlay one of those carryover desires onto this visit.
+  // The first generated slot is replaced (count stays the same) and the
+  // overlaid desire is marked `carryover: true` so the salience scorer can
+  // call out the repeat if it goes unmet again.
+  if (
+    existingCharacter &&
+    existingCharacter.visitCount >= 1 &&
+    existingCharacter.memory.lastUnfulfilledDesires &&
+    existingCharacter.memory.lastUnfulfilledDesires.length > 0 &&
+    existingCharacter.memory.lastUnfulfilledAtGameDay !== undefined &&
+    currentGameDay - existingCharacter.memory.lastUnfulfilledAtGameDay <=
+      RECENT_CARRYOVER_DAYS
+  ) {
+    const carry: NpcDesire = {
+      ...existingCharacter.memory.lastUnfulfilledDesires[0],
+      carryover: true,
+    };
+    if (desires.length === 0) {
+      desires = [carry];
+    } else {
+      // Skip the overlay if the freshly-generated desires already include
+      // the same wish — no need to mark it carryover (the visit naturally
+      // wants the same thing) and the chip would dupe.
+      const dupIdx = desires.findIndex(
+        (d) => d.kind === carry.kind && d.param === carry.param,
+      );
+      if (dupIdx >= 0) {
+        desires = desires.map((d, i) =>
+          i === dupIdx ? { ...d, carryover: true } : d,
+        );
+      } else {
+        desires = [carry, ...desires.slice(1)];
+      }
+    }
+  }
 
   return {
     id: arrival.npcId,

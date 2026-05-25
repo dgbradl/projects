@@ -104,10 +104,16 @@ export function score(event: WorldEvent, ctx: SalienceContext): number {
       else if (event.fulfilledBy.startsWith('staff:')) s += 1;
       return s;
     }
-    case 'desire_unfulfilled':
+    case 'desire_unfulfilled': {
       // Phase 8 (A2): a guest left wanting. Low-volume but evocative for
       // chronicle prose; just above the cull line.
-      return 2;
+      // Phase 9 (H1): bumped +3 if the wish was carried over from a recent
+      // visit — a regular returning AND leaving unmet a second time is a
+      // real beat the keeper should feel.
+      let s = 2;
+      if (event.carryover) s += 3;
+      return s;
+    }
     case 'tavern_named':
       // Phase 8 (D2): the keeper christens the place. A one-time beat that
       // belongs near the top of the chronicle on the day it happens.

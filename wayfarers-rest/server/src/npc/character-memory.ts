@@ -85,7 +85,37 @@ export function parseCharacterMemory(json: string | null | undefined): Character
         ? raw.lastDestinationLocationId
         : undefined,
     desireHistory: readDesireHistory(raw.desireHistory),
+    lastUnfulfilledDesires: readUnfulfilledDesires(raw.lastUnfulfilledDesires),
+    lastUnfulfilledAtGameDay:
+      typeof raw.lastUnfulfilledAtGameDay === 'number'
+        ? raw.lastUnfulfilledAtGameDay
+        : undefined,
   };
+}
+
+/** Phase 9 (H1): validate the stored snapshot of unfulfilled desires. Drops
+ *  malformed entries and unknown kinds; returns undefined for empty results. */
+function readUnfulfilledDesires(raw: unknown): NpcDesire[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const KIND_SET = new Set<string>([
+    'warm_meal',
+    'bed_for_night',
+    'quiet_seat',
+    'company_of_kind',
+    'news_of_location',
+    'rumor_of_tone',
+  ]);
+  const out: NpcDesire[] = [];
+  for (const r of raw) {
+    if (typeof r !== 'object' || r === null) continue;
+    const obj = r as Record<string, unknown>;
+    if (typeof obj.kind !== 'string' || !KIND_SET.has(obj.kind)) continue;
+    out.push({
+      kind: obj.kind as NpcDesire['kind'],
+      param: typeof obj.param === 'string' ? obj.param : undefined,
+    });
+  }
+  return out.length > 0 ? out : undefined;
 }
 
 /** Phase 8 (A5): tolerate older rows (no field) and malformed blobs. */
@@ -186,30 +216,54 @@ export function rememberDeparture(
 }
 
 /**
- * Phase 8 (A5): tally how this stay's desires landed and merge into the
- * character's running history. Returns the updated memory unchanged if the
- * stay carried no desires (defensive — staff path).
+ * Phase 8 (A5) + Phase 9 (H1): tally how this stay's desires landed and
+ * merge into the character's running history. Phase 9 also captures the
+ * unfulfilled desires into `lastUnfulfilledDesires` so a recent return can
+ * carry one back into the next visit.
+ *
+ * Returns the input unchanged if the stay carried no desires (defensive —
+ * staff path).
  */
 export function rememberDesireOutcomes(
   memory: CharacterMemory,
   desires: readonly NpcDesire[] | undefined,
+  departedGameDay?: number,
 ): CharacterMemory {
   if (!desires || desires.length === 0) return memory;
   let fulfilled = 0;
   let denied = 0;
+  const unfulfilled: NpcDesire[] = [];
   for (const d of desires) {
-    if (d.fulfilledAtSubTick !== undefined) fulfilled += 1;
-    else denied += 1;
+    if (d.fulfilledAtSubTick !== undefined) {
+      fulfilled += 1;
+    } else {
+      denied += 1;
+      // Strip transient fields so the stored snapshot is the "wish" only,
+      // not its in-flight state. The carryover flag is also cleared — H1
+      // sets it freshly on materialization, never preserves it.
+      unfulfilled.push({ kind: d.kind, param: d.param });
+    }
   }
   if (fulfilled === 0 && denied === 0) return memory;
   const prev = memory.desireHistory ?? { fulfilled: 0, denied: 0 };
-  return {
+  const next: CharacterMemory = {
     ...memory,
     desireHistory: {
       fulfilled: prev.fulfilled + fulfilled,
       denied: prev.denied + denied,
     },
   };
+  if (unfulfilled.length > 0) {
+    next.lastUnfulfilledDesires = unfulfilled;
+    if (departedGameDay !== undefined) {
+      next.lastUnfulfilledAtGameDay = departedGameDay;
+    }
+  } else {
+    // All desires fulfilled — clear any stale snapshot from a prior visit.
+    delete next.lastUnfulfilledDesires;
+    delete next.lastUnfulfilledAtGameDay;
+  }
+  return next;
 }
 
 // ---------- bus recorder ----------
@@ -245,12 +299,14 @@ export class CharacterMemoryRecorder {
           const dest = event.destinationLocationId;
           this.update(event.npcId, (m) => rememberDeparture(m, dest));
         }
-        // Phase 8 (A5): fold this visit's desire outcomes into the
-        // character's history so a returning regular's track record persists.
+        // Phase 8 (A5) + Phase 9 (H1): fold this visit's desire outcomes
+        // into the character's history; capture any unfulfilled into
+        // lastUnfulfilledDesires so a recent return can carry them back.
         if (event.desires && event.desires.length > 0) {
           const desires = event.desires;
+          const departedGameDay = event.gameDay;
           this.update(event.npcId, (m) =>
-            rememberDesireOutcomes(m, desires),
+            rememberDesireOutcomes(m, desires, departedGameDay),
           );
         }
         break;
