@@ -56,9 +56,13 @@ export function Npc({
   currentSubTick,
   subTicksPerDay,
 }: Props) {
-  const { interactingNpcs, furniture } = useStore();
+  const { interactingNpcs, furniture, focusedNpcId, focusedNpcExpiresAt } =
+    useStore();
   const flash = interactingNpcs[npc.id];
   const interacting = !!flash && flash.expiresAt > Date.now();
+  // Phase 8 (B3): a ticker click highlights the matching sprite for ~3s.
+  const focused =
+    focusedNpcId === npc.id && focusedNpcExpiresAt > Date.now();
   const isRegular = (npc.visitCount ?? 0) > 1;
   const isStaff = npc.isStaff ?? false;
   const staffRoleLabel = isStaff ? STAFF_ROLE_ABBREV[npc.staffRole ?? 'waitstaff'] : null;
@@ -93,12 +97,13 @@ export function Npc({
 
   return (
     <div
-      className={`npc npc-${npc.status}${isStaff ? ' npc-staff' : ''}`}
+      className={`npc npc-${npc.status}${isStaff ? ' npc-staff' : ''}${focused ? ' npc--focused' : ''}`}
       style={style}
       data-npc-id={npc.id}
       data-status={npc.status}
       data-staff-role={npc.staffRole ?? undefined}
       data-interacting={interacting ? 'true' : undefined}
+      data-focused={focused ? 'true' : undefined}
     >
       <InteractionBubble npc={npc} />
       <NpcSprite npc={npc} />

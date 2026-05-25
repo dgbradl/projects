@@ -79,6 +79,8 @@ function Bootstrap() {
       dispatch({ type: 'EXPIRE_INTERACTION_FLASHES', payload: { now } });
       // Phase 8 (QW1): expire floating coin tips on the same heartbeat.
       dispatch({ type: 'EXPIRE_COIN_TIPS', payload: { now } });
+      // Phase 8 (B3): expire the click-to-focus glow on the same heartbeat.
+      dispatch({ type: 'EXPIRE_FOCUSED_NPC', payload: { now } });
     }, 1_000);
     return () => clearInterval(interval);
   }, [dispatch]);

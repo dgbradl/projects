@@ -63,6 +63,12 @@ export interface AppState {
   tickerEntries: TickerEntry[];
   /** Highest eventId we have in `tickerEntries` (or have polled past). */
   tickerLastEventId: number;
+  /** Phase 8 (B3): NPC currently highlighted by a ticker click (null = none). */
+  focusedNpcId: string | null;
+  /** Phase 8 (B3): wall-clock ms at which the focused-glow expires. */
+  focusedNpcExpiresAt: number;
+  /** Phase 8 (B3): which thread-row in the ticker is expanded. */
+  expandedThreadId: string | null;
 }
 
 export const initialState: AppState = {
@@ -88,6 +94,9 @@ export const initialState: AppState = {
   coinTips: [],
   tickerEntries: [],
   tickerLastEventId: 0,
+  focusedNpcId: null,
+  focusedNpcExpiresAt: 0,
+  expandedThreadId: null,
 };
 
 /** Cap on client-side ticker buffer — keeps the scroll list bounded. */
@@ -187,10 +196,19 @@ export function reducer(state: AppState, action: Action): AppState {
           seen.add(e.eventId);
         }
       }
-      const nextEntries = [...merged.reverse(), ...state.tickerEntries].slice(
-        0,
-        TICKER_BUFFER_CAP,
-      );
+      // Phase 8 (B3): drop adjacent duplicates of the rendered text — a
+      // sub-tick burst can produce repeats (e.g. two NPCs depart simultaneously
+      // with the same fallback sentence). Keep the first, drop near-clones.
+      const reversed = merged.reverse();
+      const candidate = [...reversed, ...state.tickerEntries];
+      const deduped: TickerEntry[] = [];
+      let lastText = '';
+      for (const e of candidate) {
+        if (e.text === lastText) continue;
+        deduped.push(e);
+        lastText = e.text;
+      }
+      const nextEntries = deduped.slice(0, TICKER_BUFFER_CAP);
       return {
         ...state,
         tickerEntries: nextEntries,
@@ -200,6 +218,25 @@ export function reducer(state: AppState, action: Action): AppState {
         ),
       };
     }
+    case 'FOCUS_NPC':
+      return {
+        ...state,
+        focusedNpcId: action.payload.npcId,
+        focusedNpcExpiresAt: action.payload.expiresAt,
+      };
+    case 'EXPIRE_FOCUSED_NPC': {
+      if (state.focusedNpcId === null) return state;
+      if (action.payload.now < state.focusedNpcExpiresAt) return state;
+      return { ...state, focusedNpcId: null, focusedNpcExpiresAt: 0 };
+    }
+    case 'TOGGLE_TICKER_THREAD':
+      return {
+        ...state,
+        expandedThreadId:
+          state.expandedThreadId === action.payload.threadId
+            ? null
+            : action.payload.threadId,
+      };
     case 'FLAVOR_STATUS':
       return {
         ...state,

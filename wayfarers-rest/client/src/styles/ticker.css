@@ -46,10 +46,88 @@
 
 .event-ticker-entry {
   display: flex;
-  gap: 0.5rem;
+  flex-direction: column;
   font-size: 0.82rem;
   line-height: 1.35;
   animation: ticker-entry-fade-in 350ms ease-out;
+}
+
+/* Each row is a button so keyboard nav works; styled to look inert when
+   the underlying event isn't NPC- or thread-clickable. */
+.event-ticker-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  background: transparent;
+  border: 0;
+  padding: 0.1rem 0.2rem;
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  width: 100%;
+  border-radius: 0.2rem;
+  cursor: default;
+}
+
+.event-ticker-entry--clickable .event-ticker-row {
+  cursor: pointer;
+}
+
+.event-ticker-entry--clickable .event-ticker-row:hover {
+  background: rgba(184, 154, 94, 0.25);
+}
+
+.event-ticker-entry--clickable .event-ticker-row:focus-visible {
+  outline: 1px solid var(--ink-soft);
+  outline-offset: 1px;
+}
+
+.event-ticker-thread-detail {
+  margin: 0.3rem 0 0.3rem 2.5rem;
+  padding: 0.4rem 0.5rem;
+  background: rgba(20, 14, 8, 0.06);
+  border-left: 2px solid #b89a5e;
+  border-radius: 0.15rem;
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+
+.event-ticker-thread-state {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+  font-variant: small-caps;
+  letter-spacing: 0.04em;
+}
+
+.event-ticker-thread-type {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.event-ticker-thread-status {
+  color: var(--ink-fade);
+}
+
+.event-ticker-thread-history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.event-ticker-thread-history li {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.event-ticker-thread-day {
+  flex: 0 0 1.6rem;
+  color: var(--ink-fade);
+  font-variant-numeric: tabular-nums;
 }
 
 /* Old entries gently fade so the eye is drawn to the newest at the top. */

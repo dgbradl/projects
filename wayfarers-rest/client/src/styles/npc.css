@@ -104,6 +104,26 @@
   box-shadow: 0 0 12px rgba(239, 183, 102, 0.6);
 }
 
+/* Phase 8 (B3): click-to-focus glow from the EventTicker. Pulses ~3s while
+   the focused-NPC state is alive (App.tsx expires it on the heartbeat). */
+.npc--focused {
+  z-index: 40;
+}
+
+.npc--focused .npc-sprite,
+.npc--focused .npc-dot {
+  animation: npc-focus-pulse 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes npc-focus-pulse {
+  from {
+    filter: drop-shadow(0 0 6px rgba(239, 183, 102, 0.5));
+  }
+  to {
+    filter: drop-shadow(0 0 14px rgba(239, 183, 102, 0.95));
+  }
+}
+
 .npc-tooltip {
   position: absolute;
   bottom: 100%;

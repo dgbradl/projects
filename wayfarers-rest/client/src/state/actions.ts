@@ -56,6 +56,11 @@ export type Action =
       type: 'TICKER_LOADED';
       payload: { entries: TickerEntry[]; lastEventId: number };
     }
+  // Phase 8 (B3): focus an NPC (and expire it after the glow window).
+  | { type: 'FOCUS_NPC'; payload: { npcId: string; expiresAt: number } }
+  | { type: 'EXPIRE_FOCUSED_NPC'; payload: { now: number } }
+  // Phase 8 (B3): expand/collapse a thread row in the ticker.
+  | { type: 'TOGGLE_TICKER_THREAD'; payload: { threadId: string } }
   | { type: 'FLAVOR_STATUS'; payload: FlavorStatusPayload }
   | { type: 'WELCOME_OPENED'; payload: ChroniclesSinceResponse }
   | { type: 'CHRONICLE_FILLED'; payload: DailyChronicle }
