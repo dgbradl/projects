@@ -90,11 +90,16 @@ export function positionBesideChair(
 /**
  * Centroid of the positions of other NPCs whose `zone` matches. Returns null
  * when nobody else is in the zone (so the caller falls back to jitter).
+ *
+ * Phase 8 (C2): `sameArchetype` narrows the centroid to NPCs of that exact
+ * archetype string. Used when an archetype's `clusterAffinity > 0.5` so
+ * soldiers cluster with soldiers (not with anyone-around).
  */
 export function zoneCentroidOfOthers(
   zone: ZoneName,
   roster: Npc[],
   selfId: string,
+  sameArchetype?: string,
 ): Point | null {
   let sumX = 0;
   let sumY = 0;
@@ -102,6 +107,7 @@ export function zoneCentroidOfOthers(
   for (const npc of roster) {
     if (npc.id === selfId) continue;
     if (npc.zone !== zone) continue;
+    if (sameArchetype !== undefined && npc.archetype !== sameArchetype) continue;
     sumX += npc.position.x;
     sumY += npc.position.y;
     n += 1;

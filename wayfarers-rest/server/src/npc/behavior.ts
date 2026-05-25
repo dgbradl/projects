@@ -2,6 +2,7 @@ import type { FurniturePiece, Npc, NpcStatus, StaffRole, ZoneName } from '@share
 import { WALKABLE } from '@shared/space';
 import { TABLE_ZONES, zoneByName } from '../world/tavern.ts';
 import { rngFloat, rngInt, rngPick, seededRng } from '../world/rng.ts';
+import { traitsFor, type ArchetypeTraits } from './archetype-traits.ts';
 import { absoluteSubTick } from './spawn.ts';
 import {
   pickFreeChair,
@@ -51,6 +52,10 @@ export interface BehaviorContext {
    *  centroid/occupancy calculations so an NPC doesn't cluster around
    *  itself or count its current chair as taken. */
   selfId?: string;
+  /** Phase 8 (C2): archetype of the deciding NPC; used to pull `clusterAffinity`
+   *  out of the trait table so soldiers cluster more than rogues. Omit for
+   *  staff or test paths and the baseline (wanderer, 0) applies. */
+  selfArchetype?: string;
 }
 
 const CLUSTER_BIAS_PROB = 0.6;
@@ -61,10 +66,41 @@ export interface BehaviorResult {
 }
 
 /**
+ * Phase 8 (C2): scale a sub-tick count by an archetype's dwell multiplier,
+ * pinning at a minimum of 1 so a quick-pacing archetype (refugee at ×0.7)
+ * doesn't produce 0-tick dwells that would re-decide every loop.
+ */
+function scaledDwell(dwell: number, traits: ArchetypeTraits): number {
+  return Math.max(1, Math.round(dwell * traits.dwellMultiplier));
+}
+
+/**
+ * Phase 8 (C2): pick a destination biased toward `traits.preferredZones`
+ * intersected with `allowed`. With probability `preferBias` (default 0.7),
+ * we draw from the intersection; otherwise we fall back to `allowed`. The
+ * roll is always taken from `rng` (one draw) so the RNG draw count is
+ * stable for tests/snapshots, regardless of which branch the bias lands
+ * in. A second draw picks the actual zone.
+ */
+function pickPreferredZone(
+  rng: ReturnType<typeof seededRng>,
+  traits: ArchetypeTraits,
+  allowed: readonly ZoneName[],
+  preferBias = 0.7,
+): ZoneName {
+  const biasRoll = rng();
+  if (biasRoll < preferBias) {
+    const filtered = traits.preferredZones.filter((z) => allowed.includes(z));
+    if (filtered.length > 0) return rngPick(rng, filtered);
+  }
+  return rngPick(rng, allowed);
+}
+
+/**
  * Decide the NPC's next state. Caller is responsible for only invoking this
  * when `ctx.absSubTick >= npc.nextDecisionSubTick`.
  *
- * Dwell ranges follow the Phase 2 spec.
+ * Dwell ranges follow the Phase 2 spec, scaled per-archetype in C2.
  */
 export function decideNextState(npc: Npc, ctx: BehaviorContext): BehaviorResult {
   if (npc.isStaff) return decideStaffBehavior(npc, ctx);
@@ -93,6 +129,8 @@ export function decideNextState(npc: Npc, ctx: BehaviorContext): BehaviorResult 
     return transition(npc, 'leaving', 'door', rng, ctx, /* dwell */ 3);
   }
 
+  const traits = traitsFor(npc.archetype);
+
   switch (npc.status) {
     case 'approaching':
       // Becomes 'arriving' once the scheduled sub-tick has arrived. The manager
@@ -103,34 +141,43 @@ export function decideNextState(npc: Npc, ctx: BehaviorContext): BehaviorResult 
       return transition(npc, 'at_bar', 'bar', rng, ctx, rngInt(rng, 2, 4));
 
     case 'at_bar': {
-      const dwell = rngInt(rng, 4, 11);
+      const dwell = scaledDwell(rngInt(rng, 4, 11), traits);
       if (absSubTick - npc.nextDecisionSubTick < 0) {
         return { npc, changed: false };
       }
-      const seatedTable = rngPick(rng, TABLE_ZONES);
+      // Phase 8 (C2): traits-biased table pick. Allowed = tables only here.
+      const seatedTable = pickPreferredZone(rng, traits, TABLE_ZONES);
       return transition(npc, 'seated', seatedTable, rng, ctx, dwell);
     }
 
     case 'seated': {
-      // After a long dwell, get up and wander to the bar or another table.
+      // After a long dwell, get up and wander to the bar or a different table.
+      // C2: the destination pool now includes the hearth so trait-preferring
+      // archetypes (bards, refugees, pilgrims) can actually visit it.
       const goToBar = rng() < 0.5;
-      const target: ZoneName = goToBar
-        ? 'bar'
-        : rngPick(
-            rng,
-            TABLE_ZONES.filter((t) => t !== npc.zone),
-          );
-      const nextStatus: NpcStatus = goToBar ? 'wandering' : 'wandering';
-      const dwell = rngInt(rng, 12, 31);
+      let target: ZoneName;
+      if (goToBar) {
+        target = 'bar';
+      } else {
+        const otherTables = TABLE_ZONES.filter((t) => t !== npc.zone);
+        const allowed: readonly ZoneName[] = ['hearth', ...otherTables];
+        target = pickPreferredZone(rng, traits, allowed);
+      }
+      const nextStatus: NpcStatus = 'wandering';
+      const dwell = scaledDwell(rngInt(rng, 12, 31), traits);
       return transition(npc, nextStatus, target, rng, ctx, dwell);
     }
 
     case 'wandering': {
       // After wandering, settle either at the bar or at a table.
       const settleAtBar = rng() < 0.45;
-      const target: ZoneName = settleAtBar ? 'bar' : rngPick(rng, TABLE_ZONES);
+      const target: ZoneName = settleAtBar
+        ? 'bar'
+        : pickPreferredZone(rng, traits, TABLE_ZONES);
       const nextStatus: NpcStatus = settleAtBar ? 'at_bar' : 'seated';
-      const dwell = settleAtBar ? rngInt(rng, 4, 11) : rngInt(rng, 12, 31);
+      const dwell = settleAtBar
+        ? scaledDwell(rngInt(rng, 4, 11), traits)
+        : scaledDwell(rngInt(rng, 12, 31), traits);
       return transition(npc, nextStatus, target, rng, ctx, dwell);
     }
 
@@ -182,7 +229,13 @@ function transition(
   dwellSubTicks: number,
 ): BehaviorResult {
   const position = nextZone
-    ? pickPositionInZone(nextZone, rng, { ...ctx, selfId: ctx.selfId ?? npc.id })
+    ? pickPositionInZone(nextZone, rng, {
+        ...ctx,
+        selfId: ctx.selfId ?? npc.id,
+        // Phase 8 (C2): pass the deciding NPC's archetype so pickPositionInZone
+        // can apply per-archetype clusterAffinity.
+        selfArchetype: ctx.selfArchetype ?? npc.archetype,
+      })
     : npc.position;
   const nextDecisionSubTick = ctx.absSubTick + Math.max(1, dwellSubTicks);
   const updated: Npc = {
@@ -235,8 +288,20 @@ export function pickPositionInZone(
   }
 
   if (roster.length > 0) {
-    const centroid = zoneCentroidOfOthers(zoneName, roster, selfId);
-    if (centroid && rng() < CLUSTER_BIAS_PROB) {
+    // Phase 8 (C2): per-archetype clusterAffinity replaces the global
+    // CLUSTER_BIAS_PROB. When affinity is high (> 0.5), the centroid is
+    // restricted to NPCs of the same archetype so soldiers cluster with
+    // soldiers; otherwise fall back to the older "anyone-in-zone" centroid.
+    const traits = ctx.selfArchetype ? traitsFor(ctx.selfArchetype) : undefined;
+    const affinity = traits?.clusterAffinity ?? CLUSTER_BIAS_PROB;
+    const filterToSame = (traits?.clusterAffinity ?? 0) > 0.5;
+    const centroid = zoneCentroidOfOthers(
+      zoneName,
+      roster,
+      selfId,
+      filterToSame ? ctx.selfArchetype : undefined,
+    );
+    if (centroid && rng() < affinity) {
       const angle = rngFloat(rng, 0, Math.PI * 2);
       const distance = Math.sqrt(rng()) * zone.radius * 0.5;
       return clampToWalkable({
