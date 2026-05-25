@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import type { WorldSnapshot } from '@shared/types';
 import { api } from './api.ts';
 import { DEFAULT_TAVERN_NAME } from '@shared/types';
@@ -19,6 +19,11 @@ import { StoreProvider, useDispatch, useStore } from './state/store.tsx';
 function Bootstrap() {
   const dispatch = useDispatch();
   const { tavern, world, welcome } = useStore();
+  // Phase 8 (D2 fix): once the keeper has clicked through onboarding, don't
+  // re-show the modal even if they kept the default name AND picked no
+  // traits. State-based gate alone can't distinguish "fresh world" from
+  // "deliberately kept all defaults" without an extra sentinel.
+  const [onboardingDismissed, setOnboardingDismissed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -92,11 +97,21 @@ function Bootstrap() {
     return <Welcome />;
   }
 
-  // Phase 8 (D2): first-run onboarding. Block tavern entry until the keeper
-  // has named the place — gated on day 1 with the default name still in
-  // place so existing worlds skip straight through.
-  if (world && world.gameDay === 1 && world.tavernName === DEFAULT_TAVERN_NAME) {
-    return <OpenTavernModal onComplete={() => undefined} />;
+  // Phase 8 (D2): first-run onboarding. Show the modal only on day 1, when
+  // the keeper hasn't yet onboarded — and dismiss on the modal's onComplete
+  // callback so a player who keeps both defaults still moves past the gate.
+  const hasOnboarded =
+    world &&
+    (world.tavernName !== DEFAULT_TAVERN_NAME || world.tavernTraits.length > 0);
+  if (
+    world &&
+    world.gameDay === 1 &&
+    !hasOnboarded &&
+    !onboardingDismissed
+  ) {
+    return (
+      <OpenTavernModal onComplete={() => setOnboardingDismissed(true)} />
+    );
   }
 
   // Phase 8 (D2): the page <title> tracks the named tavern so the browser
