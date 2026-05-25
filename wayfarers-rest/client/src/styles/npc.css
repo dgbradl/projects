@@ -156,7 +156,7 @@
   left: 50%;
   transform: translate(-50%, -8px);
   background: rgba(15, 12, 8, 0.96);
-  border: 1px solid #3a2a1c;
+  border: 1px solid var(--border-wood);
   padding: 0.4rem 0.6rem;
   border-radius: 0.25rem;
   font-size: 0.7rem;
@@ -219,7 +219,7 @@
 .npc-tooltip-desires {
   margin-top: 0.35rem;
   padding-top: 0.35rem;
-  border-top: 1px solid #3a2a1c;
+  border-top: 1px solid var(--border-wood);
   display: flex;
   flex-direction: column;
   gap: 0.2rem;

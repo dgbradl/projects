@@ -234,7 +234,7 @@
   gap: 1px;
   padding: 2px;
   background: rgba(15, 12, 8, 0.96);
-  border: 1px solid #3a2a1c;
+  border: 1px solid var(--border-wood);
   border-radius: 4px;
   white-space: nowrap;
   cursor: default;
@@ -338,7 +338,7 @@
   gap: 0.25rem;
   padding: 1px 6px;
   background: rgba(15, 12, 8, 0.92);
-  border: 1px solid #3a2a1c;
+  border: 1px solid var(--border-wood);
   border-radius: 3px;
   font-size: 0.7rem;
   color: var(--ink);
@@ -358,7 +358,7 @@
   line-height: 1;
   color: var(--ink);
   background: transparent;
-  border: 1px solid #3a2a1c;
+  border: 1px solid var(--border-wood);
   border-radius: 2px;
   cursor: pointer;
 }

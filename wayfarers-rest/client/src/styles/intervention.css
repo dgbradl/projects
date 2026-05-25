@@ -7,7 +7,7 @@
   gap: 0.6rem;
   padding: 0.45rem 0.75rem;
   background: rgba(15, 12, 8, 0.92);
-  border: 1px solid #3a2a1c;
+  border: 1px solid var(--border-wood);
   border-radius: 0.5rem;
   color: var(--ink);
   font-family: 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
@@ -71,7 +71,7 @@
   max-width: 50vw;
   padding: 1rem 1.2rem;
   background: rgba(15, 12, 8, 0.97);
-  border-left: 1px solid #3a2a1c;
+  border-left: 1px solid var(--border-wood);
   color: var(--ink);
   font-family: 'Iowan Old Style', Georgia, serif;
   z-index: 7;
@@ -82,7 +82,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #3a2a1c;
+  border-bottom: 1px solid var(--border-wood);
   padding-bottom: 0.5rem;
   margin-bottom: 0.75rem;
 }
@@ -114,7 +114,7 @@
   text-align: left;
   padding: 0.6rem 0.75rem;
   background: rgba(243, 228, 197, 0.05);
-  border: 1px solid #3a2a1c;
+  border: 1px solid var(--border-wood);
   color: var(--ink);
   font-family: inherit;
   font-size: 0.95rem;
@@ -164,7 +164,7 @@
 .intervention-target select {
   background: #1d130a;
   color: var(--ink);
-  border: 1px solid #3a2a1c;
+  border: 1px solid var(--border-wood);
   padding: 0.35rem 0.5rem;
   font-family: inherit;
   font-size: 0.92rem;
@@ -179,7 +179,7 @@
 
 .intervention-actions button {
   background: none;
-  border: 1px solid #3a2a1c;
+  border: 1px solid var(--border-wood);
   color: var(--ink);
   padding: 0.4rem 0.9rem;
   font-family: inherit;

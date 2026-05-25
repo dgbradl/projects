@@ -30,7 +30,7 @@ body,
   flex-direction: column;
   gap: 0.5rem;
   padding: 1rem 1.5rem;
-  border-bottom: 1px solid #3a2a1c;
+  border-bottom: 1px solid var(--border-wood);
   background: linear-gradient(180deg, #261b12, #1d160e);
 }
 
@@ -209,7 +209,7 @@ button.status-chip:hover {
 
 .pause-card {
   background: var(--panel);
-  border: 1px solid #3a2a1c;
+  border: 1px solid var(--border-wood);
   border-radius: 0.5rem;
   padding: 2rem 2.5rem;
   max-width: 28rem;
@@ -262,7 +262,7 @@ button.status-chip:hover {
   width: 2.25rem;
   height: 2.25rem;
   padding: 0;
-  border: 1px solid #3a2a1c;
+  border: 1px solid var(--border-wood);
   background: var(--panel);
   color: var(--ink);
   border-radius: 0.3rem;
@@ -293,7 +293,7 @@ button.status-chip:hover {
   right: 0;
   min-width: 18rem;
   background: var(--panel);
-  border: 1px solid #3a2a1c;
+  border: 1px solid var(--border-wood);
   border-radius: 0.4rem;
   padding: 0.4rem;
   z-index: 10000;
@@ -344,7 +344,7 @@ button.status-chip:hover {
 
 .menu-divider {
   height: 1px;
-  background: #3a2a1c;
+  background: var(--border-wood);
   margin: 0.3rem 0.2rem;
 }
 
@@ -380,7 +380,7 @@ button.status-chip:hover {
 .menu-reset-cancel {
   background: transparent;
   color: var(--ink);
-  border: 1px solid #3a2a1c;
+  border: 1px solid var(--border-wood);
 }
 
 .menu-reset-confirm-button {
