@@ -95,9 +95,14 @@ export function Npc({
       (npc.arrivedGameDay * subTicksPerDay + npc.arrivedSubTick);
   }
 
+  // Phase 8 (QW2): a returning regular gets a 2s gold sheen on the
+  // sub-tick they arrive. We key on subTicksSinceArrival === 0 so the
+  // CSS animation (forwards, 2s) plays once then stays settled.
+  const regularSheen = isRegular && !isStaff && subTicksSinceArrival === 0;
+
   return (
     <div
-      className={`npc npc-${npc.status}${isStaff ? ' npc-staff' : ''}${focused ? ' npc--focused' : ''}`}
+      className={`npc npc-${npc.status}${isStaff ? ' npc-staff' : ''}${focused ? ' npc--focused' : ''}${regularSheen ? ' npc--regular-sheen' : ''}`}
       style={style}
       data-npc-id={npc.id}
       data-status={npc.status}

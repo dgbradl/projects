@@ -104,6 +104,32 @@
   box-shadow: 0 0 12px rgba(239, 183, 102, 0.6);
 }
 
+/* Phase 8 (QW2): returning-regular arrival sheen. The class is applied
+   only on the sub-tick they walk in (subTicksSinceArrival === 0), then
+   the next sub-tick removes the class — but the animation has `forwards`
+   so it runs once cleanly to a settled (no-glow) end state. Pairs with
+   the existing ★ regular badge: the badge says "this is a regular", the
+   sheen says "they just walked back in." */
+.npc--regular-sheen .npc-sprite,
+.npc--regular-sheen .npc-dot {
+  animation: npc-regular-sheen 2s ease-out forwards;
+}
+
+@keyframes npc-regular-sheen {
+  0% {
+    filter: drop-shadow(0 0 0 transparent);
+  }
+  15% {
+    filter: drop-shadow(0 0 16px rgba(239, 183, 102, 1));
+  }
+  60% {
+    filter: drop-shadow(0 0 12px rgba(239, 183, 102, 0.7));
+  }
+  100% {
+    filter: drop-shadow(0 0 0 transparent);
+  }
+}
+
 /* Phase 8 (B3): click-to-focus glow from the EventTicker. Pulses ~3s while
    the focused-NPC state is alive (App.tsx expires it on the heartbeat). */
 .npc--focused {
