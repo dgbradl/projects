@@ -10,6 +10,8 @@ import type {
   WorldState,
 } from '@shared/types';
 
+export type { RumorTone };
+
 export type ValidationResult =
   | { ok: true }
   | { ok: false; reason: string };
@@ -45,6 +47,27 @@ export interface InterventionHelpers {
     initialNextTickDelay?: number;
   }): string;
   setWorldTag(key: string, value: string): void;
+  /**
+   * Phase 8 (A4): scan present NPCs for a `news_of_location` or
+   * `rumor_of_tone` desire matching the just-introduced rumor; fulfil the
+   * first match. Returns the npc id whose desire flipped, or undefined.
+   * Called by `plant_rumor` after `introduceRumor`.
+   */
+  fulfilDesireFromRumor?(
+    rumor: { originLocationId?: string; tone?: RumorTone },
+    fulfilledBy: string,
+  ): string | undefined;
+  /**
+   * Phase 8 (A4): scan present NPCs for an unfulfilled `company_of_kind`
+   * desire whose param is 'any' or matches `archetype`; fulfil the first
+   * match. Returns the npc id whose desire flipped, or undefined. Called
+   * by `beckon` so the keeper's act of summoning is felt immediately even
+   * though the summoned NPC arrives 1-3 days later.
+   */
+  fulfilCompanyDesireForArchetype?(
+    archetype: string,
+    fulfilledBy: string,
+  ): string | undefined;
 }
 
 export interface InterventionApplyInput<TPayload> {

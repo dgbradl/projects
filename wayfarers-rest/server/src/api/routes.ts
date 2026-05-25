@@ -16,6 +16,7 @@ import type { Clock } from '../lib/clock.ts';
 import type { FlavorCache } from '../llm/cache/manager.ts';
 import type { FlavorModeManager } from '../llm/mode.ts';
 import type { FurnitureManager } from '../furniture/manager.ts';
+import type { DesireResolver } from '../npc/desire-resolver.ts';
 import type { NpcManager } from '../npc/manager.ts';
 import type { Persistence } from '../persistence.ts';
 import type { WorldStateManager } from '../state.ts';
@@ -54,6 +55,10 @@ export interface ApiDeps {
   favorsMax?: number;
   /** Optional: enables POST /control/reset to snap day-tracking on the sub-tick scheduler. */
   subTickScheduler?: SubTickScheduler;
+  /** Phase 8 (A4): plumbed through to intervention helpers so verbs can
+   *  fulfil matching desires on present NPCs. Optional so test harnesses
+   *  that don't construct one stay valid. */
+  desireResolver?: DesireResolver;
 }
 
 export interface FlavorStatus {
@@ -182,6 +187,8 @@ export function registerRoutes(app: FastifyInstance, deps: ApiDeps): void {
       worldTags: deps.worldTags,
       rumors: deps.rumors,
       favorsMax: deps.favorsMax ?? 5,
+      desireResolver: deps.desireResolver,
+      subTicksPerDay: deps.subTicksPerDay,
     });
   }
 

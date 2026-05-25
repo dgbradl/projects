@@ -466,6 +466,9 @@ async function main(): Promise<void> {
     subTickScheduler,
     furnitureManager,
     zoneManager,
+    // Phase 8 (A4): plant_rumor + beckon use this to fulfil matching
+    // desires on present NPCs when the keeper acts.
+    desireResolver,
   };
 
   app.addHook('onClose', async () => {

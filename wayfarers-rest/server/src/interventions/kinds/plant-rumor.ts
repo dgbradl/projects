@@ -11,11 +11,16 @@ const DEFAULT_TONE = 'curious';
 export const PLANT_RUMOR: InterventionDefinition<PlantRumorPayload> = {
   kind: 'plant_rumor',
   cost: 1,
-  describe(payload, options) {
+  describe(payload, options, effect) {
     const loc = options.targets.locations.find((l) => l.id === payload.locationId);
     const where = loc?.displayName ?? payload.locationId;
     const tone = payload.tone ?? DEFAULT_TONE;
-    return `You whispered a ${tone} rumor toward ${where}`;
+    const base = `You whispered a ${tone} rumor toward ${where}`;
+    // Phase 8 (A4): if a present NPC's matching desire was fulfilled, name them.
+    if (effect?.fulfilledDesireOnNpcId) {
+      return `${base}, and ${effect.fulfilledDesireOnNpcId} caught the news they were waiting for`;
+    }
+    return base;
   },
   validate(payload) {
     if (!payload || typeof payload.locationId !== 'string') {
@@ -41,7 +46,16 @@ export const PLANT_RUMOR: InterventionDefinition<PlantRumorPayload> = {
       tagValue: tone,
       threadHistoryNote: `seeded by the keeper of The Wayfarer's Rest`,
     });
-    return { introducedRumorId: rumorId };
+    // Phase 8 (A4): the just-introduced rumor may match a present NPC's
+    // news_of_location or rumor_of_tone desire — fulfil the first hit.
+    const fulfilledNpcId = helpers.fulfilDesireFromRumor?.(
+      { originLocationId: loc.id, tone },
+      'keeper:plant_rumor',
+    );
+    return {
+      introducedRumorId: rumorId,
+      fulfilledDesireOnNpcId: fulfilledNpcId,
+    };
   },
 };
 

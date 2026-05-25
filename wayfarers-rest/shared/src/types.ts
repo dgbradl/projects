@@ -549,6 +549,12 @@ export interface InterventionEffect {
   larderRestockedTo?: number;
   /** Economy (E3): hearth comfort level after an upgrade. */
   hearthUpgradedTo?: number;
+  /**
+   * Phase 8 (A4): if this intervention happened to fulfil a present NPC's
+   * desire, the id of that NPC is recorded here so the chronicle and
+   * `describe()` can mention it ("…and Lana found the news she sought").
+   */
+  fulfilledDesireOnNpcId?: string;
 }
 
 export interface InterventionRecord {

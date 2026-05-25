@@ -13,6 +13,7 @@ import { buildInterventionHelpers } from '../interventions/helpers.ts';
 import { buildInterventionOptions } from '../interventions/options.ts';
 import * as registry from '../interventions/registry.ts';
 import type { InterventionOptions } from '../interventions/types.ts';
+import type { DesireResolver } from '../npc/desire-resolver.ts';
 import type { NpcManager } from '../npc/manager.ts';
 import type { Persistence } from '../persistence.ts';
 import type { WorldStateManager } from '../state.ts';
@@ -30,6 +31,10 @@ export interface InterventionRouteDeps {
   worldTags: WorldTagsManager;
   rumors: RumorsManager;
   favorsMax: number;
+  /** Phase 8 (A4): optional so test harnesses without one stay valid. */
+  desireResolver?: DesireResolver;
+  /** Phase 8 (A4): for timestamping fulfilments. */
+  subTicksPerDay?: number;
 }
 
 export function registerInterventionRoutes(
@@ -96,6 +101,12 @@ export function registerInterventionRoutes(
         worldTags: deps.worldTags,
         bus: deps.bus,
         gameDay,
+        // Phase 8 (A4): plumbed so plant_rumor + beckon can fulfil matching
+        // desires on present NPCs. Live server always passes both; tests may omit.
+        desireResolver: deps.desireResolver,
+        npcManager: deps.npcManager,
+        subTicksPerDay: deps.subTicksPerDay,
+        subTick: state.subTick,
       });
 
       let record: InterventionRecord | null = null;

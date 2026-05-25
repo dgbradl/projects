@@ -24,9 +24,15 @@ const CANONICAL_ARCHETYPES: ReadonlySet<NpcArchetype> = new Set<NpcArchetype>([
 export const BECKON: InterventionDefinition<BeckonPayload> = {
   kind: 'beckon',
   cost: 1,
-  describe(payload) {
+  describe(payload, _options, effect) {
     const days = payload.preferredDayOffset ?? 2;
-    return `You sent for a ${payload.archetype}, due in ${days} day${days === 1 ? '' : 's'}`;
+    const base = `You sent for a ${payload.archetype}, due in ${days} day${days === 1 ? '' : 's'}`;
+    // Phase 8 (A4): the keeper's act of summoning may have answered a present
+    // NPC's wish for company.
+    if (effect?.fulfilledDesireOnNpcId) {
+      return `${base}, easing ${effect.fulfilledDesireOnNpcId}'s wish for kin`;
+    }
+    return base;
   },
   validate(payload) {
     if (!payload || typeof payload.archetype !== 'string') {
@@ -63,7 +69,15 @@ export const BECKON: InterventionDefinition<BeckonPayload> = {
       },
       initialNextTickDelay: delay,
     });
-    return { spawnedThreadId: threadId };
+    // Phase 8 (A4): the keeper's act of summoning may answer a present NPC's
+    // unmet `company_of_kind` desire — they've heard kin is on the way. The
+    // beckoned NPC themselves arrives 1-3 days later, but the wish counts
+    // satisfied now: the wisdom of the keeper is its own balm.
+    const fulfilledNpcId = helpers.fulfilCompanyDesireForArchetype?.(
+      payload.archetype,
+      'keeper:beckon',
+    );
+    return { spawnedThreadId: threadId, fulfilledDesireOnNpcId: fulfilledNpcId };
   },
 };
 
