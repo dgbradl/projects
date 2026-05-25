@@ -74,7 +74,10 @@ function Bootstrap() {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      dispatch({ type: 'EXPIRE_INTERACTION_FLASHES', payload: { now: Date.now() } });
+      const now = Date.now();
+      dispatch({ type: 'EXPIRE_INTERACTION_FLASHES', payload: { now } });
+      // Phase 8 (QW1): expire floating coin tips on the same heartbeat.
+      dispatch({ type: 'EXPIRE_COIN_TIPS', payload: { now } });
     }, 1_000);
     return () => clearInterval(interval);
   }, [dispatch]);

@@ -21,6 +21,17 @@ export interface InteractionFlash {
   overheardText?: string;
 }
 
+/**
+ * Phase 8 (QW1): a floating "+N coin" appears above the status-bar coin
+ * counter for ~1s when a guest_spent event arrives over SSE. The store
+ * keeps a list of live tips; the StatusBar renders one element per id.
+ */
+export interface CoinTip {
+  id: string;
+  amount: number;
+  expiresAt: number;
+}
+
 export interface FlavorStatusPayload {
   mode: FlavorMode;
   pools: FlavorPoolStatus[];
@@ -36,6 +47,9 @@ export type Action =
   | { type: 'WORLD_EVENT'; payload: EventLogEntry }
   | { type: 'INTERACTION_FLASH'; payload: InteractionFlash }
   | { type: 'EXPIRE_INTERACTION_FLASHES'; payload: { now: number } }
+  // Phase 8 (QW1): floating "+N coin" feedback for guest_spent events.
+  | { type: 'COIN_TIP'; payload: CoinTip }
+  | { type: 'EXPIRE_COIN_TIPS'; payload: { now: number } }
   | { type: 'FLAVOR_STATUS'; payload: FlavorStatusPayload }
   | { type: 'WELCOME_OPENED'; payload: ChroniclesSinceResponse }
   | { type: 'CHRONICLE_FILLED'; payload: DailyChronicle }

@@ -2,7 +2,7 @@ import { tierForScore } from '@shared/types';
 import { useStore } from '../state/store.tsx';
 
 export function StatusBar() {
-  const { world, tavern, npcs } = useStore();
+  const { world, tavern, npcs, coinTips } = useStore();
   if (!world || !tavern) return <div className="status-bar status-bar-loading" />;
 
   return (
@@ -22,6 +22,13 @@ export function StatusBar() {
       </span>
       <span className="status-item status-coin">
         <strong data-testid="status-coin">{world.coin}</strong> coin
+        {/* Phase 8 (QW1): floating "+N" tips render absolutely-positioned
+            relative to the coin item; CSS handles the rise + fade. */}
+        {coinTips.map((tip) => (
+          <span key={tip.id} className="coin-tip" aria-hidden>
+            +{tip.amount}
+          </span>
+        ))}
       </span>
       <span className="status-item status-prosperity">
         <strong data-testid="status-prosperity">

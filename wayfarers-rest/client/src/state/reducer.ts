@@ -18,7 +18,7 @@ import type {
   WorldState,
   WorldTag,
 } from '@shared/types';
-import type { Action, InteractionFlash } from './actions.ts';
+import type { Action, CoinTip, InteractionFlash } from './actions.ts';
 
 export interface WelcomeSlice {
   fromGameDay: number;
@@ -56,6 +56,8 @@ export interface AppState {
   zones: Zone[];
   /** D2: whether the debug zone overlay is visible / draggable. */
   debugZonesEnabled: boolean;
+  /** Phase 8 (QW1): floating "+N coin" tips for guest_spent events. */
+  coinTips: CoinTip[];
 }
 
 export const initialState: AppState = {
@@ -78,6 +80,7 @@ export const initialState: AppState = {
   furniture: [],
   zones: [],
   debugZonesEnabled: false,
+  coinTips: [],
 };
 
 const LANDING_ANIMATION_MS = 1_500;
@@ -150,6 +153,17 @@ export function reducer(state: AppState, action: Action): AppState {
         if (flash.expiresAt > action.payload.now) next[id] = flash;
       }
       return { ...state, interactingNpcs: next };
+    }
+    case 'COIN_TIP': {
+      // Cap the list so a flurry of departures doesn't grow it unbounded.
+      const next = [action.payload, ...state.coinTips].slice(0, 12);
+      return { ...state, coinTips: next };
+    }
+    case 'EXPIRE_COIN_TIPS': {
+      const cutoff = action.payload.now;
+      const next = state.coinTips.filter((t) => t.expiresAt > cutoff);
+      if (next.length === state.coinTips.length) return state;
+      return { ...state, coinTips: next };
     }
     case 'FLAVOR_STATUS':
       return {

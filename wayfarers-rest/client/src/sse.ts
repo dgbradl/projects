@@ -11,6 +11,8 @@ import { api } from './api.ts';
 import type { Action } from './state/actions.ts';
 
 const INTERACTION_FLASH_SUBTICKS = 3;
+/** Phase 8 (QW1): how long a "+N coin" tip floats above the counter. */
+const COIN_TIP_MS = 1_400;
 
 export interface SubscribeOptions {
   subTickIntervalMs: number;
@@ -66,6 +68,18 @@ export function subscribe(
         dispatch({
           type: 'INTERVENTION_LANDED',
           payload: data.event.intervention,
+        });
+      }
+      if (data.event.type === 'guest_spent') {
+        // Phase 8 (QW1): float a "+N" above the coin counter for a beat.
+        // The actual coin number reconciles at ledger_closed via STATE_UPDATE.
+        dispatch({
+          type: 'COIN_TIP',
+          payload: {
+            id: `tip-${data.id}`,
+            amount: data.event.amount,
+            expiresAt: Date.now() + COIN_TIP_MS,
+          },
         });
       }
     });

@@ -67,6 +67,43 @@ body,
   color: var(--ink);
 }
 
+/* Phase 8 (QW1): floating "+N" coin tip above the coin counter. Each tip
+   rises ~16px while fading out over its 1.4s lifetime; multiple in-flight
+   tips stagger naturally because they were dispatched at different times. */
+.status-coin {
+  position: relative;
+}
+
+.coin-tip {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent-strong);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  animation: coin-tip-rise 1.4s ease-out forwards;
+}
+
+@keyframes coin-tip-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+}
+
 .status-running {
   color: var(--accent-strong);
 }
