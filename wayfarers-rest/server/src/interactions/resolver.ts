@@ -26,12 +26,16 @@ const BASE_WEIGHTS: Record<string, Weights> = {
     overheard_argument: 0.2,
     whispered_exchange: 0.15,
     silent_recognition: 0.05,
+    // Phase 9 (G2): `transaction` is force-emitted via the G2 path; the
+    // natural-pick weight is 0 so it never competes here.
+    transaction: 0,
   },
   default: {
     shared_drink: 0.3,
     overheard_argument: 0.1,
     whispered_exchange: 0.4,
     silent_recognition: 0.2,
+    transaction: 0,
   },
 };
 
@@ -49,6 +53,12 @@ export interface ResolverContext {
   staffModifiers?: StaffModifiers;
   /** Phase 8 (C3): archetype-signature modifiers (bard performance, soldier brood). */
   archetypeModifiers?: ArchetypeModifiers;
+  /**
+   * Phase 9 (G2): bypass `pickKind` and emit the given kind directly. Used
+   * by the merchant `transaction` path so a force-detected pair becomes a
+   * `transaction` interaction without competing in the natural weight table.
+   */
+  forcedKind?: InteractionKind;
 }
 
 export class InteractionResolver {
@@ -75,14 +85,16 @@ export class InteractionResolver {
       ctx.gameDay,
       ctx.subTick,
     );
-    const kind = this.pickKind(
-      candidate.zone,
-      a,
-      b,
-      rng,
-      ctx.staffModifiers,
-      ctx.archetypeModifiers,
-    );
+    const kind =
+      ctx.forcedKind ??
+      this.pickKind(
+        candidate.zone,
+        a,
+        b,
+        rng,
+        ctx.staffModifiers,
+        ctx.archetypeModifiers,
+      );
     const id = `int_d${ctx.gameDay}_st${ctx.subTick}_${ctx.perDayCounter.value}`;
     ctx.perDayCounter.value += 1;
 

@@ -20,11 +20,10 @@
  *   - studies (scholar): a non-staff scholar at the bar occasionally
  *     surfaces a one-line rumor about a non-positive world tag — see
  *     `ScholarStudyTracker` below. Once per visit per scholar.
- *
- * Deferred:
- *   - transacts (merchant): a low-affinity, coin-positive interaction
- *     between a merchant and a non-merchant; needs a new InteractionKind
- *     and ledger plumbing — Phase 9 G2.
+ *   - transacts (merchant): a merchant and a non-merchant sharing a zone
+ *     occasionally strike a small deal — see `processMerchantTransaction`
+ *     below. Zero affinity, coin-positive for the merchant on departure.
+ *     Capped at 2 transactions per merchant per day.
  */
 import type { Npc, WorldTag, ZoneName } from '@shared/types';
 import { DEFAULT_ALARMING_VALUES } from '../chronicle/types.ts';
@@ -196,4 +195,78 @@ export class ScholarStudyTracker {
   reset(): void {
     this.studied.clear();
   }
+}
+
+// ---------- Phase 9 (G2): merchant 'transacts' signature ----------
+
+export interface MerchantTransactionResult {
+  merchantId: string;
+  customerId: string;
+  zone: ZoneName;
+}
+
+/** Per-sub-tick probability that a merchant+non-merchant pair strikes a
+ *  deal when one exists in the same zone. Combined with the per-day cap
+ *  below, a merchant typically transacts 0–2 times per visit. */
+const MERCHANT_TRANSACT_PROB = 0.02;
+
+/** Cap on transactions per merchant per day. The runner passes the live
+ *  count via `transactionsToday` and we short-circuit when it's reached. */
+export const MERCHANT_DAILY_TRANSACTION_CAP = 2;
+
+/**
+ * Try to fire a merchant `transaction` interaction this sub-tick. Returns
+ * the {merchant, customer, zone} candidate the resolver should emit, or
+ * undefined when no eligible pair / no roll / cap reached.
+ *
+ * Deterministic: seededRng keyed on (worldSeed, 'merchant-transact',
+ * merchantId, gameDay, subTick). Pure beyond that — `transactionsToday`
+ * is read-only here; the caller (postSubTickHook) increments after a
+ * successful resolve.
+ */
+export function processMerchantTransaction(input: {
+  roster: Npc[];
+  worldSeed: string;
+  gameDay: number;
+  subTick: number;
+  /** Per-merchant count of transactions already fired today. */
+  transactionsToday: Map<string, number>;
+}): MerchantTransactionResult | undefined {
+  for (const merchant of input.roster) {
+    if (merchant.isStaff) continue;
+    if (merchant.archetype !== 'merchant') continue;
+    if (
+      (input.transactionsToday.get(merchant.id) ?? 0) >=
+      MERCHANT_DAILY_TRANSACTION_CAP
+    ) {
+      continue;
+    }
+    if (!merchant.zone) continue;
+    // Find any non-merchant in the same zone (skip staff — staff don't
+    // transact through this path; merchants don't deal with themselves).
+    const customer = input.roster.find(
+      (n) =>
+        !n.isStaff &&
+        n.archetype !== 'merchant' &&
+        n.id !== merchant.id &&
+        n.zone === merchant.zone,
+    );
+    if (!customer) continue;
+
+    const rng = seededRng(
+      input.worldSeed,
+      'merchant-transact',
+      merchant.id,
+      input.gameDay,
+      input.subTick,
+    );
+    if (rng() >= MERCHANT_TRANSACT_PROB) continue;
+
+    return {
+      merchantId: merchant.id,
+      customerId: customer.id,
+      zone: merchant.zone,
+    };
+  }
+  return undefined;
 }

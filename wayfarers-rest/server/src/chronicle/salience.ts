@@ -69,6 +69,10 @@ export function score(event: WorldEvent, ctx: SalienceContext): number {
       let s = 1;
       const k = event.interaction.kind;
       if (k === 'whispered_exchange' || k === 'overheard_argument') s += 3;
+      // Phase 9 (G2): a transaction is mildly interesting — it shows the
+      // tavern as a commercial space — but not as juicy as an argument or
+      // a whispered confidence. Just above the cull line.
+      if (k === 'transaction') s += 1;
       if (event.interaction.spawnedThreadId) s += 5;
       if (
         ctx.markedNpcIds &&

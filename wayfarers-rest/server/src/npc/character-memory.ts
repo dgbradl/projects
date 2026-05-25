@@ -32,6 +32,8 @@ const AFFINITY_DELTAS: Record<InteractionKind, number> = {
   silent_recognition: 1,
   whispered_exchange: 1,
   overheard_argument: -4,
+  // Phase 9 (G2): transactions are business-friendly but not friendship-warm.
+  transaction: 0,
 };
 
 /** Clamp an affinity value into [AFFINITY_MIN, AFFINITY_MAX]. */
@@ -50,6 +52,7 @@ const INTERACTION_KINDS: ReadonlySet<string> = new Set<InteractionKind>([
   'overheard_argument',
   'whispered_exchange',
   'silent_recognition',
+  'transaction',
 ]);
 
 /** A fresh, empty memory record. */

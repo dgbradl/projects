@@ -37,6 +37,15 @@ export interface GuestSpendInput {
    * one. Counted at departure from the npc.desires snapshot.
    */
   fulfilledDesireCount?: number;
+  /**
+   * Phase 9 (G2): how many `transaction` interactions this guest closed
+   * today. Only meaningful for merchants (the trigger only ever fires for
+   * a merchant participant); for everyone else this is always 0. Each
+   * transaction draws an extra `rngInt(3, 8)` onto the merchant's tip.
+   * Appended after the A5 desire-tip draws so the RNG contract holds for
+   * legacy guests with neither.
+   */
+  merchantTransactionCount?: number;
 }
 
 /** Per-archetype drink spend band, [min, max] inclusive. */
@@ -123,6 +132,15 @@ export function computeGuestSpend(input: GuestSpendInput): GuestSpendBreakdown {
   const fulfilled = Math.max(0, input.fulfilledDesireCount ?? 0);
   for (let i = 0; i < fulfilled; i += 1) {
     tip += rngInt(rng, 2, 6);
+  }
+
+  // 6) Phase 9 (G2): merchant-transaction tip bump. Each closed deal draws
+  //    rngInt(3, 8) onto the merchant's tip. Appended after the A5 draws,
+  //    so a guest with neither desires nor transactions (legacy + non-
+  //    merchants) sees the same RNG stream they did before this slice.
+  const transactions = Math.max(0, input.merchantTransactionCount ?? 0);
+  for (let i = 0; i < transactions; i += 1) {
+    tip += rngInt(rng, 3, 9);
   }
 
   const mult = input.mood ? MOOD_MULT[input.mood] : 1;

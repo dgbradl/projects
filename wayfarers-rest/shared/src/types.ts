@@ -352,7 +352,14 @@ export type InteractionKind =
   | 'shared_drink'
   | 'overheard_argument'
   | 'whispered_exchange'
-  | 'silent_recognition';
+  | 'silent_recognition'
+  /**
+   * Phase 9 (G2): a merchant strikes a small deal with a non-merchant. Zero
+   * affinity delta on both ends — it's a business courtesy, not a friendship
+   * beat — but the merchant pockets a coin bonus at departure (see
+   * `computeGuestSpend.merchantTransactionCount`).
+   */
+  | 'transaction';
 
 export interface Interaction {
   id: string;

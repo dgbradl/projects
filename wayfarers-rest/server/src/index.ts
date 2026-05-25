@@ -40,6 +40,7 @@ import {
 import * as interventionRegistry from './interventions/registry.ts';
 import {
   computeArchetypeModifiers,
+  processMerchantTransaction,
   ScholarStudyTracker,
 } from './npc/archetype-signatures.ts';
 import { CharacterMemoryRecorder } from './npc/character-memory.ts';
@@ -302,6 +303,39 @@ async function main(): Promise<void> {
           },
         },
         gameDay,
+      );
+    }
+
+    // Phase 9 (G2): merchant transacts — a merchant + non-merchant sharing
+    // a zone may strike a small deal. Force the resolver to emit kind
+    // 'transaction' so the existing event/affinity machinery handles it,
+    // and tally the merchant's daily count for the departure tip bump.
+    const transaction = processMerchantTransaction({
+      roster,
+      worldSeed: stateManager.getState().seed,
+      gameDay,
+      subTick,
+      transactionsToday: npcManager.transactionsToday,
+    });
+    if (transaction) {
+      const npcsByIdT = new Map(roster.map((n) => [n.id, n]));
+      interactionResolver.resolve(
+        {
+          zone: transaction.zone,
+          participantIds: [transaction.merchantId, transaction.customerId],
+        },
+        {
+          worldSeed: stateManager.getState().seed,
+          gameDay,
+          subTick,
+          npcsById: npcsByIdT,
+          perDayCounter: interactionCounter,
+          forcedKind: 'transaction',
+        },
+      );
+      npcManager.transactionsToday.set(
+        transaction.merchantId,
+        (npcManager.transactionsToday.get(transaction.merchantId) ?? 0) + 1,
       );
     }
 

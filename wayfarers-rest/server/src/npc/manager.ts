@@ -110,6 +110,13 @@ export class NpcManager extends EventEmitter {
   /** Per-NPC interaction counts for the current game day. */
   public interactionsToday = new Map<string, number>();
   public pairsToday = new Set<string>();
+  /**
+   * Phase 9 (G2): per-merchant transactions tally for the day. Read by
+   * `computeGuestSpend` at departure for the coin bump and by
+   * `processMerchantTransaction` to enforce the daily cap. Cleared in
+   * `onMacroTick`.
+   */
+  public transactionsToday = new Map<string, number>();
 
   constructor(
     private readonly config: NpcManagerConfig,
@@ -277,6 +284,8 @@ export class NpcManager extends EventEmitter {
 
     this.interactionsToday.clear();
     this.pairsToday.clear();
+    // Phase 9 (G2): reset merchant transaction tally too.
+    this.transactionsToday.clear();
   }
 
   /**
@@ -412,6 +421,9 @@ export class NpcManager extends EventEmitter {
                 0,
               )
             : 0;
+          // Phase 9 (G2): merchants get a coin bump per transaction they
+          // closed today. Non-merchants always have 0 here.
+          const merchantTransactionCount = this.transactionsToday.get(id) ?? 0;
           const breakdown = computeGuestSpend({
             worldSeed,
             npcId: id,
@@ -427,6 +439,8 @@ export class NpcManager extends EventEmitter {
             // Phase 8 (A5): a satisfied guest tips more. Each fulfilled
             // desire draws an extra rngInt(2,5) on top of the base tip.
             fulfilledDesireCount,
+            // Phase 9 (G2): a closing-deal bump for the merchant's tab.
+            merchantTransactionCount,
           });
           this.deps.bus.publish({
             type: 'guest_spent',

@@ -187,6 +187,12 @@ export function renderSentence(
       if (ev.interaction.overheardText) {
         return `${names} exchanged words at the ${ev.interaction.zone}; one of them was overheard saying: ${ev.interaction.overheardText}.`;
       }
+      // Phase 9 (G2): per-kind prose. Transactions read as deals, not as
+      // "a transaction" — small thing, but the chronicle should feel
+      // written rather than templated.
+      if (ev.interaction.kind === 'transaction') {
+        return `${names} struck a small deal at the ${ev.interaction.zone}.`;
+      }
       return `${names} shared a ${ev.interaction.kind.replace(/_/g, ' ')} at the ${ev.interaction.zone}.`;
     }
     case 'desire_fulfilled': {
