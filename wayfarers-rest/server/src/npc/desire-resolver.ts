@@ -31,6 +31,7 @@ import type {
   Interaction,
   Npc,
   NpcDesire,
+  Rumor,
   WorldEvent,
   ZoneName,
 } from '@shared/types';
@@ -191,6 +192,89 @@ export class DesireResolver {
   }
 
   // ---------- core mutation ----------
+
+  /**
+   * Phase 8 (A3+A4): public fulfilment hook for non-sim sources. Used by
+   * staff effects (hospitality → warm_meal, gossipNetwork → news_of_*)
+   * and by interventions (plant_rumor, beckon). `by` is the
+   * `fulfilledBy` string ('staff:<role>' or 'keeper:<intervention_kind>')
+   * surfaced on the event and in tooltip prose. Returns true if a desire
+   * actually flipped.
+   */
+  fulfilByExternal(
+    npcId: string,
+    kind: DesireKind,
+    param: string | undefined,
+    by: string,
+    gameDay: number,
+    absSubTick: number,
+  ): boolean {
+    const before = this.deps.npcManager
+      .getRoster()
+      .find((n) => n.id === npcId)?.desires;
+    if (!before) return false;
+    const ok = this.deps.npcManager.markDesireFulfilled(
+      npcId,
+      kind,
+      param,
+      by,
+      absSubTick,
+    );
+    if (!ok) return false;
+    this.deps.bus.publish({
+      type: 'desire_fulfilled',
+      gameDay,
+      npcId,
+      desireKind: kind,
+      param,
+      fulfilledBy: by,
+    });
+    return true;
+  }
+
+  /**
+   * Phase 8 (A3): given a rumor just routed to an NPC, fulfil any
+   * `news_of_location` desire whose param matches the rumor's
+   * originLocationId, or any `rumor_of_tone` whose param matches the
+   * rumor's tone. Returns the kind fulfilled, or undefined.
+   *
+   * Used by both the gossipNetwork transfer (staff fulfilment) and by
+   * plant_rumor (keeper fulfilment) — the matching logic is identical, the
+   * callers differ only in `by`.
+   */
+  fulfilFromRumor(
+    npcId: string,
+    rumor: Pick<Rumor, 'originLocationId' | 'tone'>,
+    by: string,
+    gameDay: number,
+    absSubTick: number,
+  ): { kind: DesireKind; param: string | undefined } | undefined {
+    const npc = this.deps.npcManager
+      .getRoster()
+      .find((n) => n.id === npcId);
+    if (!npc || !npc.desires) return undefined;
+    for (const d of npc.desires) {
+      if (d.fulfilledAtSubTick !== undefined) continue;
+      const matches =
+        (d.kind === 'news_of_location' &&
+          rumor.originLocationId !== undefined &&
+          d.param === rumor.originLocationId) ||
+        (d.kind === 'rumor_of_tone' &&
+          rumor.tone !== undefined &&
+          d.param === rumor.tone);
+      if (!matches) continue;
+      const flipped = this.fulfilByExternal(
+        npcId,
+        d.kind,
+        d.param,
+        by,
+        gameDay,
+        absSubTick,
+      );
+      if (flipped) return { kind: d.kind, param: d.param };
+    }
+    return undefined;
+  }
 
   private fulfil(
     npcId: string,

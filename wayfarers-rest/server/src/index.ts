@@ -47,6 +47,7 @@ import {
   computeHospitalityExtension,
   computeThoroughnessBonus,
   processGossipNetwork,
+  processHospitalityFulfilment,
 } from './npc/staff-effects.ts';
 import { seedStaffIfMissing } from './npc/staff-roster.ts';
 import { Persistence } from './persistence.ts';
@@ -238,6 +239,37 @@ async function main(): Promise<void> {
     );
     if (gossip) {
       npcManager.applyGossip(gossip.recipientId, gossip.rumorId);
+      // Phase 8 (A3): if the transferred rumor matches a news_of_location or
+      // rumor_of_tone desire on the recipient, the bartender just earned it.
+      const rumor = persistence.loadRumorById(gossip.rumorId);
+      if (rumor) {
+        desireResolver.fulfilFromRumor(
+          gossip.recipientId,
+          rumor,
+          'staff:bartender',
+          gameDay,
+          gameDay * SUB_TICKS_PER_DAY + subTick,
+        );
+      }
+    }
+
+    // Phase 8 (A3): waitstaff hospitality — once per sub-tick, may bring a
+    // hot dish to a seated traveler whose warm_meal desire is unmet.
+    const hospitality = processHospitalityFulfilment(
+      roster,
+      stateManager.getState().seed,
+      gameDay,
+      subTick,
+    );
+    if (hospitality) {
+      desireResolver.fulfilByExternal(
+        hospitality.recipientId,
+        'warm_meal',
+        undefined,
+        'staff:waitstaff',
+        gameDay,
+        gameDay * SUB_TICKS_PER_DAY + subTick,
+      );
     }
 
     const candidates = detectInteractions(roster, {

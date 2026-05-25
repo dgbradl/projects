@@ -101,6 +101,61 @@ export function computeHospitalityExtension(roster: Npc[]): number {
   return Math.min(30, Math.floor(best * 3));
 }
 
+// ---------- Phase 8 (A3): hospitality → warm_meal fulfilment ----------
+
+export interface HospitalityResult {
+  /** The waitstaff member who delivered. */
+  waitstaffId: string;
+  /** The seated traveler whose warm_meal was fulfilled. */
+  recipientId: string;
+}
+
+/**
+ * Phase 8 (A3): once per sub-tick, the waitstaff may bring a hot dish to a
+ * seated traveler whose `warm_meal` desire is still unmet. One roll per
+ * sub-tick keeps cost flat and mirrors `processGossipNetwork`.
+ *
+ * Probability = best-hospitality / 10 × 0.4  (max 40% at skill 10).
+ *
+ * The candidate pick is deterministic in seeded order: first eligible
+ * traveler scanned in the roster's natural order is the one served, so
+ * tests can pin specific outcomes without modeling the RNG's draw order
+ * for candidate selection.
+ */
+export function processHospitalityFulfilment(
+  roster: Npc[],
+  worldSeed: string,
+  gameDay: number,
+  subTick: number,
+): HospitalityResult | undefined {
+  // Any waitstaff member on the floor qualifies — they cover for each other.
+  const waiters = roster.filter(
+    (n) => n.isStaff && n.staffRole === 'waitstaff',
+  );
+  if (waiters.length === 0) return undefined;
+  const best = waiters.reduce(
+    (a, b) => (skill(a, 'hospitality') >= skill(b, 'hospitality') ? a : b),
+  );
+  const h = skill(best, 'hospitality');
+  if (h === 0) return undefined;
+
+  const rng = seededRng(worldSeed, 'hospitality', gameDay, subTick);
+  if (rng() >= (h / 10) * 0.4) return undefined;
+
+  for (const npc of roster) {
+    if (npc.isStaff) continue;
+    if (npc.status !== 'seated') continue;
+    if (!npc.desires) continue;
+    const hasWarmMeal = npc.desires.some(
+      (d) => d.kind === 'warm_meal' && d.fulfilledAtSubTick === undefined,
+    );
+    if (hasWarmMeal) {
+      return { waitstaffId: best.id, recipientId: npc.id };
+    }
+  }
+  return undefined;
+}
+
 // ---------- conflictMitigation ----------
 
 /**
