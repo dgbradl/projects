@@ -2,14 +2,12 @@ import { useEffect, useState } from 'react';
 import type { WorldSnapshot } from '@shared/types';
 import { api } from './api.ts';
 import { DEFAULT_TAVERN_NAME } from '@shared/types';
-import { DebugPanel } from './components/DebugPanel.tsx';
-import { EventTicker } from './components/EventTicker.tsx';
 import { FavorIndicator } from './components/FavorIndicator.tsx';
-import { InterventionPicker } from './components/InterventionPicker.tsx';
 import { LandingAnimation } from './components/LandingAnimation.tsx';
 import { MenuButton } from './components/MenuButton.tsx';
 import { OpenTavernModal } from './components/OpenTavernModal.tsx';
 import { PauseOverlay } from './components/PauseOverlay.tsx';
+import { RightDock } from './components/RightDock.tsx';
 import { StatusBar } from './components/StatusBar.tsx';
 import { Tavern } from './components/Tavern.tsx';
 import { Welcome } from './components/Welcome.tsx';
@@ -128,13 +126,17 @@ function Bootstrap() {
         <StatusBar />
       </header>
       <main className="app-main">
-        <Tavern />
-        <PauseOverlay />
-        <FavorIndicator />
-        <InterventionPicker />
-        <LandingAnimation />
-        <EventTicker />
-        {tavern && <DebugPanel />}
+        <div className="app-main-play">
+          <Tavern />
+          <PauseOverlay />
+          <LandingAnimation />
+          {/* FavorIndicator stays mounted until the status-strip favor chip
+              lands in the next slice — without it there's no way to open
+              the favor picker by clicking. The picker itself now lives in
+              the dock's Interventions tab. */}
+          <FavorIndicator />
+        </div>
+        {tavern && <RightDock />}
       </main>
     </div>
   );

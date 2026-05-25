@@ -44,10 +44,30 @@ body,
 .app-main {
   position: relative;
   flex: 1;
+  display: grid;
+  /* Two columns: a fluid play area (the tavern) and a min-content dock.
+     The dock owns its own width; the tavern is centred in column 1. The
+     dock's own grid column protects the tavern from being overlapped —
+     gone is the era of position: fixed sidebars clipping into the room. */
+  grid-template-columns: 1fr min-content;
+  align-items: stretch;
+  min-height: 0;
+}
+
+.app-main-play {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 1.5rem;
+  min-width: 0;
+}
+
+@media (max-width: 880px) {
+  .app-main {
+    grid-template-columns: 1fr;
+    grid-auto-rows: auto;
+  }
 }
 
 .status-bar {
