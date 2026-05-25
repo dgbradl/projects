@@ -339,7 +339,7 @@ export function buildTickerResponse(
     if (entry.id > lastEventId) lastEventId = entry.id;
     const s = scoreSalience(entry.event, ctx);
     if (s < TICKER_SCORE_THRESHOLD) continue;
-    const text = renderSentence(entry, npcsById);
+    const text = renderSentence(entry, npcsById, threadsById);
     if (!text) continue;
     const gameDay =
       'gameDay' in entry.event && typeof entry.event.gameDay === 'number'

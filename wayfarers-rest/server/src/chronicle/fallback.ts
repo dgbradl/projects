@@ -2,6 +2,7 @@ import type {
   DailyChronicle,
   EventLogEntry,
   Npc,
+  Thread,
 } from '@shared/types';
 import { locationById } from '../world/locations.ts';
 import { score } from './salience.ts';
@@ -43,7 +44,7 @@ export function buildFallbackChronicle(input: FallbackInput): DailyChronicle {
     });
 
   const sentences = scored.map((s) =>
-    renderSentence(s.entry, input.context.npcsById),
+    renderSentence(s.entry, input.context.npcsById, input.context.threadsById),
   );
 
   const headlines = sentences
@@ -84,7 +85,45 @@ export function buildFallbackChronicle(input: FallbackInput): DailyChronicle {
  * `/events/recent` ticker endpoint can reuse the same prose pipeline the
  * LLM-off chronicle uses — no parallel text generator.
  */
-export function renderSentence(entry: EventLogEntry, npcsById: Map<string, Npc>): string {
+// snake_case → space-separated lowercase, for both type names and state names.
+function humanize(s: string): string {
+  return s.replace(/_/g, ' ');
+}
+
+// Phrasing for thread_started by threadType. Anything not listed falls back to
+// `A new {humanized} began to take shape.` so unknown thread types still read
+// like prose instead of `threadType: foo_bar`.
+const THREAD_OPENERS: Record<string, string> = {
+  approaching_stranger: 'A stranger drew near the Rest.',
+  festival: 'Word of a festival began to spread.',
+  worldly_event: 'A distant happening rippled into the valley.',
+  war_escalation: 'Tensions in the north tightened a notch.',
+  travelers_journey: "A traveler's journey took shape.",
+};
+
+// Pull a human-readable type label for a thread, preferring the live Thread
+// record's `type` field, then a typeId guess parsed out of the threadId
+// (e.g. `thread_d2_travelers_journey_0` → `travelers journey`), then the
+// raw id as a last resort so we never render nothing.
+function threadLabel(
+  threadId: string,
+  threadsById?: Map<string, Thread>,
+): string {
+  const t = threadsById?.get(threadId);
+  if (t?.type) return humanize(t.type);
+  // strip `thread_d\d+_` prefix and `_\d+` suffix from generated ids
+  const stripped = threadId
+    .replace(/^thread_d\d+_/, '')
+    .replace(/_\d+$/, '');
+  if (stripped && stripped !== threadId) return humanize(stripped);
+  return threadId;
+}
+
+export function renderSentence(
+  entry: EventLogEntry,
+  npcsById: Map<string, Npc>,
+  threadsById?: Map<string, Thread>,
+): string {
   const ev = entry.event;
   switch (ev.type) {
     case 'npc_arrived': {
@@ -112,14 +151,21 @@ export function renderSentence(entry: EventLogEntry, npcsById: Map<string, Npc>)
     }
     case 'world_tag_changed':
       return `Word spread that ${ev.key} had turned to ${ev.newValue}.`;
-    case 'thread_started':
-      return `A new matter began in the world: ${ev.threadType}.`;
-    case 'thread_progressed':
-      return `The matter of ${ev.threadId} moved from ${ev.fromState} to ${ev.toState}.`;
-    case 'thread_completed':
-      return `The matter of ${ev.threadId} concluded: ${ev.outcome}.`;
+    case 'thread_started': {
+      const opener = THREAD_OPENERS[ev.threadType];
+      if (opener) return opener;
+      return `A new ${humanize(ev.threadType)} began to take shape.`;
+    }
+    case 'thread_progressed': {
+      const label = threadLabel(ev.threadId, threadsById);
+      return `The ${label} moved from ${humanize(ev.fromState)} to ${humanize(ev.toState)}.`;
+    }
+    case 'thread_completed': {
+      const label = threadLabel(ev.threadId, threadsById);
+      return `The ${label} ran its course: ${humanize(ev.outcome)}.`;
+    }
     case 'rumor_introduced':
-      return `A new rumor began to circulate (${ev.rumorId}).`;
+      return 'A new rumor began to circulate.';
     case 'ledger_closed': {
       if (ev.net > 0) return `The day's takings came to ${ev.net} coin.`;
       if (ev.net < 0) {
