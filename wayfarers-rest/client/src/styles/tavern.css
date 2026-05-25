@@ -46,11 +46,17 @@
 
 /* Wall surface — wood-plank wall texture that gives the wall its mass; the
    beam trim sits on top of it at the outer rim. Rendered behind the corners
-   and edges. Scaled to the wall band's height (--wall-depth) and tiled
-   horizontally so the planks stay at a believable scale. */
+   and edges. Stretched to fully fill each wall band (no tiling) so the
+   image's bright/transparent right edge can't show as gaps. Top and bottom
+   use the horizontal-plank wall.png; left and right use the 90°-rotated
+   wall_v.png so the planks run along the wall's length on every side. */
 .wall-fill {
-  background: url('../assets/tavern/wall.png') repeat-x;
-  background-size: auto 100%;
+  background: url('../assets/tavern/wall.png') center / 100% 100% no-repeat;
+}
+
+.wall-fill-left,
+.wall-fill-right {
+  background-image: url('../assets/tavern/wall_v.png');
 }
 
 .wall-fill-top,
