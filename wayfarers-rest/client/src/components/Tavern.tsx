@@ -17,12 +17,8 @@ export function Tavern() {
   if (!tavern) return <div className="tavern tavern-loading">Loading the tavern…</div>;
 
   const subTickMs = tavern.subTickIntervalMs;
-  // Phase 8 (QW3): a [0..1] day-progress value the floor tint reads.
-  // 0 = dawn (warm), 0.5 = midday (cool), 1 = dusk (warm again).
-  const timeOfDay = world ? world.subTick / tavern.subTicksPerDay : 0;
   const style = {
     ['--subtick-ms' as string]: `${subTickMs}ms`,
-    ['--time-of-day' as string]: String(timeOfDay),
   } as React.CSSProperties;
 
   return (
