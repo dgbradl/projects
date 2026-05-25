@@ -14,7 +14,7 @@ export const WAR_ESCALATION: ThreadDefinition = {
   type: 'war_escalation',
   initialState: 'distant',
   initialNextTickDelay: 4,
-  tick({ thread, rng, helpers }) {
+  tick({ thread, rng, helpers, world }) {
     switch (thread.state) {
       case 'distant':
         helpers.setWorldTag('war_in_north', 'simmering');
@@ -51,7 +51,14 @@ export const WAR_ESCALATION: ThreadDefinition = {
 
       case 'resolving': {
         // The roads recover whichever way the war turns.
-        helpers.setWorldTag('road_safety_south', 'fair');
+        // Phase 9 (G3): a `trade_crossroads` tavern attracts patrols on
+        // the road south — recovery jumps straight to `good` instead of
+        // settling at `fair`. Stub from D3 lands here.
+        const tradeCrossroads = world.tavernTraits.includes('trade_crossroads');
+        helpers.setWorldTag(
+          'road_safety_south',
+          tradeCrossroads ? 'good' : 'fair',
+        );
         if (rng() < 0.5) {
           helpers.setWorldTag('war_in_north', 'resolved');
           helpers.introduceRumor({
