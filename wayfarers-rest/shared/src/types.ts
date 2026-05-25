@@ -708,6 +708,28 @@ export interface EventLogEntry {
   event: WorldEvent;
 }
 
+/**
+ * Phase 8 (B1): one entry in the live ticker feed. The server scores the
+ * event via the chronicle salience module, renders a one-line sentence via
+ * the chronicle fallback prose, and returns this shape — the client renders
+ * it verbatim (no parallel text pipeline).
+ */
+export interface TickerEntry {
+  eventId: number;
+  gameDay: number;
+  realTimestamp: string;
+  score: number;
+  text: string;
+  event: WorldEvent;
+}
+
+export interface TickerResponse {
+  entries: TickerEntry[];
+  /** The highest eventId in `entries`, or the request's `sinceEventId` if
+   *  no entries passed the filter. Use as `sinceEventId` next time. */
+  lastEventId: number;
+}
+
 export interface WorldSnapshot {
   worldTags: WorldTag[];
   threads: Thread[];

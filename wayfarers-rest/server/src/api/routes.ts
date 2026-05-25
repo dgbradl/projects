@@ -1,14 +1,22 @@
 import type { FastifyInstance } from 'fastify';
 import type {
   Character,
+  EventLogEntry,
   FlavorMode,
   FlavorPoolStatus,
+  Npc,
   StaffMember,
   StaffRoster,
   StaffSwapRequest,
   TavernConfig,
+  Thread,
+  TickerEntry,
+  TickerResponse,
   WorldSnapshot,
 } from '@shared/types';
+import { renderSentence } from '../chronicle/fallback.ts';
+import { score as scoreSalience } from '../chronicle/salience.ts';
+import { DEFAULT_ALARMING_VALUES } from '../chronicle/types.ts';
 import type { ChroniclePipeline } from '../chronicle/pipeline.ts';
 import type { PrologueGenerator } from '../chronicle/prologue.ts';
 import type { WorldEventBus } from '../events/emitter.ts';
@@ -109,6 +117,19 @@ export function registerRoutes(app: FastifyInstance, deps: ApiDeps): void {
       const since = Number.isFinite(parsed) ? parsed : 0;
       return deps.persistence.getEventsSince(since);
     },
+  );
+
+  // Phase 8 (B1): salience-filtered, prose-rendered recent events for the
+  // live ticker. The client polls this on connect (sinceEventId=0) for a
+  // hot-start buffer and then appends incrementally via the SSE world_event
+  // stream. Cap of 50 keeps the hot-start payload bounded.
+  app.get<{ Querystring: { sinceEventId?: string; limit?: string } }>(
+    '/events/recent',
+    async (request): Promise<TickerResponse> =>
+      buildTickerResponse(deps, {
+        sinceEventId: parseInteger(request.query.sinceEventId, 0),
+        limit: parseInteger(request.query.limit, 50),
+      }),
   );
 
   app.get('/npcs', async () => deps.npcManager.getRoster());
@@ -221,4 +242,112 @@ export function buildWorldSnapshot(deps: ApiDeps): WorldSnapshot {
     furniture: deps.furnitureManager?.list() ?? [],
     zones: deps.zoneManager?.list() ?? [...TAVERN_ZONES],
   };
+}
+
+// ---------- Phase 8 (B1): recent salient events ----------
+
+/** Minimum salience score required for an event to surface in the ticker. */
+export const TICKER_SCORE_THRESHOLD = 2;
+
+interface RecentOpts {
+  sinceEventId: number;
+  limit: number;
+}
+
+/**
+ * Phase 8 (B1): build the `/events/recent` payload. Pure (modulo the
+ * persistence reads) so it can be unit-tested without spinning up Fastify.
+ *
+ * - Loads events newer than `sinceEventId`
+ * - Builds an npcsById map from the live roster + arrival-event log so
+ *   departed travellers can still be named in prose
+ * - Scores each event via chronicle/salience; drops anything below the
+ *   threshold
+ * - Renders the surviving entries through chronicle/fallback.renderSentence
+ * - Caps at `limit` (default 50)
+ */
+export function buildTickerResponse(
+  deps: ApiDeps,
+  opts: RecentOpts,
+): TickerResponse {
+  const all = deps.persistence.getEventsSince(opts.sinceEventId);
+  const npcsById = buildNpcsByIdForTicker(deps, all);
+  const threadsById = new Map<string, Thread>(
+    deps.persistence.loadAllThreads().map((t) => [t.id, t]),
+  );
+  const ctx = {
+    npcsById,
+    threadsById,
+    alarmingValues: DEFAULT_ALARMING_VALUES,
+    markedNpcIds: new Set(deps.stateManager.getState().markedNpcIds),
+  };
+
+  const entries: TickerEntry[] = [];
+  let lastEventId = opts.sinceEventId;
+  for (const entry of all) {
+    if (entry.id > lastEventId) lastEventId = entry.id;
+    const s = scoreSalience(entry.event, ctx);
+    if (s < TICKER_SCORE_THRESHOLD) continue;
+    const text = renderSentence(entry, npcsById);
+    if (!text) continue;
+    const gameDay =
+      'gameDay' in entry.event && typeof entry.event.gameDay === 'number'
+        ? entry.event.gameDay
+        : 0;
+    entries.push({
+      eventId: entry.id,
+      gameDay,
+      realTimestamp: entry.realTimestamp,
+      score: s,
+      text,
+      event: entry.event,
+    });
+    if (entries.length >= opts.limit) break;
+  }
+
+  return { entries, lastEventId };
+}
+
+/**
+ * Best-effort npcsById for prose: live roster + every arrival event seen
+ * in the log (so departed travellers can still be named by displayName).
+ * Mirrors the chronicle generator's augmentation logic; kept local to
+ * routes.ts to avoid a circular import.
+ */
+function buildNpcsByIdForTicker(
+  deps: ApiDeps,
+  events: EventLogEntry[],
+): Map<string, Npc> {
+  const m = new Map<string, Npc>(
+    deps.npcManager.getRoster().map((n) => [n.id, n]),
+  );
+  for (const entry of events) {
+    if (
+      entry.event.type !== 'npc_arrived' &&
+      entry.event.type !== 'npc_returned'
+    ) {
+      continue;
+    }
+    if (m.has(entry.event.npcId)) continue;
+    m.set(entry.event.npcId, {
+      id: entry.event.npcId,
+      displayName: entry.event.displayName,
+      status: 'departed',
+      position: { x: 0, y: 0 },
+      zone: null,
+      arrivedGameDay: entry.event.gameDay,
+      arrivedSubTick: 0,
+      plannedDepartureGameDay: 0,
+      plannedDepartureSubTick: 0,
+      nextDecisionSubTick: 0,
+      carriedRumorIds: [],
+    });
+  }
+  return m;
+}
+
+function parseInteger(raw: string | undefined, fallback: number): number {
+  if (raw === undefined) return fallback;
+  const n = parseInt(raw, 10);
+  return Number.isFinite(n) ? n : fallback;
 }

@@ -79,7 +79,12 @@ export function buildFallbackChronicle(input: FallbackInput): DailyChronicle {
   };
 }
 
-function renderSentence(entry: EventLogEntry, npcsById: Map<string, Npc>): string {
+/**
+ * Phase 8 (B1): render one event into a one-line sentence. Exported so the
+ * `/events/recent` ticker endpoint can reuse the same prose pipeline the
+ * LLM-off chronicle uses — no parallel text generator.
+ */
+export function renderSentence(entry: EventLogEntry, npcsById: Map<string, Npc>): string {
   const ev = entry.event;
   switch (ev.type) {
     case 'npc_arrived': {
