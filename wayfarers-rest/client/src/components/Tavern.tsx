@@ -5,7 +5,15 @@ import { Walls } from './Walls.tsx';
 import { ZoneOverlay } from './ZoneOverlay.tsx';
 
 export function Tavern() {
-  const { tavern, npcs, world } = useStore();
+  const {
+    tavern,
+    npcs,
+    world,
+    interactingNpcs,
+    furniture,
+    focusedNpcId,
+    focusedNpcExpiresAt,
+  } = useStore();
   if (!tavern) return <div className="tavern tavern-loading">Loading the tavern…</div>;
 
   const subTickMs = tavern.subTickIntervalMs;
@@ -26,6 +34,9 @@ export function Tavern() {
         <Npc
           key={n.id}
           npc={n}
+          flash={interactingNpcs[n.id]}
+          focused={focusedNpcId === n.id && focusedNpcExpiresAt > Date.now()}
+          furniture={furniture}
           currentGameDay={world?.gameDay}
           currentSubTick={world?.subTick}
           subTicksPerDay={tavern.subTicksPerDay}

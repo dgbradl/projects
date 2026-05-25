@@ -1,6 +1,7 @@
-import type { NpcDesire, Npc as NpcT, StaffRole } from '@shared/types';
+import { memo } from 'react';
+import type { FurniturePiece, NpcDesire, Npc as NpcT, StaffRole } from '@shared/types';
 import { displaceFromFurniture } from '../furniture/bbox.ts';
-import { useStore } from '../state/store.tsx';
+import type { InteractionFlash } from '../state/actions.ts';
 import { NpcSprite } from '../sprites/NpcSprite.tsx';
 import { InteractionBubble } from './InteractionBubble.tsx';
 
@@ -44,25 +45,26 @@ function describeDesire(d: NpcDesire): string {
 
 interface Props {
   npc: NpcT;
+  /** Per-NPC flash, lifted to the parent so React.memo can skip unchanged NPCs. */
+  flash: InteractionFlash | undefined;
+  focused: boolean;
+  furniture: FurniturePiece[];
   /** Optional clock for the tooltip's "sub-ticks since arrival" stat. */
   currentGameDay?: number;
   currentSubTick?: number;
   subTicksPerDay?: number;
 }
 
-export function Npc({
+function NpcImpl({
   npc,
+  flash,
+  focused,
+  furniture,
   currentGameDay,
   currentSubTick,
   subTicksPerDay,
 }: Props) {
-  const { interactingNpcs, furniture, focusedNpcId, focusedNpcExpiresAt } =
-    useStore();
-  const flash = interactingNpcs[npc.id];
   const interacting = !!flash && flash.expiresAt > Date.now();
-  // Phase 8 (B3): a ticker click highlights the matching sprite for ~3s.
-  const focused =
-    focusedNpcId === npc.id && focusedNpcExpiresAt > Date.now();
   const isRegular = (npc.visitCount ?? 0) > 1;
   const isStaff = npc.isStaff ?? false;
   const staffRoleLabel = isStaff ? STAFF_ROLE_ABBREV[npc.staffRole ?? 'waitstaff'] : null;
@@ -192,3 +194,5 @@ export function Npc({
     </div>
   );
 }
+
+export const Npc = memo(NpcImpl);
