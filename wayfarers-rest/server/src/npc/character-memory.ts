@@ -12,6 +12,7 @@ import type {
   EventLogEntry,
   Interaction,
   InteractionKind,
+  NpcDesire,
   WorldEvent,
 } from '@shared/types';
 import type { WorldEventBus } from '../events/emitter.ts';
@@ -181,6 +182,33 @@ export function rememberDeparture(
   return { ...memory, lastDestinationLocationId: locationId };
 }
 
+/**
+ * Phase 8 (A5): tally how this stay's desires landed and merge into the
+ * character's running history. Returns the updated memory unchanged if the
+ * stay carried no desires (defensive — staff path).
+ */
+export function rememberDesireOutcomes(
+  memory: CharacterMemory,
+  desires: readonly NpcDesire[] | undefined,
+): CharacterMemory {
+  if (!desires || desires.length === 0) return memory;
+  let fulfilled = 0;
+  let denied = 0;
+  for (const d of desires) {
+    if (d.fulfilledAtSubTick !== undefined) fulfilled += 1;
+    else denied += 1;
+  }
+  if (fulfilled === 0 && denied === 0) return memory;
+  const prev = memory.desireHistory ?? { fulfilled: 0, denied: 0 };
+  return {
+    ...memory,
+    desireHistory: {
+      fulfilled: prev.fulfilled + fulfilled,
+      denied: prev.denied + denied,
+    },
+  };
+}
+
 // ---------- bus recorder ----------
 
 /**
@@ -213,6 +241,14 @@ export class CharacterMemoryRecorder {
         if (event.destinationLocationId) {
           const dest = event.destinationLocationId;
           this.update(event.npcId, (m) => rememberDeparture(m, dest));
+        }
+        // Phase 8 (A5): fold this visit's desire outcomes into the
+        // character's history so a returning regular's track record persists.
+        if (event.desires && event.desires.length > 0) {
+          const desires = event.desires;
+          this.update(event.npcId, (m) =>
+            rememberDesireOutcomes(m, desires),
+          );
         }
         break;
       case 'npc_marked':

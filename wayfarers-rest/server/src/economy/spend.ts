@@ -30,6 +30,13 @@ export interface GuestSpendInput {
   larderStock?: number;
   /** Economy (E3): hearth comfort level (0 = base) — lifts room spend. */
   hearthLevel?: number;
+  /**
+   * Phase 8 (A5): how many of this guest's desires were fulfilled during
+   * their stay (0–2 today; the cap is set by the spawn-time desire count).
+   * Each fulfilled desire bumps the tip — a satisfied guest is a generous
+   * one. Counted at departure from the npc.desires snapshot.
+   */
+  fulfilledDesireCount?: number;
 }
 
 /** Per-archetype drink spend band, [min, max] inclusive. */
@@ -107,6 +114,15 @@ export function computeGuestSpend(input: GuestSpendInput): GuestSpendBreakdown {
   tip += Math.min(Math.max(input.visitCount - 1, 0), 4);
   if (input.affinitySum > 0) {
     tip += Math.min(Math.floor(input.affinitySum / 10), 3);
+  }
+
+  // 5) Phase 8 (A5): desire-fulfilment tip bump. Each fulfilled desire draws
+  //    a small extra rngInt(2, 5) on top. This draw is *appended* after the
+  //    legacy 4-draw stream so guests with no desires (legacy rows + staff)
+  //    see no change in their RNG sequence — the determinism contract holds.
+  const fulfilled = Math.max(0, input.fulfilledDesireCount ?? 0);
+  for (let i = 0; i < fulfilled; i += 1) {
+    tip += rngInt(rng, 2, 6);
   }
 
   const mult = input.mood ? MOOD_MULT[input.mood] : 1;

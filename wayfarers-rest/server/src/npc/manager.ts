@@ -402,6 +402,13 @@ export class NpcManager extends EventEmitter {
             : 0;
           // Economy (E3): the larder and hearth lift meal and room spend.
           const tavern = this.deps.persistence?.loadState();
+          const fulfilledDesireCount = npc.desires
+            ? npc.desires.reduce(
+                (acc, d) =>
+                  acc + (d.fulfilledAtSubTick !== undefined ? 1 : 0),
+                0,
+              )
+            : 0;
           const breakdown = computeGuestSpend({
             worldSeed,
             npcId: id,
@@ -414,6 +421,9 @@ export class NpcManager extends EventEmitter {
               npc.plannedDepartureGameDay > npc.arrivedGameDay,
             larderStock: tavern?.larderStock,
             hearthLevel: tavern?.hearthLevel,
+            // Phase 8 (A5): a satisfied guest tips more. Each fulfilled
+            // desire draws an extra rngInt(2,5) on top of the base tip.
+            fulfilledDesireCount,
           });
           this.deps.bus.publish({
             type: 'guest_spent',

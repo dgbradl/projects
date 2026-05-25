@@ -107,13 +107,20 @@ export function updateProsperityForDay(
   }
 
   // Guest warmth: shared drinks lift it, overheard arguments drag it down.
+  // Phase 8 (A5): unfulfilled desires also pull warmth down — a guest who
+  // left wanting carries a faint sourness with them. Weight 0.5 each so two
+  // unfulfilled desires roughly equal one argument; the smoothing in
+  // computeProsperity tempers the daily impact further.
   let windowSocial = 0;
   for (const entry of deps.persistence.getEventsSince(0)) {
     const ev = entry.event;
-    if (ev.type !== 'interaction') continue;
     if (ev.gameDay < fromDay || ev.gameDay > closingGameDay) continue;
-    if (ev.interaction.kind === 'shared_drink') windowSocial += 1;
-    else if (ev.interaction.kind === 'overheard_argument') windowSocial -= 1;
+    if (ev.type === 'interaction') {
+      if (ev.interaction.kind === 'shared_drink') windowSocial += 1;
+      else if (ev.interaction.kind === 'overheard_argument') windowSocial -= 1;
+    } else if (ev.type === 'desire_unfulfilled') {
+      windowSocial -= 0.5;
+    }
   }
 
   const result = computeProsperity({
