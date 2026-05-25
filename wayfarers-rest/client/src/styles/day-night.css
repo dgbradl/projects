@@ -1,0 +1,32 @@
+/* Phase 8 (QW3): subtle day/night floor tint.
+   The Tavern component sets a `--time-of-day` CSS variable on its root
+   each render from `subTick / subTicksPerDay`. We layer a tinted radial
+   overlay on top of the floor with an opacity curve that peaks at midday
+   (cool blue-grey) and fades to nothing at dawn/dusk (warm wood untouched).
+   Kept very subtle — the tavern is a literary infographic, not a 3D scene.
+
+   This is loaded as its own stylesheet so it stays separable from the
+   parallel session's edits to tavern.css. */
+
+.tavern::after {
+  content: '';
+  position: absolute;
+  inset: 8%;
+  pointer-events: none;
+  z-index: 2;
+  border-radius: 0.5rem;
+  background:
+    radial-gradient(
+      ellipse at 50% 40%,
+      rgba(60, 90, 130, 0.18) 0%,
+      rgba(60, 90, 130, 0.05) 60%,
+      transparent 100%
+    );
+  /* Opacity follows a triangle: 0 at t=0 / t=1, 1 at t=0.5.
+     The sin-style approximation here is: 4 * t * (1 - t), capped at 1. */
+  opacity: calc(
+    4 * var(--time-of-day, 0) * (1 - var(--time-of-day, 0))
+  );
+  mix-blend-mode: multiply;
+  transition: opacity 2s ease-out;
+}
