@@ -1,12 +1,7 @@
+/* Palette moved to tokens.css; only the color-scheme directive stays here
+   because it has to be declared on a real :root rule (not a token alias). */
 :root {
   color-scheme: dark;
-  --bg: #1d160e;
-  --panel: #2a1f15;
-  --ink: #f3e4c5;
-  --ink-dim: #b3a085;
-  --accent: #d29c54;
-  --accent-strong: #efb766;
-  --danger: #c47373;
 }
 
 * {

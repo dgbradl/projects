@@ -3,11 +3,10 @@
    summary feel like the same voice in two registers. */
 
 .event-ticker {
-  --parchment: #f3e6c4;
-  --parchment-edge: #e1cb95;
-  --ink: #2a1f12;
-  --ink-soft: #5a4a32;
-  --ink-fade: #8b7a5d;
+  /* Parchment palette lives in tokens.css; we only re-bind --ink here so
+     children that read var(--ink) for text get the dark parchment ink
+     instead of the page's cream-on-wood default. */
+  --ink: var(--parchment-ink);
 
   position: fixed;
   top: 9rem;

@@ -1,0 +1,82 @@
+/*
+ * Design tokens — global custom properties consumed by every other CSS file.
+ *
+ * History note: pre-redesign, color was split between app.css :root (the dark
+ * wood palette: --bg, --panel, --ink, --accent…) and ticker.css :root-scoped
+ * extras (the parchment palette: --parchment, --ink-soft, --ink-fade…). The
+ * ticker-scoped declarations couldn't be reused by other components, so the
+ * onboarding modal and welcome screen reached for literal hex values. This
+ * file is the single source of truth — the ticker-local block is now redundant
+ * but kept in place for one commit to keep diffs small; the token sweep
+ * removes it.
+ *
+ * Naming follows the convention "namespace-role-modifier". Components should
+ * prefer the structural tokens (--surface-*, --text-*, --space-*) over the
+ * legacy palette names where possible; the legacy names are kept as aliases.
+ */
+
+:root {
+  /* --- Palette --------------------------------------------------------- */
+  /* Dark wood: page background, panel surfaces, status header. */
+  --bg: #1d160e;
+  --panel: #2a1f15;
+  --ink: #f3e4c5;
+  --ink-dim: #b3a085;
+  --accent: #d29c54;
+  --accent-strong: #efb766;
+  --danger: #c47373;
+
+  /* Parchment: chronicle, ticker, modal cards. Lifted out of .event-ticker
+     so the welcome screen, onboarding modal, and any future cards can share
+     the same warm cream / muted ink ramp. */
+  --parchment: #f3e6c4;
+  --parchment-edge: #e1cb95;
+  --parchment-ink: #2a1f12;
+  --ink-soft: #5a4a32;
+  --ink-fade: #8b7a5d;
+
+  /* --- Surfaces (semantic aliases) ----------------------------------- */
+  /* These point into the palette so a future re-theme only touches the
+     palette block above. Components reference --surface-* not raw hex. */
+  --surface-wood-dark: var(--bg);
+  --surface-wood-mid: var(--panel);
+  --surface-parchment: var(--parchment);
+  --surface-glass: rgba(15, 12, 8, 0.92);
+  --surface-glass-soft: rgba(15, 12, 8, 0.65);
+  --border-wood: #3a2a1c;
+  --border-parchment: var(--parchment-edge);
+
+  /* --- Typography ---------------------------------------------------- */
+  --text-xs: 0.7rem;
+  --text-sm: 0.8rem;
+  --text-md: 0.95rem;
+  --text-lg: 1.15rem;
+  --text-xl: 1.6rem;
+  --font-serif: 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* --- Spacing ------------------------------------------------------- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+
+  /* --- Radii --------------------------------------------------------- */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.4rem;
+  --radius-lg: 0.75rem;
+  --radius-pill: 999px;
+
+  /* --- Elevation ----------------------------------------------------- */
+  --shadow-card: 0 2px 6px rgba(0, 0, 0, 0.35);
+  --shadow-dock: -2px 0 12px rgba(0, 0, 0, 0.45);
+  --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.55);
+
+  /* --- Motion -------------------------------------------------------- */
+  --dur-fast: 120ms;
+  --dur-med: 240ms;
+  --dur-slow: 400ms;
+  --ease-out-soft: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
