@@ -33,6 +33,7 @@ import './interventions/kinds/index.ts';
 import {
   buildMarkNpc,
   buildRestockLarder,
+  buildShiftFocus,
   buildStirWorld,
   buildSwayThread,
   buildUpgradeHearth,
@@ -390,6 +391,8 @@ async function main(): Promise<void> {
   // Economy (E3): the coin-costed economic verbs.
   interventionRegistry.register(buildRestockLarder({ stateManager }));
   interventionRegistry.register(buildUpgradeHearth({ stateManager }));
+  // Phase 9 (G4): swap one tavern trait for another (3 favors).
+  interventionRegistry.register(buildShiftFocus({ stateManager, bus }));
 
   // Phase 6: marked-NPC cleanup on departure.
   bus.on('world_event', (entry: { event: unknown }) => {

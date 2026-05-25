@@ -594,7 +594,13 @@ export type InterventionKind =
   | 'stir_world'
   | 'mark_npc'
   | 'restock_larder'
-  | 'upgrade_hearth';
+  | 'upgrade_hearth'
+  /**
+   * Phase 9 (G4): swap one current tavern trait for another. Costs 3 favors;
+   * lets the keeper shift the place's identity without restarting. Requires
+   * at least one current trait to drop; the new trait must differ.
+   */
+  | 'shift_focus';
 
 export type SwayDirection = 'bless' | 'curse';
 
@@ -662,6 +668,12 @@ export interface InterventionTargets {
     status: NpcStatus;
     isMarked: boolean;
   }>;
+  /**
+   * Phase 9 (G4): targets for `shift_focus`. `currentTavernTraits` lists
+   * the keeper's current traits (the dropdown of what's swappable); the
+   * full TAVERN_TRAITS list lives in shared types for the addTrait pick.
+   */
+  currentTavernTraits?: TavernTrait[];
 }
 
 export interface InterventionOptionsResponse {

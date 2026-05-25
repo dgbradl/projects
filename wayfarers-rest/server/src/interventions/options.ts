@@ -5,6 +5,7 @@ import type {
   NpcArchetype,
   WorldState,
 } from '@shared/types';
+import { TAVERN_TRAITS } from '@shared/types';
 import { LOCATIONS } from '../world/locations.ts';
 import { PERMITTED_TAG_VALUES } from '../world/tags.ts';
 import type { NpcManager } from '../npc/manager.ts';
@@ -81,6 +82,8 @@ export function buildInterventionOptions(
     activeThreads,
     worldTags,
     npcsInTavern,
+    // Phase 9 (G4): the shift_focus picker reads this for the dropTrait UI.
+    currentTavernTraits: state.tavernTraits,
   };
 
   const rumorsForBeckoning = deps.persistence
@@ -145,6 +148,18 @@ function checkHasTargets(
     case 'mark_npc': {
       const unmarked = npcsInTavern.filter((n) => !n.isMarked);
       if (unmarked.length === 0) return 'no unmarked NPCs in the tavern';
+      return undefined;
+    }
+    case 'shift_focus': {
+      // Phase 9 (G4): need at least one current trait to drop AND at least
+      // one other unowned trait to take its place.
+      if (state.tavernTraits.length === 0) {
+        return 'the tavern has no traits to shift yet';
+      }
+      const unowned = TAVERN_TRAITS.filter(
+        (t) => !state.tavernTraits.includes(t),
+      );
+      if (unowned.length === 0) return 'no other traits to take its place';
       return undefined;
     }
     default:

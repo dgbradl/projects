@@ -132,3 +132,12 @@ export interface MarkNpcPayload {
 /** Economy (E3): restock_larder and upgrade_hearth take no parameters. */
 export type RestockLarderPayload = Record<string, never>;
 export type UpgradeHearthPayload = Record<string, never>;
+
+/** Phase 9 (G4): swap one current tavern trait for another. */
+export interface ShiftFocusPayload {
+  /** The currently-owned trait to drop. Must be in state.tavernTraits. */
+  dropTrait: string;
+  /** The new trait to take its place. Must be a valid TavernTrait,
+   *  must not already be owned, and must differ from dropTrait. */
+  addTrait: string;
+}

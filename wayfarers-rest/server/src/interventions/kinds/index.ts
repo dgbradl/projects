@@ -14,3 +14,4 @@ export { buildStirWorld } from './stir-world.ts';
 export { buildMarkNpc } from './mark-npc.ts';
 export { buildRestockLarder } from './restock-larder.ts';
 export { buildUpgradeHearth } from './upgrade-hearth.ts';
+export { buildShiftFocus } from './shift-focus.ts';

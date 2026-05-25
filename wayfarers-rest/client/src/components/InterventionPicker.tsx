@@ -167,6 +167,8 @@ function labelForKind(kind: InterventionKind): string {
       return 'Restock the larder';
     case 'upgrade_hearth':
       return 'Upgrade the hearth';
+    case 'shift_focus':
+      return "Shift the tavern's focus";
   }
 }
 
@@ -429,5 +431,7 @@ function summarize(kind: InterventionKind, p: Record<string, unknown>): string {
       return 'Spend coin to restock the larder — guests will eat better.';
     case 'upgrade_hearth':
       return 'Spend coin to build up the hearth and common room.';
+    case 'shift_focus':
+      return `Swap ${p.dropTrait} for ${p.addTrait} (costs 3 favors).`;
   }
 }
