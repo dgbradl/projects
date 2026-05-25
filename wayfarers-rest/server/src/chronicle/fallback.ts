@@ -138,7 +138,55 @@ function renderSentence(entry: EventLogEntry, npcsById: Map<string, Npc>): strin
       }
       return `${names} shared a ${ev.interaction.kind.replace(/_/g, ' ')} at the ${ev.interaction.zone}.`;
     }
+    case 'desire_fulfilled': {
+      const name = npcsById.get(ev.npcId)?.displayName ?? ev.npcId;
+      const want = describeWant(ev.desireKind, ev.param);
+      const credit = renderCredit(ev.fulfilledBy);
+      return `${name} found ${want}${credit}.`;
+    }
+    case 'desire_unfulfilled': {
+      const name = npcsById.get(ev.npcId)?.displayName ?? ev.npcId;
+      const want = describeWant(ev.desireKind, ev.param);
+      return `${name} left without ${want}.`;
+    }
     default:
       return '';
   }
+}
+
+// ---------- Phase 8 (A2) desire prose helpers ----------
+
+function describeWant(kind: string, param: string | undefined): string {
+  switch (kind) {
+    case 'warm_meal':
+      return 'a warm meal';
+    case 'bed_for_night':
+      return 'a bed for the night';
+    case 'quiet_seat':
+      return 'a quiet seat';
+    case 'company_of_kind':
+      return param && param !== 'any'
+        ? `the company of a ${param}`
+        : 'company at the bar';
+    case 'news_of_location': {
+      if (!param) return 'news of distant places';
+      const loc = locationById(param);
+      return loc ? `news of ${loc.displayName}` : `news of ${param}`;
+    }
+    case 'rumor_of_tone':
+      return param ? `a ${param} rumor` : 'a rumor';
+    default:
+      return 'what they came for';
+  }
+}
+
+function renderCredit(by: string): string {
+  if (by.startsWith('staff:')) {
+    const role = by.slice('staff:'.length);
+    return `, thanks to the ${role}`;
+  }
+  if (by.startsWith('keeper:')) {
+    return `, by the keeper's hand`;
+  }
+  return '';
 }

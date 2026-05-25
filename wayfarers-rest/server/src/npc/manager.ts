@@ -2,6 +2,7 @@ import { EventEmitter } from 'node:events';
 import type {
   ArrivalGarnish,
   Character,
+  DesireKind,
   Npc,
   NpcArchetype,
   NpcDiff,
@@ -159,6 +160,41 @@ export class NpcManager extends EventEmitter {
     };
     this.roster.set(recipientId, updated);
     this.emit('diff', { added: [], updated: [updated], removed: [] });
+  }
+
+  /**
+   * Phase 8 (A2): mark a single desire on a roster member as fulfilled.
+   * Returns true if the desire was found unfulfilled and was updated;
+   * false otherwise (no matching desire, already fulfilled, or NPC absent).
+   * Emits a roster diff so the client tooltip can light the chip gold.
+   */
+  markDesireFulfilled(
+    npcId: string,
+    kind: DesireKind,
+    param: string | undefined,
+    by: string,
+    absSubTick: number,
+  ): boolean {
+    const npc = this.roster.get(npcId);
+    if (!npc || !npc.desires) return false;
+    let mutated = false;
+    const next = npc.desires.map((d) => {
+      if (mutated) return d;
+      if (
+        d.kind === kind &&
+        d.param === param &&
+        d.fulfilledAtSubTick === undefined
+      ) {
+        mutated = true;
+        return { ...d, fulfilledAtSubTick: absSubTick, fulfilledBy: by };
+      }
+      return d;
+    });
+    if (!mutated) return false;
+    const updated: Npc = { ...npc, desires: next };
+    this.roster.set(npcId, updated);
+    this.emit('diff', { added: [], updated: [updated], removed: [] });
+    return true;
   }
 
   /** Extend a traveler's planned departure by the given number of sub-ticks. */
@@ -348,6 +384,11 @@ export class NpcManager extends EventEmitter {
           npcId: id,
           displayName: next.displayName,
           destinationLocationId: destination,
+          // Phase 8 (A2): snapshot of desires at departure so the
+          // DesireResolver can emit desire_unfulfilled for any unmet ones
+          // after the NPC has been pruned from the roster. Staff have no
+          // desires; the field is `undefined` for them, which is correct.
+          desires: npc.desires,
         });
         // Economy (E1): settle the departing guest's tab. Staff never depart,
         // so this only ever fires for paying travellers.

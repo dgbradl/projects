@@ -379,6 +379,14 @@ export type WorldEvent =
       npcId: string;
       displayName?: string;
       destinationLocationId?: string;
+      /**
+       * Phase 8 (A2): snapshot of the departing traveller's desires at the
+       * moment of departure. Subscribers (DesireResolver, the ledger, the
+       * chronicle salience scorer) read this to attribute fulfilment outcomes
+       * to the right NPC after they've been pruned from the roster. Absent
+       * for staff (they never depart) and for older rows during migration.
+       */
+      desires?: NpcDesire[];
     }
   | { type: 'interaction'; gameDay: number; interaction: Interaction }
   | {
@@ -487,6 +495,32 @@ export type WorldEvent =
       score: number;
       tier: ProsperityTier;
       previousTier: ProsperityTier;
+    }
+  | {
+      /**
+       * Phase 8 (A2): a guest's desire was met during their stay. The
+       * fulfilledBy string carries provenance ('sim' / 'staff:<role>' /
+       * 'keeper:<intervention_kind>') so the chronicle and ledger can credit
+       * the right actor.
+       */
+      type: 'desire_fulfilled';
+      gameDay: number;
+      npcId: string;
+      desireKind: DesireKind;
+      param?: string;
+      fulfilledBy: string;
+    }
+  | {
+      /**
+       * Phase 8 (A2): a guest left with this desire unmet. Emitted on
+       * departure for each unfulfilled desire. Drives the small prosperity
+       * ding + low-salience disappointed rumor wired in A5.
+       */
+      type: 'desire_unfulfilled';
+      gameDay: number;
+      npcId: string;
+      desireKind: DesireKind;
+      param?: string;
     };
 
 // ---------- Phase 6: Interventions ----------

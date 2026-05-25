@@ -91,6 +91,19 @@ export function score(event: WorldEvent, ctx: SalienceContext): number {
     case 'prosperity_changed':
       // A shift in the tavern's standing is a real beat.
       return 6;
+    case 'desire_fulfilled': {
+      // Phase 8 (A2): a guest's wish was met. Modestly notable on its own;
+      // worth more when the keeper or staff did the work (the player wants
+      // to see their nudges paying off).
+      let s = 2;
+      if (event.fulfilledBy.startsWith('keeper:')) s += 3;
+      else if (event.fulfilledBy.startsWith('staff:')) s += 1;
+      return s;
+    }
+    case 'desire_unfulfilled':
+      // Phase 8 (A2): a guest left wanting. Low-volume but evocative for
+      // chronicle prose; just above the cull line.
+      return 2;
     default:
       // Excluded: init/tick/pause/resume, all flavor_*, all chronicle_*,
       // favor_regenerated, npc_marked, npc_unmarked, guest_spent,

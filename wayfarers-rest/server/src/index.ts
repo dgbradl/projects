@@ -39,6 +39,7 @@ import {
 } from './interventions/kinds/index.ts';
 import * as interventionRegistry from './interventions/registry.ts';
 import { CharacterMemoryRecorder } from './npc/character-memory.ts';
+import { DesireResolver } from './npc/desire-resolver.ts';
 import { NpcManager } from './npc/manager.ts';
 import {
   checkObservant,
@@ -212,6 +213,17 @@ async function main(): Promise<void> {
   );
   const interactionCounter = { value: 0 };
 
+  // Phase 8 (A2): sim-side desire fulfilment. Listens for shared_drink
+  // interactions (company_of_kind) and npc_departed (emits desire_unfulfilled
+  // for any unmet desires). Per-sub-tick scan for quiet_seat and the
+  // day-boundary scan for bed_for_night are driven explicitly below.
+  const desireResolver = new DesireResolver({
+    npcManager,
+    bus,
+    subTicksPerDay: SUB_TICKS_PER_DAY,
+  });
+  desireResolver.attach();
+
   (npcManager as unknown as {
     deps: { postSubTickHook: typeof postSubTickHook };
   }).deps.postSubTickHook = postSubTickHook;
@@ -235,6 +247,11 @@ async function main(): Promise<void> {
       countsToday: npcManager.interactionsToday,
       pairsToday: npcManager.pairsToday,
     });
+    // Phase 8 (A2): sub-tick scan for quiet_seat. Runs against the roster as
+    // it stood when this sub-tick began — order vs. interaction resolution
+    // doesn't matter for this detector (it doesn't read affinity or rumors).
+    desireResolver.onSubTick(gameDay, subTick, roster);
+
     if (candidates.length === 0) return;
     // Epic E (E2): conflict mitigation — reduce argument weight if bartender present.
     const staffModifiers = { conflictMitigation: computeConflictMitigation(roster) };
@@ -314,6 +331,11 @@ async function main(): Promise<void> {
     // Economy (E1): settle the ledger for the day that just ended, then
     // (Phase 6) regenerate one favor at the start of the new game day.
     (newGameDay) => {
+      // Phase 8 (A2): bed_for_night — any non-staff guest still here when
+      // the day flips slept under the roof. Runs first so the fulfilment
+      // is visible to anything downstream that reads desire state today.
+      desireResolver.onDayChange(newGameDay);
+
       const closingDay = newGameDay - 1;
       // Epic E (E3): thoroughness — emit service income before the ledger closes.
       const thoroughnessBonus = computeThoroughnessBonus(npcManager.getRoster());
