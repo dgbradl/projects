@@ -9,6 +9,7 @@ import { PauseOverlay } from './components/PauseOverlay.tsx';
 import { RightDock } from './components/RightDock.tsx';
 import { StatusBar } from './components/StatusBar.tsx';
 import { Tavern } from './components/Tavern.tsx';
+import { TavernMemoryModal } from './components/TavernMemoryModal.tsx';
 import { Welcome } from './components/Welcome.tsx';
 import { subscribe } from './sse.ts';
 import { StoreProvider, useDispatch, useStore } from './state/store.tsx';
@@ -131,6 +132,9 @@ function Bootstrap() {
           <LandingAnimation />
         </div>
         {tavern && <RightDock />}
+        {/* Phase 9 (H3): Tavern Memory modal overlays the whole main view
+            when open. Opened from the hamburger menu. */}
+        <TavernMemoryModal />
       </main>
     </div>
   );

@@ -9,6 +9,7 @@ import type {
   InterventionOptionsResponse,
   Npc,
   TavernConfig,
+  TavernMemoryResponse,
   TavernTrait,
   TickerResponse,
   WorldSnapshot,
@@ -176,6 +177,9 @@ export const api = {
     jsonGet<TickerResponse>(
       `/events/recent?sinceEventId=${sinceEventId}&limit=${limit}`,
     ),
+
+  // Phase 9 (H3): Tavern Memory — one capital-M moment per game day.
+  getTavernMemory: () => jsonGet<TavernMemoryResponse>('/tavern/memory'),
 
   // Phase 8 (D2): tavern identity onboarding.
   postTavernIdentity: async (input: {

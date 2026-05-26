@@ -69,6 +69,8 @@ export interface AppState {
   focusedNpcExpiresAt: number;
   /** Phase 8 (B3): which thread-row in the ticker is expanded. */
   expandedThreadId: string | null;
+  /** Phase 9 (H3): true when the Tavern Memory modal is open. */
+  tavernMemoryOpen: boolean;
 }
 
 export const initialState: AppState = {
@@ -97,6 +99,7 @@ export const initialState: AppState = {
   focusedNpcId: null,
   focusedNpcExpiresAt: 0,
   expandedThreadId: null,
+  tavernMemoryOpen: false,
 };
 
 /** Cap on client-side ticker buffer — keeps the scroll list bounded. */
@@ -237,6 +240,10 @@ export function reducer(state: AppState, action: Action): AppState {
             ? null
             : action.payload.threadId,
       };
+    case 'TAVERN_MEMORY_OPENED':
+      return { ...state, tavernMemoryOpen: true };
+    case 'TAVERN_MEMORY_CLOSED':
+      return { ...state, tavernMemoryOpen: false };
     case 'FLAVOR_STATUS':
       return {
         ...state,

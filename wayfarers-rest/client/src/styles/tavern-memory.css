@@ -1,0 +1,132 @@
+/* Phase 9 (H3): Tavern Memory page — parchment timeline. Mirrors the
+   Welcome chronicle's palette so the long-tail memory page reads in the
+   same voice as the day-end summary. */
+
+.tavern-memory {
+  --parchment: #f3e6c4;
+  --parchment-edge: #e1cb95;
+  --ink: #2a1f12;
+  --ink-soft: #5a4a32;
+  --ink-fade: #8b7a5d;
+
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 14, 8, 0.7);
+  backdrop-filter: blur(2px);
+  padding: 1.5rem;
+}
+
+.tavern-memory-card {
+  width: 100%;
+  max-width: 38rem;
+  max-height: 80vh;
+  background:
+    linear-gradient(180deg, var(--parchment) 0%, var(--parchment-edge) 100%);
+  border: 1px solid #b89a5e;
+  border-radius: 0.5rem;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+  font-family: 'Iowan Old Style', 'Palatino Linotype', Georgia, 'Times New Roman', serif;
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+}
+
+.tavern-memory-header {
+  position: relative;
+  padding: 1.5rem 2rem 1rem;
+  border-bottom: 1px solid #b89a5e;
+}
+
+.tavern-memory-title {
+  margin: 0;
+  font-weight: normal;
+  font-size: 1.5rem;
+  letter-spacing: 0.04em;
+}
+
+.tavern-memory-subtitle {
+  margin: 0.2rem 0 0;
+  color: var(--ink-soft);
+  font-style: italic;
+  font-size: 0.95rem;
+}
+
+.tavern-memory-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 2rem;
+  height: 2rem;
+  background: transparent;
+  border: 1px solid #b89a5e;
+  border-radius: 50%;
+  color: var(--ink-soft);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.tavern-memory-close:hover {
+  background: rgba(20, 14, 8, 0.08);
+  color: var(--ink);
+}
+
+.tavern-memory-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem 2rem 1.5rem;
+}
+
+.tavern-memory-loading {
+  color: var(--ink-fade);
+  font-style: italic;
+  text-align: center;
+  padding: 2rem 0;
+}
+
+.tavern-memory-empty {
+  color: var(--ink-soft);
+  font-style: italic;
+  line-height: 1.5;
+}
+
+.tavern-memory-error {
+  color: #8b1f00;
+  font-style: italic;
+}
+
+.tavern-memory-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.tavern-memory-entry {
+  display: flex;
+  gap: 0.7rem;
+  align-items: baseline;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.tavern-memory-day {
+  flex: 0 0 3.2rem;
+  color: var(--ink-fade);
+  font-variant: small-caps;
+  letter-spacing: 0.06em;
+  font-size: 0.78rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.tavern-memory-text {
+  flex: 1;
+  color: var(--ink);
+}

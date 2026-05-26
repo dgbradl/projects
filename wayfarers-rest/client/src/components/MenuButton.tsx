@@ -126,6 +126,20 @@ export function MenuButton() {
             />
           )}
 
+          {/* Phase 9 (H3): the Tavern Memory page. Always available
+              regardless of play state — it reads from the persisted
+              event log, not from the live world. */}
+          <MenuItem
+            label="Tavern Memory…"
+            hint="A timeline of the tavern's high-water marks since opening."
+            onClick={() => {
+              dispatch({ type: 'TAVERN_MEMORY_OPENED' });
+              setOpen(false);
+            }}
+            disabled={busy}
+            testId="menu-tavern-memory"
+          />
+
           <div className="menu-divider" />
 
           {!confirmingReset ? (

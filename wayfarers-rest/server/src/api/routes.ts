@@ -9,6 +9,8 @@ import type {
   StaffRoster,
   StaffSwapRequest,
   TavernConfig,
+  TavernMemoryEntry,
+  TavernMemoryResponse,
   TavernTrait,
   Thread,
   TickerEntry,
@@ -132,6 +134,13 @@ export function registerRoutes(app: FastifyInstance, deps: ApiDeps): void {
         sinceEventId: parseInteger(request.query.sinceEventId, 0),
         limit: parseInteger(request.query.limit, 50),
       }),
+  );
+
+  // Phase 9 (H3): the Tavern Memory page — one high-salience moment per
+  // game day, ordered chronologically. Drives the long-tail "this is the
+  // place where…" timeline the keeper can revisit from the menu.
+  app.get('/tavern/memory', async (): Promise<TavernMemoryResponse> =>
+    buildTavernMemoryResponse(deps),
   );
 
   app.get('/npcs', async () => deps.npcManager.getRoster());
@@ -401,4 +410,69 @@ function parseInteger(raw: string | undefined, fallback: number): number {
   if (raw === undefined) return fallback;
   const n = parseInt(raw, 10);
   return Number.isFinite(n) ? n : fallback;
+}
+
+// ---------- Phase 9 (H3): Tavern Memory ----------
+
+/** Threshold for inclusion in the Tavern Memory timeline. Higher than the
+ *  ticker's threshold (2) — Memory is for capital-M moments, not the
+ *  per-sub-tick chatter. ~7 catches arrivals of regulars, thread starts/
+ *  completions, prosperity tier shifts, interventions, the tavern naming
+ *  itself, and carryover-unmet desires. */
+export const MEMORY_SCORE_THRESHOLD = 7;
+
+/**
+ * Phase 9 (H3): build the Tavern Memory payload. For each game day with at
+ * least one event scoring >= MEMORY_SCORE_THRESHOLD, picks the highest-
+ * scoring event and renders it. Ties broken by event id (older wins —
+ * the first capital-M moment of the day takes the slot).
+ */
+export function buildTavernMemoryResponse(deps: ApiDeps): TavernMemoryResponse {
+  const all = deps.persistence.getEventsSince(0);
+  const npcsById = buildNpcsByIdForTicker(deps, all);
+  const threadsById = new Map<string, Thread>(
+    deps.persistence.loadAllThreads().map((t) => [t.id, t]),
+  );
+  const ctx = {
+    npcsById,
+    threadsById,
+    alarmingValues: DEFAULT_ALARMING_VALUES,
+    markedNpcIds: new Set(deps.stateManager.getState().markedNpcIds),
+  };
+
+  // First pass: score every event, group by gameDay.
+  const bestPerDay = new Map<number, { entry: typeof all[number]; score: number }>();
+  for (const entry of all) {
+    const s = scoreSalience(entry.event, ctx);
+    if (s < MEMORY_SCORE_THRESHOLD) continue;
+    const gameDay =
+      'gameDay' in entry.event && typeof entry.event.gameDay === 'number'
+        ? entry.event.gameDay
+        : 0;
+    const existing = bestPerDay.get(gameDay);
+    if (
+      !existing ||
+      s > existing.score ||
+      (s === existing.score && entry.id < existing.entry.id)
+    ) {
+      bestPerDay.set(gameDay, { entry, score: s });
+    }
+  }
+
+  // Second pass: render and sort chronologically.
+  const entries: TavernMemoryEntry[] = [];
+  for (const [gameDay, { entry, score }] of bestPerDay) {
+    const text = renderSentence(entry, npcsById);
+    if (!text) continue;
+    entries.push({
+      gameDay,
+      eventId: entry.id,
+      realTimestamp: entry.realTimestamp,
+      score,
+      text,
+      event: entry.event,
+    });
+  }
+  entries.sort((a, b) => a.gameDay - b.gameDay);
+  return { entries };
 }

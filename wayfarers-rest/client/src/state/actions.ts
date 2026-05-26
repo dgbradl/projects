@@ -61,6 +61,9 @@ export type Action =
   | { type: 'EXPIRE_FOCUSED_NPC'; payload: { now: number } }
   // Phase 8 (B3): expand/collapse a thread row in the ticker.
   | { type: 'TOGGLE_TICKER_THREAD'; payload: { threadId: string } }
+  // Phase 9 (H3): Tavern Memory modal.
+  | { type: 'TAVERN_MEMORY_OPENED' }
+  | { type: 'TAVERN_MEMORY_CLOSED' }
   | { type: 'FLAVOR_STATUS'; payload: FlavorStatusPayload }
   | { type: 'WELCOME_OPENED'; payload: ChroniclesSinceResponse }
   | { type: 'CHRONICLE_FILLED'; payload: DailyChronicle }

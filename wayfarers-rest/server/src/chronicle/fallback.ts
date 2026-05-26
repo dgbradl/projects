@@ -218,6 +218,14 @@ export function renderSentence(
           : '';
       return `The keeper christened the place: ${ev.tavernName}${traits}.`;
     }
+    case 'intervention_used': {
+      // Phase 9 (H3): generic prose so intervention beats can land in the
+      // Tavern Memory timeline + the LLM-off chronicle. The LLM-on prompt
+      // pipeline still surfaces these in its own "By your hand today"
+      // section, so this fallback never competes there.
+      const kind = humanize(ev.intervention.kind);
+      return `The keeper's hand moved: ${kind}.`;
+    }
     default:
       return '';
   }

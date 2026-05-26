@@ -834,6 +834,25 @@ export interface TickerResponse {
   lastEventId: number;
 }
 
+/**
+ * Phase 9 (H3): one entry in the Tavern Memory page — a single
+ * high-salience moment from a given game day, surfaced into a permanent
+ * scrolling timeline the keeper can revisit. One entry per day at most;
+ * days with nothing salient are omitted.
+ */
+export interface TavernMemoryEntry {
+  gameDay: number;
+  eventId: number;
+  realTimestamp: string;
+  score: number;
+  text: string;
+  event: WorldEvent;
+}
+
+export interface TavernMemoryResponse {
+  entries: TavernMemoryEntry[];
+}
+
 export interface WorldSnapshot {
   worldTags: WorldTag[];
   threads: Thread[];

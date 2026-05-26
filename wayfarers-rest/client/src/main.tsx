@@ -12,6 +12,7 @@ import './styles/ticker.css';
 import './styles/open-tavern.css';
 import './styles/day-night.css';
 import './styles/dock.css';
+import './styles/tavern-memory.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
