@@ -613,6 +613,46 @@ export type WorldEvent =
       gameDay: number;
       tavernName: string;
       tavernTraits: TavernTrait[];
+    }
+  | {
+      /**
+       * Phase 9 (F1): a stage event began — a brawl erupted, a wedding
+       * party arrived, etc. Top-tier salience (8) so the chronicle's
+       * day-end summary highlights it.
+       */
+      type: 'stage_event_started';
+      gameDay: number;
+      stageEventId: string;
+      stageEventType: StageEventType;
+      zone: ZoneName;
+      participantNpcIds: string[];
+    }
+  | {
+      /**
+       * Phase 9 (F1): a stage event advanced through its state machine
+       * (building → underway → climax → aftermath). Mid-salience (4) —
+       * progress beats stay below the threshold for the Tavern Memory
+       * timeline but show up in the live ticker.
+       */
+      type: 'stage_event_progressed';
+      gameDay: number;
+      stageEventId: string;
+      stageEventType: StageEventType;
+      fromState: StageEventState;
+      toState: StageEventState;
+    }
+  | {
+      /**
+       * Phase 9 (F1): a stage event resolved. Outcome shapes the
+       * chronicle prose ("burned out", "the bartender stepped in",
+       * "the keeper defused it").
+       */
+      type: 'stage_event_resolved';
+      gameDay: number;
+      stageEventId: string;
+      stageEventType: StageEventType;
+      outcome: 'burned_out' | 'defused_by_keeper' | 'broken_up' | 'completed';
+      participantNpcIds: string[];
     };
 
 // ---------- Phase 6: Interventions ----------
@@ -862,6 +902,52 @@ export interface WorldSnapshot {
   furniture: FurniturePiece[];
   /** Current zone layout (defaults from TAVERN_ZONES + any debug edits). */
   zones: Zone[];
+  /**
+   * Phase 9 (F1): live stage events — brawls and (later) weddings, court
+   * days, storyteller circles. The client renders a halo + caption per
+   * active event. Empty array when no scene is playing.
+   */
+  stageEvents?: StageEvent[];
+}
+
+// ---------- Phase 9 (F1): Stage Events ----------
+
+export type StageEventType =
+  | 'brawl'
+  | 'wedding'
+  | 'court_day'
+  | 'storyteller_circle';
+
+export type StageEventState =
+  | 'building'
+  | 'underway'
+  | 'climax'
+  | 'aftermath'
+  | 'resolved';
+
+/**
+ * A live in-tavern dramatic moment. Takes over a zone, draws nearby NPCs
+ * in as participants, and progresses through a state machine over a
+ * handful of sub-ticks. The chronicle's day-end summary uses scene
+ * started/resolved events as headline beats.
+ *
+ * Phase 9 (F1) ships `brawl` only; F3 adds wedding / court_day /
+ * storyteller_circle behind the same shape. F4 wires two keeper verbs
+ * (`escalate_scene`, `defuse_scene`) for player agency.
+ */
+export interface StageEvent {
+  id: string;
+  type: StageEventType;
+  state: StageEventState;
+  zone: ZoneName;
+  startedGameDay: number;
+  startedSubTick: number;
+  /** Absolute sub-tick at which the next state transition is due. */
+  nextTransitionAbsSubTick: number;
+  /** NPCs caught up in the scene; grows as the scene spreads. */
+  participantNpcIds: string[];
+  /** Per-type freeform data (e.g. brawl: { triggerInteractionId }). */
+  payload: Record<string, unknown>;
 }
 
 // ---------- Furniture (server-owned tavern layout) ----------

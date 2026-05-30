@@ -30,6 +30,7 @@ import type { FlavorModeManager } from '../llm/mode.ts';
 import type { FurnitureManager } from '../furniture/manager.ts';
 import type { DesireResolver } from '../npc/desire-resolver.ts';
 import type { NpcManager } from '../npc/manager.ts';
+import type { StageRunner } from '../stage/runner.ts';
 import type { Persistence } from '../persistence.ts';
 import type { WorldStateManager } from '../state.ts';
 import type { ThreadRunner } from '../threads/runner.ts';
@@ -71,6 +72,9 @@ export interface ApiDeps {
    *  fulfil matching desires on present NPCs. Optional so test harnesses
    *  that don't construct one stay valid. */
   desireResolver?: DesireResolver;
+  /** Phase 9 (F1): stage runner. Optional so tests can omit; live server
+   *  always passes. Surfaces stage events on the world snapshot. */
+  stageRunner?: StageRunner;
 }
 
 export interface FlavorStatus {
@@ -301,6 +305,9 @@ export function buildWorldSnapshot(deps: ApiDeps): WorldSnapshot {
     rumors: deps.persistence.loadAllRumors(),
     furniture: deps.furnitureManager?.list() ?? [],
     zones: deps.zoneManager?.list() ?? [...TAVERN_ZONES],
+    // Phase 9 (F1): live scenes go on the snapshot so the client renders
+    // the halo + caption + ticker pin immediately on connect.
+    stageEvents: deps.stageRunner?.getLiveScenes() ?? [],
   };
 }
 

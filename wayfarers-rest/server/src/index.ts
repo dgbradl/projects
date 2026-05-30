@@ -47,6 +47,7 @@ import {
 import { CharacterMemoryRecorder } from './npc/character-memory.ts';
 import { DesireResolver } from './npc/desire-resolver.ts';
 import { NpcManager } from './npc/manager.ts';
+import { StageRunner } from './stage/runner.ts';
 import {
   checkObservant,
   computeConflictMitigation,
@@ -236,6 +237,17 @@ async function main(): Promise<void> {
   // Once per visit per scholar; tracker is cleared on departure below.
   const scholarStudies = new ScholarStudyTracker();
 
+  // Phase 9 (F1): stage runner — listens for overheard_argument and may
+  // spawn a brawl scene; ticks live scenes through their state machine
+  // from the postSubTickHook below. Scenes persist across restarts.
+  const stageRunner = new StageRunner({
+    persistence,
+    bus,
+    worldSeed: stateManager.getState().seed,
+    subTicksPerDay: SUB_TICKS_PER_DAY,
+  });
+  stageRunner.attach();
+
   (npcManager as unknown as {
     deps: { postSubTickHook: typeof postSubTickHook };
   }).deps.postSubTickHook = postSubTickHook;
@@ -351,6 +363,9 @@ async function main(): Promise<void> {
     // it stood when this sub-tick began — order vs. interaction resolution
     // doesn't matter for this detector (it doesn't read affinity or rumors).
     desireResolver.onSubTick(gameDay, subTick, roster);
+    // Phase 9 (F1): advance any live stage scene through its state machine.
+    // Cheap if nothing's live — early-returns on the first sub-tick.
+    stageRunner.onSubTick(gameDay, subTick, roster);
 
     if (candidates.length === 0) return;
     // Epic E (E2): conflict mitigation — reduce argument weight if bartender present.
@@ -547,6 +562,8 @@ async function main(): Promise<void> {
     // Phase 8 (A4): plant_rumor + beckon use this to fulfil matching
     // desires on present NPCs when the keeper acts.
     desireResolver,
+    // Phase 9 (F1): live scenes ride on the world snapshot.
+    stageRunner,
   };
 
   app.addHook('onClose', async () => {

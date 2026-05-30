@@ -10,12 +10,14 @@ import type {
   Rumor,
   ScheduledArrival,
   StaffSkills,
+  StageEvent,
   TavernTrait,
   Thread,
   TickEvent,
   WorldEvent,
   WorldState,
   WorldTag,
+  ZoneName,
 } from '@shared/types';
 import { DEFAULT_TAVERN_NAME, TAVERN_TRAITS } from '@shared/types';
 import type { RosterSnapshot } from './npc/manager.ts';
@@ -108,6 +110,19 @@ interface ThreadRow {
   next_tick_game_day: number;
   payload: string;
   history: string;
+}
+
+/** Phase 9 (F1): row shape for a live stage_events entry. */
+interface StageEventRow {
+  id: string;
+  type: string;
+  state: string;
+  zone: string;
+  started_game_day: number;
+  started_sub_tick: number;
+  next_transition_abs_sub_tick: number;
+  participants_json: string;
+  payload_json: string;
 }
 
 interface WorldTagRow {
@@ -217,6 +232,22 @@ export class Persistence {
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL,
         set_on_game_day INTEGER NOT NULL
+      );
+
+      -- Phase 9 (F1): in-tavern stage events (brawls, weddings, court
+      -- days, storyteller circles). Active scenes live here; resolved
+      -- scenes are deleted on transition (the event log carries the
+      -- record). One row per live scene.
+      CREATE TABLE IF NOT EXISTS stage_events (
+        id TEXT PRIMARY KEY,
+        type TEXT NOT NULL,
+        state TEXT NOT NULL,
+        zone TEXT NOT NULL,
+        started_game_day INTEGER NOT NULL,
+        started_sub_tick INTEGER NOT NULL,
+        next_transition_abs_sub_tick INTEGER NOT NULL,
+        participants_json TEXT NOT NULL DEFAULT '[]',
+        payload_json TEXT NOT NULL DEFAULT '{}'
       );
 
       CREATE TABLE IF NOT EXISTS rumors (
@@ -702,6 +733,91 @@ export class Persistence {
     payload: JSON.parse(row.payload),
     history: JSON.parse(row.history),
   });
+
+  // ---------- stage_events (Phase 9 F1) ----------
+
+  loadActiveStageEvents(): StageEvent[] {
+    const rows = this.db
+      .prepare(
+        'SELECT * FROM stage_events ORDER BY started_game_day ASC, started_sub_tick ASC',
+      )
+      .all() as StageEventRow[];
+    return rows.map(this.rowToStageEvent);
+  }
+
+  upsertStageEvent(scene: StageEvent): void {
+    this.db
+      .prepare(
+        `INSERT INTO stage_events
+          (id, type, state, zone, started_game_day, started_sub_tick, next_transition_abs_sub_tick, participants_json, payload_json)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           type = excluded.type,
+           state = excluded.state,
+           zone = excluded.zone,
+           started_game_day = excluded.started_game_day,
+           started_sub_tick = excluded.started_sub_tick,
+           next_transition_abs_sub_tick = excluded.next_transition_abs_sub_tick,
+           participants_json = excluded.participants_json,
+           payload_json = excluded.payload_json`,
+      )
+      .run(
+        scene.id,
+        scene.type,
+        scene.state,
+        scene.zone,
+        scene.startedGameDay,
+        scene.startedSubTick,
+        scene.nextTransitionAbsSubTick,
+        JSON.stringify(scene.participantNpcIds),
+        JSON.stringify(scene.payload),
+      );
+  }
+
+  deleteStageEvent(id: string): void {
+    this.db.prepare('DELETE FROM stage_events WHERE id = ?').run(id);
+  }
+
+  countStageEventsStartedOnDay(type: string, gameDay: number): number {
+    const row = this.db
+      .prepare(
+        'SELECT COUNT(*) AS n FROM stage_events WHERE type = ? AND started_game_day = ?',
+      )
+      .get(type, gameDay) as { n: number };
+    return row.n;
+  }
+
+  private rowToStageEvent = (row: StageEventRow): StageEvent => {
+    let participantNpcIds: string[] = [];
+    try {
+      const parsed = JSON.parse(row.participants_json);
+      if (Array.isArray(parsed)) {
+        participantNpcIds = parsed.filter((x): x is string => typeof x === 'string');
+      }
+    } catch {
+      participantNpcIds = [];
+    }
+    let payload: Record<string, unknown> = {};
+    try {
+      const parsed = JSON.parse(row.payload_json);
+      if (parsed && typeof parsed === 'object') {
+        payload = parsed as Record<string, unknown>;
+      }
+    } catch {
+      payload = {};
+    }
+    return {
+      id: row.id,
+      type: row.type as StageEvent['type'],
+      state: row.state as StageEvent['state'],
+      zone: row.zone as ZoneName,
+      startedGameDay: row.started_game_day,
+      startedSubTick: row.started_sub_tick,
+      nextTransitionAbsSubTick: row.next_transition_abs_sub_tick,
+      participantNpcIds,
+      payload,
+    };
+  };
 
   // ---------- world_tags ----------
 

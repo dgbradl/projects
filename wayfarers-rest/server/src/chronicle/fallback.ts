@@ -90,6 +90,23 @@ function humanize(s: string): string {
   return s.replace(/_/g, ' ');
 }
 
+// Phase 9 (F1): per-scene opener templates. (who, where) → sentence.
+// Anything not in this table would fail typecheck; safe by construction
+// since callers go through the typed StageEventType union.
+const STAGE_OPENERS: Record<
+  string,
+  (who: string, where: string) => string
+> = {
+  brawl: (who, where) =>
+    `A brawl broke out at the ${where} — ${who} were in the middle of it.`,
+  wedding: (who, where) =>
+    `A wedding party arrived at the ${where}, with ${who} at its centre.`,
+  court_day: (who, where) =>
+    `${who} held a kind of court at the ${where}.`,
+  storyteller_circle: (who, where) =>
+    `${who} drew a storyteller's circle around the ${where}.`,
+};
+
 // Phrasing for thread_started by threadType. Anything not listed falls back to
 // `A new {humanized} began to take shape.` so unknown thread types still read
 // like prose instead of `threadType: foo_bar`.
@@ -225,6 +242,37 @@ export function renderSentence(
       // section, so this fallback never competes there.
       const kind = humanize(ev.intervention.kind);
       return `The keeper's hand moved: ${kind}.`;
+    }
+    case 'stage_event_started': {
+      // Phase 9 (F1): scene openings. Names participants by displayName
+      // when available — falls back to "trouble" if no NPCs resolved.
+      const names = ev.participantNpcIds
+        .map((id) => npcsById.get(id)?.displayName ?? null)
+        .filter((n): n is string => n !== null);
+      const who = names.length > 0 ? names.join(' and ') : 'trouble';
+      const where = ev.zone.replace(/_/g, ' ');
+      return STAGE_OPENERS[ev.stageEventType](who, where);
+    }
+    case 'stage_event_progressed': {
+      // Mid-scene beats stay quiet in prose; the live ticker carries
+      // the moment-to-moment "the brawl reached its peak" feel.
+      return `The ${humanize(ev.stageEventType)} moved from ${humanize(ev.fromState)} to ${humanize(ev.toState)}.`;
+    }
+    case 'stage_event_resolved': {
+      // Phase 9 (F1): closure prose by outcome. F4's keeper verbs land
+      // here when they ship.
+      const sceneName = humanize(ev.stageEventType);
+      switch (ev.outcome) {
+        case 'defused_by_keeper':
+          return `The keeper stepped in and defused the ${sceneName}.`;
+        case 'broken_up':
+          return `The ${sceneName} was broken up before it ran its course.`;
+        case 'completed':
+          return `The ${sceneName} ran its course.`;
+        case 'burned_out':
+        default:
+          return `The ${sceneName} burned itself out.`;
+      }
     }
     default:
       return '';

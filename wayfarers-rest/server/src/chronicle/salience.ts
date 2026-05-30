@@ -118,6 +118,24 @@ export function score(event: WorldEvent, ctx: SalienceContext): number {
       // Phase 8 (D2): the keeper christens the place. A one-time beat that
       // belongs near the top of the chronicle on the day it happens.
       return 9;
+    case 'stage_event_started':
+      // Phase 9 (F1): a brawl erupted (or a wedding arrived, etc). Top-
+      // tier salience — every stage event opener belongs near the head
+      // of the chronicle on its day.
+      return 8;
+    case 'stage_event_progressed':
+      // Mid-salience. Progress beats land in the live ticker but stay
+      // below the Tavern Memory threshold (7) so the timeline doesn't
+      // get crowded with "the brawl moved from underway to climax."
+      return 4;
+    case 'stage_event_resolved': {
+      // Phase 9 (F1): closure beats. Keeper-defused scenes outrank
+      // burnouts — the player did something.
+      let s = 7;
+      if (event.outcome === 'defused_by_keeper') s += 2;
+      if (event.outcome === 'broken_up') s += 1;
+      return s;
+    }
     default:
       // Excluded: init/tick/pause/resume, all flavor_*, all chronicle_*,
       // favor_regenerated, npc_marked, npc_unmarked, guest_spent,
