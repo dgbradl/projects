@@ -111,6 +111,10 @@ export function updateProsperityForDay(
   // left wanting carries a faint sourness with them. Weight 0.5 each so two
   // unfulfilled desires roughly equal one argument; the smoothing in
   // computeProsperity tempers the daily impact further.
+  // Phase 9 (F5): stage event resolutions fold in too. A wedding warms the
+  // place; a brawl that burned out sours it; a brawl the keeper defused
+  // is neutral (their hand cancels the damage). Court days and storyteller
+  // circles register but lightly — they're texture more than impact.
   let windowSocial = 0;
   for (const entry of deps.persistence.getEventsSince(0)) {
     const ev = entry.event;
@@ -120,6 +124,8 @@ export function updateProsperityForDay(
       else if (ev.interaction.kind === 'overheard_argument') windowSocial -= 1;
     } else if (ev.type === 'desire_unfulfilled') {
       windowSocial -= 0.5;
+    } else if (ev.type === 'stage_event_resolved') {
+      windowSocial += stageEventSocialWeight(ev.stageEventType, ev.outcome);
     }
   }
 
@@ -149,4 +155,31 @@ export function updateProsperityForDay(
     });
   }
   return result;
+}
+
+/**
+ * Phase 9 (F5): per-scene-outcome contribution to the windowSocial signal.
+ * Tuned so:
+ *   - Weddings clearly lift the room (warmth + celebration)
+ *   - Brawls that burn out clearly hurt (chaos + unmet bills)
+ *   - A keeper-defused scene is neutral (their action cancels the damage)
+ *   - Storyteller circles add a small lift (texture without dominating)
+ *   - Court days are a wash (just business)
+ * Smoothing in computeProsperity keeps any single day's impact bounded.
+ */
+function stageEventSocialWeight(
+  type: 'brawl' | 'wedding' | 'court_day' | 'storyteller_circle',
+  outcome: 'burned_out' | 'defused_by_keeper' | 'broken_up' | 'completed',
+): number {
+  if (outcome === 'defused_by_keeper') return 0;
+  switch (type) {
+    case 'wedding':
+      return 3;
+    case 'storyteller_circle':
+      return 1;
+    case 'court_day':
+      return 0;
+    case 'brawl':
+      return outcome === 'burned_out' ? -3 : outcome === 'broken_up' ? -1 : 0;
+  }
 }
