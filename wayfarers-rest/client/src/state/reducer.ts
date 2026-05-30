@@ -14,6 +14,7 @@ import type {
   ScheduledArrival,
   TavernConfig,
   Thread,
+  StageEvent,
   TickerEntry,
   WorldSnapshot,
   WorldState,
@@ -71,6 +72,8 @@ export interface AppState {
   expandedThreadId: string | null;
   /** Phase 9 (H3): true when the Tavern Memory modal is open. */
   tavernMemoryOpen: boolean;
+  /** Phase 9 (F1/F2): live stage events surfaced via the world snapshot. */
+  stageEvents: StageEvent[];
 }
 
 export const initialState: AppState = {
@@ -100,6 +103,7 @@ export const initialState: AppState = {
   focusedNpcExpiresAt: 0,
   expandedThreadId: null,
   tavernMemoryOpen: false,
+  stageEvents: [],
 };
 
 /** Cap on client-side ticker buffer — keeps the scroll list bounded. */
@@ -154,6 +158,9 @@ export function reducer(state: AppState, action: Action): AppState {
         rumors: action.payload.rumors,
         furniture: action.payload.furniture ?? state.furniture,
         zones: action.payload.zones ?? state.zones,
+        // Phase 9 (F2): empty array (not undefined) so the overlay can
+        // unconditionally map over it.
+        stageEvents: action.payload.stageEvents ?? [],
       };
     case 'WORLD_EVENT': {
       const trimmed = [action.payload, ...state.recentEvents].slice(

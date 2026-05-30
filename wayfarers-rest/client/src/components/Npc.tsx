@@ -48,6 +48,8 @@ interface Props {
   /** Per-NPC flash, lifted to the parent so React.memo can skip unchanged NPCs. */
   flash: InteractionFlash | undefined;
   focused: boolean;
+  /** Phase 9 (F2): true if this NPC is caught up in a live stage event. */
+  sceneParticipant: boolean;
   furniture: FurniturePiece[];
   /** Optional clock for the tooltip's "sub-ticks since arrival" stat. */
   currentGameDay?: number;
@@ -59,6 +61,7 @@ function NpcImpl({
   npc,
   flash,
   focused,
+  sceneParticipant,
   furniture,
   currentGameDay,
   currentSubTick,
@@ -104,13 +107,14 @@ function NpcImpl({
 
   return (
     <div
-      className={`npc npc-${npc.status}${isStaff ? ' npc-staff' : ''}${focused ? ' npc--focused' : ''}${regularSheen ? ' npc--regular-sheen' : ''}`}
+      className={`npc npc-${npc.status}${isStaff ? ' npc-staff' : ''}${focused ? ' npc--focused' : ''}${regularSheen ? ' npc--regular-sheen' : ''}${sceneParticipant ? ' npc--scene-participant' : ''}`}
       style={style}
       data-npc-id={npc.id}
       data-status={npc.status}
       data-staff-role={npc.staffRole ?? undefined}
       data-interacting={interacting ? 'true' : undefined}
       data-focused={focused ? 'true' : undefined}
+      data-scene-participant={sceneParticipant ? 'true' : undefined}
     >
       <InteractionBubble npc={npc} />
       <NpcSprite npc={npc} />

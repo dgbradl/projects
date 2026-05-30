@@ -1,0 +1,174 @@
+/* Phase 9 (F2): in-tavern stage event overlay.
+   Zone halo + caption strip. The scene type colour comes through
+   --stage-hue (HSL "H S% L%" set on the .stage-halo wrapper) so each
+   scene type reads at a glance — brawl warm-red, wedding gold, etc. */
+
+.stage-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3; /* above floor + furniture (z:1), below NPCs (z:2 with :hover 50) */
+}
+
+/* The halo wrapper is positioned in tavern-percent over the zone center,
+   with width/height = ~2.4x the zone radius. The actual visual is a radial
+   gradient inside it; opacity + scale animate per scene state. */
+.stage-halo {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    hsl(var(--stage-hue) / 0.35) 0%,
+    hsl(var(--stage-hue) / 0.18) 45%,
+    hsl(var(--stage-hue) / 0) 75%
+  );
+  mix-blend-mode: screen;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Phase progression — the halo grows and brightens through underway/climax
+   then fades through aftermath. Each state's animation runs in a loop while
+   the class is present, so the same DOM node carries the visual continuity
+   across server-driven state transitions. */
+.stage-halo--building {
+  animation: stage-halo-building 1.8s ease-in-out infinite alternate;
+}
+.stage-halo--underway {
+  animation: stage-halo-underway 1.4s ease-in-out infinite alternate;
+}
+.stage-halo--climax {
+  animation: stage-halo-climax 0.9s ease-in-out infinite alternate;
+}
+.stage-halo--aftermath {
+  animation: stage-halo-aftermath 2.5s ease-in-out infinite alternate;
+}
+
+@keyframes stage-halo-building {
+  from {
+    opacity: 0.35;
+    transform: translate(-50%, -50%) scale(0.92);
+  }
+  to {
+    opacity: 0.55;
+    transform: translate(-50%, -50%) scale(1.02);
+  }
+}
+@keyframes stage-halo-underway {
+  from {
+    opacity: 0.6;
+    transform: translate(-50%, -50%) scale(0.98);
+  }
+  to {
+    opacity: 0.85;
+    transform: translate(-50%, -50%) scale(1.08);
+  }
+}
+@keyframes stage-halo-climax {
+  from {
+    opacity: 0.85;
+    transform: translate(-50%, -50%) scale(1.0);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.12);
+  }
+}
+@keyframes stage-halo-aftermath {
+  from {
+    opacity: 0.5;
+    transform: translate(-50%, -50%) scale(1.05);
+  }
+  to {
+    opacity: 0.2;
+    transform: translate(-50%, -50%) scale(1.0);
+  }
+}
+
+/* Caption strip — pinned to the top of the play area, above the tavern
+   surface. One row per live scene; vertically stacked when multiple
+   scenes fire (rare given the daily caps). */
+.stage-captions {
+  position: absolute;
+  top: 0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  pointer-events: none;
+  align-items: center;
+}
+
+.stage-caption {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(20, 14, 8, 0.85);
+  border: 1px solid #b89a5e;
+  color: var(--ink, #efe2c4);
+  font-family: 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  font-size: 0.88rem;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  animation: stage-caption-in 280ms ease-out;
+}
+
+.stage-caption-marker {
+  font-size: 0.7rem;
+  /* tinted by scene type via the same hue scheme */
+}
+
+.stage-caption--brawl .stage-caption-marker {
+  color: hsl(0 70% 60%);
+}
+.stage-caption--wedding .stage-caption-marker {
+  color: hsl(45 80% 65%);
+}
+.stage-caption--court_day .stage-caption-marker {
+  color: hsl(215 50% 65%);
+}
+.stage-caption--storyteller_circle .stage-caption-marker {
+  color: hsl(160 50% 60%);
+}
+
+.stage-caption-state {
+  font-variant: small-caps;
+  letter-spacing: 0.08em;
+  font-size: 0.74rem;
+  color: var(--ink-dim, #b6a47e);
+  border-left: 1px solid rgba(184, 154, 94, 0.4);
+  padding-left: 0.55rem;
+}
+
+@keyframes stage-caption-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Phase 9 (F2): a sprite caught up in a live scene pulses to signal "this
+   one's in it." Same hue scheme as the halo so the visual ties together. */
+.npc--scene-participant .npc-sprite,
+.npc--scene-participant .npc-dot {
+  animation: npc-scene-pulse 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes npc-scene-pulse {
+  from {
+    filter: drop-shadow(0 0 5px hsla(0, 70%, 55%, 0.55));
+  }
+  to {
+    filter: drop-shadow(0 0 11px hsla(0, 70%, 55%, 0.95));
+  }
+}
