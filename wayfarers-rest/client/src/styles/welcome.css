@@ -69,6 +69,20 @@
   padding-bottom: 0.3rem;
 }
 
+/* Phase 9 (QW4): today's marquee — the highest-salience event of the day
+   set apart as a single lead line. Larger, weight-lifted, with a small
+   gold rule under it that ties to the accent palette. */
+.welcome-entry-marquee {
+  margin: 0 0 0.85rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--ink);
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid rgba(139, 63, 0, 0.45);
+  letter-spacing: 0.01em;
+}
+
 .welcome-entry-headlines {
   list-style: none;
   padding: 0;

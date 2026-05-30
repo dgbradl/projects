@@ -107,8 +107,20 @@ function DayEntry({
           (no innkeeper's hand tonight)
         </p>
       )}
+      {/* Phase 9 (QW4): today's marquee — the highest-salience event of
+          the day, rendered separately from the rest. headlines[0] is the
+          top-scoring entry per the chronicle generator + fallback sort,
+          so styling it as a marquee is purely a CSS lift. */}
+      {entry.headlines.length > 0 && (
+        <p
+          className="welcome-entry-marquee"
+          data-testid={`welcome-entry-marquee-${day}`}
+        >
+          {entry.headlines[0]}
+        </p>
+      )}
       <ul className="welcome-entry-headlines">
-        {entry.headlines.map((h, i) => (
+        {entry.headlines.slice(1).map((h, i) => (
           <li key={i}>{h}</li>
         ))}
       </ul>
