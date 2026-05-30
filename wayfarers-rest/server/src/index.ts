@@ -31,6 +31,8 @@ import {
 } from './interventions/favor.ts';
 import './interventions/kinds/index.ts';
 import {
+  buildDefuseScene,
+  buildEscalateScene,
   buildMarkNpc,
   buildRestockLarder,
   buildShiftFocus,
@@ -411,6 +413,10 @@ async function main(): Promise<void> {
   interventionRegistry.register(buildUpgradeHearth({ stateManager }));
   // Phase 9 (G4): swap one tavern trait for another (3 favors).
   interventionRegistry.register(buildShiftFocus({ stateManager, bus }));
+  // Phase 9 (F4): scene control verbs — escalate (2 favors) and
+  // defuse (3 favors). Both act on a live StageEvent by id.
+  interventionRegistry.register(buildEscalateScene({ stateManager, stageRunner }));
+  interventionRegistry.register(buildDefuseScene({ stateManager, stageRunner }));
 
   // Phase 6: marked-NPC cleanup on departure.
   bus.on('world_event', (entry: { event: unknown }) => {

@@ -169,6 +169,10 @@ function labelForKind(kind: InterventionKind): string {
       return 'Upgrade the hearth';
     case 'shift_focus':
       return "Shift the tavern's focus";
+    case 'escalate_scene':
+      return 'Lean into a scene';
+    case 'defuse_scene':
+      return 'Defuse a scene';
   }
 }
 
@@ -433,5 +437,9 @@ function summarize(kind: InterventionKind, p: Record<string, unknown>): string {
       return 'Spend coin to build up the hearth and common room.';
     case 'shift_focus':
       return `Swap ${p.dropTrait} for ${p.addTrait} (costs 3 favors).`;
+    case 'escalate_scene':
+      return `Push the scene at ${p.stageEventId} to its peak (costs 2 favors).`;
+    case 'defuse_scene':
+      return `Step in and defuse the scene at ${p.stageEventId} (costs 3 favors).`;
   }
 }

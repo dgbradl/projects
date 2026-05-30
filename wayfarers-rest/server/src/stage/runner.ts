@@ -365,11 +365,17 @@ export class StageRunner {
     scene.state = toState;
     if (toState === 'resolved') {
       this.cleanup(scene.id);
-      // Phase 9 (F3): non-conflict scenes (wedding, court_day,
-      // storyteller_circle) end as 'completed' rather than 'burned_out'.
-      // A wedding doesn't burn out, it concludes.
-      const outcome: 'burned_out' | 'completed' =
-        scene.type === 'brawl' ? 'burned_out' : 'completed';
+      // Phase 9 (F4): if the keeper defused this scene, the outcome wins
+      // out over the natural one — the player should see the chronicle
+      // credit them.
+      // F3 default: non-conflict scenes end as 'completed', brawls as
+      // 'burned_out'.
+      const defused = scene.payload.defusedByKeeper === true;
+      const outcome: 'burned_out' | 'completed' | 'defused_by_keeper' = defused
+        ? 'defused_by_keeper'
+        : scene.type === 'brawl'
+          ? 'burned_out'
+          : 'completed';
       this.deps.bus.publish({
         type: 'stage_event_resolved',
         gameDay,
@@ -397,6 +403,56 @@ export class StageRunner {
   private cleanup(id: string): void {
     this.liveScenes.delete(id);
     this.deps.persistence.deleteStageEvent(id);
+  }
+
+  /**
+   * Phase 9 (F4): keeper-initiated state transition. Two actions today:
+   *   - 'escalate' jumps the scene from building/underway to climax.
+   *   - 'defuse' jumps the scene to aftermath AND tags payload so the
+   *     final resolution emits outcome='defused_by_keeper'.
+   * Returns the new state on success, or undefined if the requested
+   * action wasn't valid for the scene's current state.
+   */
+  applyKeeperAction(
+    sceneId: string,
+    action: 'escalate' | 'defuse',
+    gameDay: number,
+    subTick: number,
+  ): { fromState: StageEventState; toState: StageEventState } | undefined {
+    const scene = this.liveScenes.get(sceneId);
+    if (!scene) return undefined;
+    if (scene.state === 'resolved') return undefined;
+    const absSubTick = absoluteSubTick(gameDay, subTick, this.deps.subTicksPerDay);
+
+    let toState: StageEventState | undefined;
+    if (action === 'escalate') {
+      // Escalation only makes sense before the climax. After climax the
+      // scene is already on its way down.
+      if (scene.state !== 'building' && scene.state !== 'underway') return undefined;
+      toState = 'climax';
+    } else {
+      // Defuse can land any time before resolution. Jumps to aftermath; the
+      // next runner tick will progress aftermath → resolved, and the
+      // defused-by-keeper flag set below will route the outcome.
+      if (scene.state === 'aftermath') return undefined;
+      toState = 'aftermath';
+      scene.payload = { ...scene.payload, defusedByKeeper: true };
+    }
+    const fromState = scene.state;
+    scene.state = toState;
+    const timing = SCENE_TIMING[scene.type];
+    scene.nextTransitionAbsSubTick =
+      absSubTick + timing[toState as Exclude<StageEventState, 'resolved'>];
+    this.deps.persistence.upsertStageEvent(scene);
+    this.deps.bus.publish({
+      type: 'stage_event_progressed',
+      gameDay,
+      stageEventId: scene.id,
+      stageEventType: scene.type,
+      fromState,
+      toState,
+    });
+    return { fromState, toState };
   }
 
   private rngFor(gameDay: number, subTick: number, key: string) {

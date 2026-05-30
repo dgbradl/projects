@@ -15,6 +15,7 @@ import * as registry from '../interventions/registry.ts';
 import type { InterventionOptions } from '../interventions/types.ts';
 import type { DesireResolver } from '../npc/desire-resolver.ts';
 import type { NpcManager } from '../npc/manager.ts';
+import type { StageRunner } from '../stage/runner.ts';
 import type { Persistence } from '../persistence.ts';
 import type { WorldStateManager } from '../state.ts';
 import type { ThreadRunner } from '../threads/runner.ts';
@@ -35,6 +36,9 @@ export interface InterventionRouteDeps {
   desireResolver?: DesireResolver;
   /** Phase 8 (A4): for timestamping fulfilments. */
   subTicksPerDay?: number;
+  /** Phase 9 (F4): exposes live scenes to the options endpoint so the
+   *  escalate/defuse pickers can list valid targets. */
+  stageRunner?: StageRunner;
 }
 
 export function registerInterventionRoutes(
@@ -49,6 +53,7 @@ export function registerInterventionRoutes(
         persistence: deps.persistence,
         npcManager: deps.npcManager,
         favorsMax: deps.favorsMax,
+        stageRunner: deps.stageRunner,
       }),
   );
 
@@ -84,6 +89,7 @@ export function registerInterventionRoutes(
           persistence: deps.persistence,
           npcManager: deps.npcManager,
           favorsMax: deps.favorsMax,
+          stageRunner: deps.stageRunner,
         }).targets,
         availableRumors: deps.persistence.loadAvailableRumors(),
       };

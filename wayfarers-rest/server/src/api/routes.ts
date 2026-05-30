@@ -274,6 +274,7 @@ export function registerRoutes(app: FastifyInstance, deps: ApiDeps): void {
       favorsMax: deps.favorsMax ?? 5,
       desireResolver: deps.desireResolver,
       subTicksPerDay: deps.subTicksPerDay,
+      stageRunner: deps.stageRunner,
     });
   }
 

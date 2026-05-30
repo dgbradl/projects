@@ -670,7 +670,18 @@ export type InterventionKind =
    * lets the keeper shift the place's identity without restarting. Requires
    * at least one current trait to drop; the new trait must differ.
    */
-  | 'shift_focus';
+  | 'shift_focus'
+  /**
+   * Phase 9 (F4): push a live stage scene straight to its `climax` state.
+   * 2 favors. Only valid while the scene is in `building` or `underway`.
+   */
+  | 'escalate_scene'
+  /**
+   * Phase 9 (F4): collapse a live stage scene to `aftermath` with the
+   * `defused_by_keeper` outcome flag set. 3 favors. Valid while the scene
+   * is in any non-terminal state.
+   */
+  | 'defuse_scene';
 
 export type SwayDirection = 'bless' | 'curse';
 
@@ -744,6 +755,18 @@ export interface InterventionTargets {
    * full TAVERN_TRAITS list lives in shared types for the addTrait pick.
    */
   currentTavernTraits?: TavernTrait[];
+  /**
+   * Phase 9 (F4): targets for `escalate_scene` + `defuse_scene`. Live
+   * scenes that the keeper can act on, with their current state for
+   * picker-side availability ('building' / 'underway' are escalatable;
+   * anything pre-aftermath is defusable).
+   */
+  liveStageEvents?: Array<{
+    id: string;
+    type: StageEventType;
+    state: StageEventState;
+    zone: ZoneName;
+  }>;
 }
 
 export interface InterventionOptionsResponse {

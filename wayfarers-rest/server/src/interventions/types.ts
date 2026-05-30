@@ -141,3 +141,11 @@ export interface ShiftFocusPayload {
    *  must not already be owned, and must differ from dropTrait. */
   addTrait: string;
 }
+
+/** Phase 9 (F4): the id of the live stage event to act on. */
+export interface EscalateScenePayload {
+  stageEventId: string;
+}
+export interface DefuseScenePayload {
+  stageEventId: string;
+}

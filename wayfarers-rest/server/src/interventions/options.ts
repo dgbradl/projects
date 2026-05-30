@@ -36,6 +36,9 @@ export interface BuildOptionsDeps {
   persistence: Persistence;
   npcManager: NpcManager;
   favorsMax?: number;
+  /** Phase 9 (F4): live stage scenes for escalate/defuse pickers.
+   *  Optional so test harnesses without one stay valid. */
+  stageRunner?: import('../stage/runner.ts').StageRunner;
 }
 
 export function buildInterventionOptions(
@@ -76,6 +79,14 @@ export function buildInterventionOptions(
       isMarked: markedSet.has(n.id),
     }));
 
+  // Phase 9 (F4): live stage scenes the keeper can act on.
+  const liveStageEvents = (deps.stageRunner?.getLiveScenes() ?? []).map((s) => ({
+    id: s.id,
+    type: s.type,
+    state: s.state,
+    zone: s.zone,
+  }));
+
   const targets: InterventionTargets = {
     locations,
     archetypes: ARCHETYPES,
@@ -84,6 +95,8 @@ export function buildInterventionOptions(
     npcsInTavern,
     // Phase 9 (G4): the shift_focus picker reads this for the dropTrait UI.
     currentTavernTraits: state.tavernTraits,
+    // Phase 9 (F4): the escalate/defuse pickers read these.
+    liveStageEvents,
   };
 
   const rumorsForBeckoning = deps.persistence
@@ -160,6 +173,22 @@ function checkHasTargets(
         (t) => !state.tavernTraits.includes(t),
       );
       if (unowned.length === 0) return 'no other traits to take its place';
+      return undefined;
+    }
+    case 'escalate_scene': {
+      // Phase 9 (F4): need at least one live scene in a pre-climax state.
+      const escalable = (targets.liveStageEvents ?? []).filter(
+        (s) => s.state === 'building' || s.state === 'underway',
+      );
+      if (escalable.length === 0) return 'no live scenes ripe to escalate';
+      return undefined;
+    }
+    case 'defuse_scene': {
+      // Phase 9 (F4): need at least one live scene not already in aftermath.
+      const defusable = (targets.liveStageEvents ?? []).filter(
+        (s) => s.state !== 'aftermath' && s.state !== 'resolved',
+      );
+      if (defusable.length === 0) return 'no live scenes to defuse';
       return undefined;
     }
     default:
