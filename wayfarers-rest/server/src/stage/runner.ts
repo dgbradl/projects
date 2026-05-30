@@ -30,28 +30,39 @@ import type {
   StageEvent,
   StageEventState,
   StageEventType,
+  TavernTrait,
   WorldEvent,
   ZoneName,
 } from '@shared/types';
 import type { WorldEventBus } from '../events/emitter.ts';
 import type { Persistence } from '../persistence.ts';
+import type { WorldStateManager } from '../state.ts';
 import { seededRng } from '../world/rng.ts';
 import { absoluteSubTick } from '../npc/spawn.ts';
 
-/** Maximum number of brawls per game day. Defensive against a runaway
- *  trigger; one or two brawls in a day is a story, ten is noise. */
-const MAX_BRAWLS_PER_DAY = 2;
-
-/** Brawl state-machine timing. Total ~1 in-game day at default cadence. */
-const BRAWL_TIMING: Record<StageEventState, number> = {
-  building: 3,
-  underway: 5,
-  climax: 2,
-  aftermath: 3,
-  resolved: 0,
+/** Per-type cap on scenes spawned in a single game day. Tuned so the
+ *  player sees roughly one notable scene per in-tavern day at most. */
+const MAX_PER_DAY: Record<StageEventType, number> = {
+  brawl: 2,
+  wedding: 1,
+  court_day: 1,
+  storyteller_circle: 1,
 };
 
-const BRAWL_STATE_ORDER: StageEventState[] = [
+/** Per-type state-machine timing. Each value is the dwell at that state in
+ *  sub-ticks. `resolved` is the terminal — no dwell — and is omitted from
+ *  the iteration order below. */
+const SCENE_TIMING: Record<
+  StageEventType,
+  Record<Exclude<StageEventState, 'resolved'>, number>
+> = {
+  brawl: { building: 3, underway: 5, climax: 2, aftermath: 3 },
+  wedding: { building: 5, underway: 8, climax: 3, aftermath: 4 },
+  court_day: { building: 4, underway: 6, climax: 2, aftermath: 3 },
+  storyteller_circle: { building: 3, underway: 5, climax: 2, aftermath: 3 },
+};
+
+const STATE_ORDER: StageEventState[] = [
   'building',
   'underway',
   'climax',
@@ -59,23 +70,44 @@ const BRAWL_STATE_ORDER: StageEventState[] = [
   'resolved',
 ];
 
-/**
- * Probability that an `overheard_argument` between two participants escalates
- * into a brawl. Modulated downward by:
- *   - bartender presence (their conflictMitigation skill is already shaved
- *     off the argument weight upstream, but a present bartender further
- *     suppresses brawl onset)
- *   - existing live brawls (one's enough)
- * Modulated upward by:
- *   - more non-staff bodies in the zone (peer-pressure escalation)
- */
+/** Probability that an `overheard_argument` between two participants
+ *  escalates into a brawl. F5 will tune this against bartender presence. */
 const BRAWL_BASE_PROBABILITY = 0.35;
+
+/** Probability a pilgrim arrival sparks a wedding when conditions are met. */
+const WEDDING_BASE_PROBABILITY = 0.55;
+
+/** Probability a knight arrival sparks a court day. */
+const COURT_BASE_PROBABILITY = 0.5;
+
+/** Per-sub-tick probability that a bard at the hearth with 3+ NPCs nearby
+ *  draws a storyteller circle. Multiplied by the daily-cap gate so it
+ *  fires at most once a day naturally. */
+const STORYTELLER_BASE_PROBABILITY = 0.04;
+
+/** Minimum non-staff NPCs (other than the focal NPC) for a wedding to happen.
+ *  A bare-bones tavern doesn't celebrate. */
+const WEDDING_MIN_OTHERS = 4;
+
+/** Minimum NPCs gathered at the hearth (excluding the bard) for a
+ *  storyteller circle to start. */
+const STORYTELLER_MIN_AUDIENCE = 3;
+
+const WEDDING_TRAITS: TavernTrait[] = ['pilgrims_pause', 'hearthside_refuge'];
 
 export interface StageRunnerDeps {
   persistence: Persistence;
   bus: WorldEventBus;
   worldSeed: string;
   subTicksPerDay: number;
+  /** Phase 9 (F3): wedding/court scenarios look up tavernTraits via the
+   *  state manager. Optional so the F1 tests that don't pass one stay valid;
+   *  weddings just won't trigger without it. */
+  stateManager?: WorldStateManager;
+  /** Phase 9 (F3): roster lookup for spawn-time triggers (npc_arrived
+   *  brings the new NPC into the bus, but counting bodies on the floor
+   *  needs the full roster). Optional for the same reason. */
+  getRoster?: () => Npc[];
   /** Optional override for tests. */
   scenarioRng?: (gameDay: number, subTick: number, key: string) => number;
 }
@@ -99,6 +131,8 @@ export class StageRunner {
       const ev = entry.event;
       if (ev.type === 'interaction') {
         this.onInteraction(ev.interaction, ev.gameDay);
+      } else if (ev.type === 'npc_arrived' || ev.type === 'npc_returned') {
+        this.onNpcArrived(ev.npcId, ev.gameDay);
       }
     });
   }
@@ -117,42 +151,24 @@ export class StageRunner {
    * participants from the zone; F1's brawl doesn't actively re-recruit
    * after onset.
    */
-  onSubTick(gameDay: number, subTick: number, _roster: Npc[]): void {
+  onSubTick(gameDay: number, subTick: number, roster: Npc[]): void {
     const absSubTick = absoluteSubTick(gameDay, subTick, this.deps.subTicksPerDay);
     for (const scene of this.liveScenes.values()) {
       if (absSubTick < scene.nextTransitionAbsSubTick) continue;
       this.advance(scene, gameDay, absSubTick);
     }
+    // Phase 9 (F3): state-based triggers run after the advance pass so a
+    // scene that just resolved this tick doesn't immediately respawn.
+    this.tryStorytellerCircle(gameDay, subTick, roster);
   }
 
   // ---------- triggers ----------
 
   private onInteraction(interaction: Interaction, gameDay: number): void {
     if (interaction.kind !== 'overheard_argument') return;
-    // Already a brawl live? Skip — one's enough for now.
-    for (const scene of this.liveScenes.values()) {
-      if (scene.type === 'brawl' && scene.state !== 'resolved') return;
-    }
-    // Daily cap on brawls. We can't count via the stage_events table —
-    // resolved scenes are deleted from it — so count `stage_event_started`
-    // events from the persisted event log instead. The log keeps history
-    // even after the live row is gone.
-    let startedToday = 0;
-    for (const entry of this.deps.persistence.getEventsSince(0)) {
-      const ev = entry.event;
-      if (
-        ev.type === 'stage_event_started' &&
-        ev.stageEventType === 'brawl' &&
-        ev.gameDay === gameDay
-      ) {
-        startedToday += 1;
-      }
-    }
-    if (startedToday >= MAX_BRAWLS_PER_DAY) return;
-
+    if (!this.canSpawn('brawl', gameDay)) return;
     const rng = this.rngFor(gameDay, interaction.subTick, `brawl-${interaction.id}`);
     if (rng() >= BRAWL_BASE_PROBABILITY) return;
-
     this.startScene({
       type: 'brawl',
       zone: interaction.zone,
@@ -161,6 +177,130 @@ export class StageRunner {
       gameDay,
       subTick: interaction.subTick,
     });
+  }
+
+  /**
+   * Phase 9 (F3): wedding + court_day are spawn-time triggers — they fire
+   * when the right archetype walks through the door under the right
+   * conditions. The arriving NPC seeds the participant list; the
+   * underway state pulls others in via a per-sub-tick spread pass (added
+   * to onSubTick below).
+   */
+  private onNpcArrived(npcId: string, gameDay: number): void {
+    const roster = this.deps.getRoster?.() ?? [];
+    const newcomer = roster.find((n) => n.id === npcId);
+    if (!newcomer || newcomer.isStaff) return;
+    const archetype = newcomer.archetype;
+    const subTick = newcomer.arrivedSubTick;
+
+    if (archetype === 'pilgrim') this.tryWedding(newcomer, roster, gameDay, subTick);
+    else if (archetype === 'knight') this.tryCourtDay(newcomer, gameDay, subTick);
+  }
+
+  private tryWedding(
+    pilgrim: Npc,
+    roster: Npc[],
+    gameDay: number,
+    subTick: number,
+  ): void {
+    if (!this.canSpawn('wedding', gameDay)) return;
+    // Must own one of the wedding-friendly traits.
+    const traits = this.deps.stateManager?.getState().tavernTraits ?? [];
+    const matchingTrait = WEDDING_TRAITS.some((t) => traits.includes(t));
+    if (!matchingTrait) return;
+    // Need enough bodies for a celebration.
+    const others = roster.filter(
+      (n) => !n.isStaff && n.id !== pilgrim.id && n.status !== 'departed',
+    );
+    if (others.length < WEDDING_MIN_OTHERS) return;
+    const rng = this.rngFor(gameDay, subTick, `wedding-${pilgrim.id}`);
+    if (rng() >= WEDDING_BASE_PROBABILITY) return;
+    this.startScene({
+      type: 'wedding',
+      zone: 'hearth',
+      participantNpcIds: [pilgrim.id],
+      payload: { focalNpcId: pilgrim.id, matchingTraits: traits.filter((t) => WEDDING_TRAITS.includes(t)) },
+      gameDay,
+      subTick,
+    });
+  }
+
+  private tryCourtDay(knight: Npc, gameDay: number, subTick: number): void {
+    if (!this.canSpawn('court_day', gameDay)) return;
+    const rng = this.rngFor(gameDay, subTick, `court-${knight.id}`);
+    if (rng() >= COURT_BASE_PROBABILITY) return;
+    this.startScene({
+      type: 'court_day',
+      zone: 'table_b',
+      participantNpcIds: [knight.id],
+      payload: { focalNpcId: knight.id },
+      gameDay,
+      subTick,
+    });
+  }
+
+  /**
+   * Phase 9 (F3): storyteller circle is a *state-based* trigger — it fires
+   * when a bard is at the hearth with 3+ NPCs nearby, not on any single
+   * event. Checked once per sub-tick from onSubTick.
+   */
+  private tryStorytellerCircle(
+    gameDay: number,
+    subTick: number,
+    roster: Npc[],
+  ): void {
+    if (!this.canSpawn('storyteller_circle', gameDay)) return;
+    const bard = roster.find(
+      (n) =>
+        !n.isStaff &&
+        n.archetype === 'bard' &&
+        n.zone === 'hearth' &&
+        n.status !== 'departed',
+    );
+    if (!bard) return;
+    const audience = roster.filter(
+      (n) =>
+        !n.isStaff &&
+        n.id !== bard.id &&
+        n.zone === 'hearth' &&
+        n.status !== 'departed',
+    );
+    if (audience.length < STORYTELLER_MIN_AUDIENCE) return;
+    const rng = this.rngFor(
+      gameDay,
+      subTick,
+      `storyteller-${bard.id}-${gameDay}`,
+    );
+    if (rng() >= STORYTELLER_BASE_PROBABILITY) return;
+    this.startScene({
+      type: 'storyteller_circle',
+      zone: 'hearth',
+      participantNpcIds: [bard.id, ...audience.slice(0, 4).map((n) => n.id)],
+      payload: { focalNpcId: bard.id },
+      gameDay,
+      subTick,
+    });
+  }
+
+  /** Phase 9 (F3): per-type per-day gate. Combines the in-flight check
+   *  (one live scene of this type at a time) with the daily cap from the
+   *  events log (caps per-day spawns even after one resolves). */
+  private canSpawn(type: StageEventType, gameDay: number): boolean {
+    for (const scene of this.liveScenes.values()) {
+      if (scene.type === type && scene.state !== 'resolved') return false;
+    }
+    let startedToday = 0;
+    for (const entry of this.deps.persistence.getEventsSince(0)) {
+      const ev = entry.event;
+      if (
+        ev.type === 'stage_event_started' &&
+        ev.stageEventType === type &&
+        ev.gameDay === gameDay
+      ) {
+        startedToday += 1;
+      }
+    }
+    return startedToday < MAX_PER_DAY[type];
   }
 
   // ---------- lifecycle ----------
@@ -182,7 +322,7 @@ export class StageRunner {
       input.subTick,
       this.deps.subTicksPerDay,
     );
-    const buildingDuration = BRAWL_TIMING.building;
+    const buildingDuration = SCENE_TIMING[input.type].building;
     const id = `scene_d${input.gameDay}_st${input.subTick}_${input.type}`;
     const scene: StageEvent = {
       id,
@@ -214,28 +354,35 @@ export class StageRunner {
    * of aftermath.
    */
   private advance(scene: StageEvent, gameDay: number, absSubTick: number): void {
-    const idx = BRAWL_STATE_ORDER.indexOf(scene.state);
-    if (idx < 0 || idx >= BRAWL_STATE_ORDER.length - 1) {
+    const idx = STATE_ORDER.indexOf(scene.state);
+    if (idx < 0 || idx >= STATE_ORDER.length - 1) {
       // Already resolved or in an unknown state — clean up.
       this.cleanup(scene.id);
       return;
     }
     const fromState = scene.state;
-    const toState = BRAWL_STATE_ORDER[idx + 1];
+    const toState = STATE_ORDER[idx + 1];
     scene.state = toState;
     if (toState === 'resolved') {
       this.cleanup(scene.id);
+      // Phase 9 (F3): non-conflict scenes (wedding, court_day,
+      // storyteller_circle) end as 'completed' rather than 'burned_out'.
+      // A wedding doesn't burn out, it concludes.
+      const outcome: 'burned_out' | 'completed' =
+        scene.type === 'brawl' ? 'burned_out' : 'completed';
       this.deps.bus.publish({
         type: 'stage_event_resolved',
         gameDay,
         stageEventId: scene.id,
         stageEventType: scene.type,
-        outcome: 'burned_out',
+        outcome,
         participantNpcIds: scene.participantNpcIds,
       });
       return;
     }
-    scene.nextTransitionAbsSubTick = absSubTick + BRAWL_TIMING[toState];
+    const timing = SCENE_TIMING[scene.type];
+    scene.nextTransitionAbsSubTick =
+      absSubTick + timing[toState as Exclude<StageEventState, 'resolved'>];
     this.deps.persistence.upsertStageEvent(scene);
     this.deps.bus.publish({
       type: 'stage_event_progressed',

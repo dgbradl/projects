@@ -237,14 +237,17 @@ async function main(): Promise<void> {
   // Once per visit per scholar; tracker is cleared on departure below.
   const scholarStudies = new ScholarStudyTracker();
 
-  // Phase 9 (F1): stage runner — listens for overheard_argument and may
-  // spawn a brawl scene; ticks live scenes through their state machine
-  // from the postSubTickHook below. Scenes persist across restarts.
+  // Phase 9 (F1+F3): stage runner. F1 wired brawl from overheard_argument;
+  // F3 adds wedding (pilgrim arrival + matching trait + crowd), court_day
+  // (knight arrival), and storyteller_circle (bard at hearth + audience).
+  // Ticks live scenes from the postSubTickHook below.
   const stageRunner = new StageRunner({
     persistence,
     bus,
     worldSeed: stateManager.getState().seed,
     subTicksPerDay: SUB_TICKS_PER_DAY,
+    stateManager,
+    getRoster: () => npcManager.getRoster(),
   });
   stageRunner.attach();
 
