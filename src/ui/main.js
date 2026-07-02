@@ -32,6 +32,7 @@ const EFFECT_COLORS = {
   war: '#cc4444', monster: '#cc7722', founding: '#88cc88', wedding: '#e8a0c0',
   birth: '#a0d8e8', triumph: '#ffd700', disaster: '#8899ff', plague: '#8a2be2',
   festival: '#f0c674', trade: '#a3c1ad', epithet: '#ffd700',
+  prophecy: '#e6d5ff', schism: '#c99aff', dedication: '#e6e0ff',
 };
 
 function newWorld() {

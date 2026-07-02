@@ -3,7 +3,8 @@
 import { POWERS } from '../core/god.js';
 import { ageYears, isAdult, settlementOf, displayName } from '../core/character.js';
 import { membersOf, leaderOf, PROJECTS, shelterCapacity } from '../core/settlement.js';
-import { seasonOf, yearOf, dayOfYear, tileAt } from '../core/world.js';
+import { seasonOf, yearOf, dayOfYear, tileAt, DAYS_PER_YEAR } from '../core/world.js';
+import { religionOf, majorityReligion, countFollowers, DOCTRINES, godTone } from '../core/religion.js';
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -111,6 +112,13 @@ function traitWords(t) {
   return words.length ? words.join(', ') : 'unremarkable';
 }
 
+function creedLine(sim, p) {
+  const creed = religionOf(sim, p);
+  if (!creed) return '';
+  const zeal = p.traits.faith > 0.85 ? 'zealous in' : p.traits.faith > 0.6 ? 'devoted to' : 'keeps to';
+  return `<div class="sub creed">${creed.symbol} ${zeal} ${esc(creed.name)}</div>`;
+}
+
 function personHtml(sim, p) {
   if (!p.alive) {
     return `<div class="sub">Died of ${esc(p.causeOfDeath ?? 'unknown causes')}.</div>`;
@@ -123,6 +131,7 @@ function personHtml(sim, p) {
     `<div class="sub">${s ? `of <a data-settlement="${s.id}">${esc(s.name)}</a>` : 'homeless wanderer'}` +
     `${p.activity ? ` — ${esc(p.activity)}` : ''}</div>` +
     `<div class="sub" style="margin-top:4px">${traitWords(p.traits)}</div>` +
+    creedLine(sim, p) +
     `<h3>Condition</h3>` +
     `health ${bar(p.health, p.health < 0.4)}` +
     `food ${bar(1 - Math.min(1, p.needs.hunger), p.needs.hunger > 0.8)}` +
@@ -175,6 +184,12 @@ function settlementHtml(sim, s) {
     `<h3>Stores</h3>food ${Math.floor(s.stock.food)} · wood ${Math.floor(s.stock.wood)} · stone ${Math.floor(s.stock.stone)}` +
     `<h3>Buildings</h3>${b.shelter} shelter (room for ${shelterCapacity(s)}) · ${b.farm} farm` +
     `${b.wall ? ` · walls ×${b.wall}` : ''}${b.hall ? ' · hall' : ''}${b.temple ? ' · temple' : ''}`;
+  const creed = majorityReligion(sim, s);
+  if (creed) {
+    const dedicated = s.templeReligion !== undefined && sim.religions.get(s.templeReligion);
+    html += `<div class="sub creed">${creed.symbol} most here follow ${esc(creed.name)}` +
+      (dedicated && b.temple ? `; the temple is dedicated to ${esc(dedicated.name)}` : '') + `</div>`;
+  }
   if (s.project) {
     html += `<div class="sub">building ${PROJECTS[s.project.type].desc}${s.project.paid ? '' : ' (gathering materials)'}</div>`;
   }
@@ -212,15 +227,39 @@ function tileHtml(t) {
     (t.blight > 0.05 ? '<div class="rel-foe">Cursed with blight</div>' : '');
 }
 
+function godToneLine(sim) {
+  const tone = godTone(sim);
+  if (tone === 'mercy') return 'The folk speak of a god of mercy.';
+  if (tone === 'wrath') return 'The folk speak of a god of wrath, in whispers.';
+  if (tone === 'silence') return 'The folk speak of a god who does not answer.';
+  if (sim.day - sim.lastDeedDay <= DAYS_PER_YEAR * 2) return 'The folk are still deciding what kind of god watches them.';
+  return 'The folk do not yet speak of any god.';
+}
+
 function worldSummary(sim) {
   const settlements = [...sim.settlements.values()].filter(s => s.members.size > 0);
   let deer = 0;
   for (const h of sim.herds.values()) deer += h.size;
-  return `<div class="sub">${sim.livingCount} folk in ${settlements.length} settlement${settlements.length === 1 ? '' : 's'}.` +
+  let html = `<div class="sub">${sim.livingCount} folk in ${settlements.length} settlement${settlements.length === 1 ? '' : 's'}.` +
     ` ${sim.monsters.size} beast${sim.monsters.size === 1 ? '' : 's'} roam the wilds, and some ${deer} deer.</div>` +
-    `<h3>Folk through the years</h3><canvas id="pop-spark" width="252" height="54"></canvas>` +
+    `<div class="sub creed" style="margin-top:6px">${godToneLine(sim)}</div>`;
+  const faiths = [...sim.religions.values()].filter(r => !r.faded)
+    .map(r => ({ r, n: countFollowers(sim, r.id) }))
+    .filter(x => x.n > 0)
+    .sort((a, b) => b.n - a.n);
+  if (faiths.length) {
+    html += '<h3>Faiths</h3>';
+    for (const { r, n } of faiths) {
+      const prophet = sim.folk.get(r.prophetId);
+      html += `<div>${r.symbol} ${esc(r.name)} <span class="sub">— ${n} faithful` +
+        (prophet ? `, ${prophet.alive ? 'led' : 'founded'} by ${prophet ? `<a data-person="${prophet.id}">${esc(displayName(prophet))}</a>` : ''}` : '') +
+        `</span></div>`;
+    }
+  }
+  html += `<h3>Folk through the years</h3><canvas id="pop-spark" width="252" height="54"></canvas>` +
     `<div class="sub">Peak population: ${sim.peakPopulation}</div>` +
     `<div style="margin-top:14px" class="memory">Drag to pan, scroll to zoom, space to pause.<br>Click anything to know it; press F to follow it.<br>Choose a divine act, then click the map to work your will.</div>`;
+  return html;
 }
 
 function drawSparkline(sim) {

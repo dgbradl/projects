@@ -5,6 +5,7 @@ import { settlementName } from './names.js';
 import { chronicle, remember } from './chronicle.js';
 import { seasonOf, dayOfYear, tileAt, findBestTile, dist } from './world.js';
 import { adjustSettlementRelation, adjustAff, displayName, isAdult } from './character.js';
+import { majorityReligion } from './religion.js';
 
 export const PROJECTS = {
   shelter: { wood: 20, stone: 4,  days: 14, desc: 'a shelter' },
@@ -85,7 +86,7 @@ function chooseProject(sim, s) {
   if (recentlyAttacked && s.buildings.wall < 2) wants.push(['wall', 9]);
   if (s.buildings.wall < 1 && pop >= 8) wants.push(['wall', 3]);
   if (s.buildings.hall < 1 && pop >= 10) wants.push(['hall', 4]);
-  if (s.buildings.temple < 1 && pop >= 12 && sim.faithWitnessed > 2) wants.push(['temple', 5]);
+  if (s.buildings.temple < 1 && pop >= 10 && (sim.faithWitnessed > 2 || majorityReligion(sim, s))) wants.push(['temple', 5]);
   if (season === 'autumn' && capacity < pop + 2) wants.push(['shelter', 6]);
   if (!wants.length) return null;
   wants.sort((a, b) => b[1] - a[1]);
@@ -141,6 +142,11 @@ export function settlementDaily(sim, s) {
       if (foodPressure && d < 30) drift -= 1.2;      // hungry neighbors covet
       if (!foodPressure && d < 40) drift += 0.1;     // fat years make decent neighbors
       if (s.buildings.hall && other.buildings.hall) drift += 0.3;
+      // Shared creeds bind villages; rival creeds set them at odds.
+      const myCreed = majorityReligion(sim, s), theirCreed = majorityReligion(sim, other);
+      if (myCreed && theirCreed && d < 45) {
+        drift += myCreed.id === theirCreed.id ? 0.35 : -0.5;
+      }
       adjustSettlementRelation(s, other, drift);
     }
   }
@@ -210,6 +216,14 @@ export function completeProject(sim, s) {
   if (!proj) return;
   s.buildings[proj.type] = (s.buildings[proj.type] || 0) + 1;
   s.project = null;
+  if (proj.type === 'temple') {
+    const creed = majorityReligion(sim, s);
+    if (creed) {
+      s.templeReligion = creed.id;
+      chronicle(sim, 2, `${s.name} raised a temple and dedicated it to ${creed.name}`, { x: s.x, y: s.y, kind: 'dedication' });
+      return;
+    }
+  }
   chronicle(sim, 1, `${s.name} finished building ${PROJECTS[proj.type].desc}`, { x: s.x, y: s.y, kind: 'building' });
 }
 

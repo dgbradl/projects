@@ -6,6 +6,7 @@ import { seasonOf, yearOf, dist, findBestTile, BIOME } from './world.js';
 import { infect, kill, adjustAff, adjustSettlementRelation } from './character.js';
 import { membersOf, leaderOf } from './settlement.js';
 import { spawnMonster } from './monsters.js';
+import { doctrineOf, majorityReligion } from './religion.js';
 
 export function worldEvents(sim) {
   const rng = sim.rng;
@@ -113,7 +114,8 @@ function warAndRaids(sim) {
       const conquest = covetous && rel < 30 && other.stock.food > 60 &&
         other.members.size < s.members.size * 0.75;
       if (!hatred && !hunger && !conquest) continue;
-      const aggression = leader.traits.temper + leader.traits.ambition - leader.traits.kindness + (desperate ? 0.6 : 0);
+      const aggression = leader.traits.temper + leader.traits.ambition - leader.traits.kindness +
+        (desperate ? 0.6 : 0) + (doctrineOf(sim, leader) === 'wrath' ? 0.3 : 0);
       if (!sim.rng.chance(Math.max(0, aggression * 0.15))) continue;
       launchRaid(sim, s, other);
       break;
@@ -129,7 +131,12 @@ function launchRaid(sim, from, target) {
   if (fighters.length < 2) return;
   for (const f of fighters) f.task = { type: 'raid', target: target.id, from: from.id };
   from.raidCooldown = 60;
-  chronicle(sim, 2, `${from.name} sent ${fighters.length} raiders against ${target.name}`, { x: from.x, y: from.y, kind: 'war' });
+  const myCreed = majorityReligion(sim, from), theirCreed = majorityReligion(sim, target);
+  const holy = myCreed && theirCreed && myCreed.id !== theirCreed.id;
+  chronicle(sim, 2, holy
+    ? `${from.name} sent ${fighters.length} raiders against ${target.name}, crying holy war in the name of ${myCreed.name}`
+    : `${from.name} sent ${fighters.length} raiders against ${target.name}`,
+    { x: from.x, y: from.y, kind: 'war' });
 }
 
 export function resolveRaidIfReady(sim, targetId, fromId) {

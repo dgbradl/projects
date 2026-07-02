@@ -7,6 +7,7 @@ import {
   adjustSettlementRelation,
 } from './character.js';
 import { joinSettlement } from './settlement.js';
+import { religionOf, convert } from './religion.js';
 
 const GESTATION_DAYS = 56;
 
@@ -23,9 +24,15 @@ export function socialize(sim, p) {
   const near = folkNear(sim, p, 3);
   if (!near.length) return false;
   const other = sim.rng.pick(near);
-  const c = compat(p, other);
+  let c = compat(p, other);
+  // Rival creeds strain even easy company; zealots most of all.
+  const pr = religionOf(sim, p), or_ = religionOf(sim, other);
+  if (pr && or_ && pr.id !== or_.id) {
+    c -= 0.25 + Math.max(p.traits.faith, other.traits.faith) * 0.3;
+  }
   const existing = relTo(p, other.id).aff;
   if (c > 0 || existing > 20) {
+    spreadFaith(sim, p, other, pr, or_);
     const gain = 2 + c * 5;
     adjustAff(p, other.id, gain);
     adjustAff(other, p.id, gain * 0.8);
@@ -44,6 +51,18 @@ export function socialize(sim, p) {
     }
   }
   return true;
+}
+
+// Faith passes along friendship: the devout draw in the doubting, and
+// grief and despair open doors that contentment keeps shut.
+function spreadFaith(sim, p, other, pr, or_) {
+  const [src, dst, srcRel, dstRel] =
+    p.traits.faith > other.traits.faith + 0.15 ? [p, other, pr, or_] : [other, p, or_, pr];
+  if (!srcRel || srcRel === dstRel) return;
+  let chance = src.traits.faith * 0.12 + Math.max(0, relTo(dst, src.id).aff) / 400;
+  if (dst.mood < -0.2) chance += 0.08;          // the desperate listen
+  if (dstRel) chance *= 0.35;                    // apostasy comes harder
+  if (sim.rng.chance(chance)) convert(sim, dst, srcRel);
 }
 
 export function eligible(sim, p) {
@@ -82,6 +101,12 @@ export function court(sim, p, o) {
     chronicle(sim, 1, `${displayName(p)} and ${displayName(o)} were wed`, { x: p.x, y: p.y, kind: 'wedding', who: [p.id, o.id] });
     remember(p, sim, `married ${o.name}`, 0.4);
     remember(o, sim, `married ${p.name}`, 0.4);
+    // A marriage is usually a conversion too — the milder faith yields.
+    if (p.religion !== o.religion) {
+      const [strong, weak] = p.traits.faith >= o.traits.faith ? [p, o] : [o, p];
+      const creed = religionOf(sim, strong);
+      if (creed && sim.rng.chance(0.6)) convert(sim, weak, creed);
+    }
     // Rejected rivals take it hard.
     for (const rival of folkNear(sim, p, 12)) {
       if (rival.id === o.id || rival.id === p.id || rival.spouse !== null) continue;
@@ -122,6 +147,7 @@ export function gestate(sim, p) {
     const child = makePerson(sim, {
       x: p.x, y: p.y, home: p.home,
       traits: blendTraits(sim, p, father),
+      religion: p.religion,            // raised in the mother's faith
     });
     if (p.home !== null) {
       const s = sim.settlements.get(p.home);

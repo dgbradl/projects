@@ -62,7 +62,13 @@ function witness(sim, x, y, radius, awe, dread) {
     if (awe > 0) remember(p, sim, 'witnessed a miracle');
     if (dread > 0) remember(p, sim, 'witnessed the god\'s wrath');
   }
-  if (count > 0) sim.faithWitnessed++;
+  if (count > 0) {
+    sim.faithWitnessed++;
+    // The folk keep a tally of what kind of god watches them.
+    sim.godDeeds.mercy += awe * Math.min(count, 6) * 0.5;
+    sim.godDeeds.wrath += dread * Math.min(count, 6) * 0.5;
+    sim.lastDeedDay = sim.day;
+  }
   return count;
 }
 

@@ -42,9 +42,17 @@ divine acts from the left panel: bless the land with bounty, send rain,
 heal or inspire a single soul, send omens of peace or war between
 settlements, or turn cruel — blight, lightning, wolves, earthquakes.
 
-The folk are never yours to command. They interpret what you do, remember
-it, and act on their own judgment. Smite too freely and they will fear you;
-save them and they will build temples.
+The folk are never yours to command — but they are always watching, and
+**they will invent religion to explain you**. Work miracles and a prophet
+will proclaim a Way of mercy; smite and a cult of dread will arise; ignore
+them for years and an order will form around the silence itself. Faith
+spreads through friendship, marriage and mothers' knees; it softens or
+hardens temperaments; it dedicates temples, binds villages of a shared
+creed together, and drives holy wars between rival ones. And doctrine cuts
+both ways: betray a faith of mercy with cruelty and it will **schism**,
+its congregation breaking away to a splinter cult that preaches what you
+have actually been doing. The Vale panel tells you what kind of god the
+folk currently believe you to be.
 
 - Drag to pan, scroll to zoom, space to pause; the minimap jumps you anywhere.
 - Click any person, settlement, herd, or beast to know it: needs,
@@ -67,6 +75,9 @@ How it works
     inter-settlement relations.
   - `events.js` — weather, plague, monster spawns, and wars (raids launched
     by hostile, hungry neighbors).
+  - `religion.js` — prophets, doctrines (mercy, wrath, silence), conversion,
+    temple dedication, fading faiths and schisms — all reactions to how the
+    god has actually behaved.
   - `monsters.js` — wolf packs, trolls, dragons, and the heroes who slay them.
   - `god.js` — your powers, and how witnesses interpret them.
 - `src/ui/` — canvas renderer and DOM panels.
@@ -80,6 +91,5 @@ node test/headless.js 42 30  # watch 30 years of seed 42 from the terminal
 Ideas for later
 ---------------
 
-Save/load worlds, trade between friendly settlements, named heirlooms and
-lineage records, terrain-altering powers, prophets and religions that
-schism, seafaring migration.
+Save/load worlds, named heirlooms and lineage records, terrain-altering
+powers, ambient audio, seafaring migration.

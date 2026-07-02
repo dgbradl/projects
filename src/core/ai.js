@@ -7,6 +7,7 @@ import {
   isAdult, ageOf, settlementOf, adjustAff, relTo, kill, displayName, adjustSettlementRelation,
 } from './character.js';
 import { nearestHerd, cullHerd } from './herds.js';
+import { doctrineOf, religionOf, godTone } from './religion.js';
 import { chronicle, remember } from './chronicle.js';
 import {
   PROJECTS, foundSettlement, joinSettlement, findSettlementSite, completeProject, membersOf, leaderOf,
@@ -72,13 +73,14 @@ export function actDaily(sim, p) {
   const foodStock = s ? s.stock.food / Math.max(1, s.members.size) : p.carriedFood;
   const proj = s?.project;
   const enemy = worstEnemy(sim, p, 8);
+  const doctrine = doctrineOf(sim, p);
 
   const options = [];
   const add = (score, fn, label) => { if (score > 0) options.push({ score, fn, label }); };
 
   if (threat) {
     const power = MONSTER_KINDS[threat.kind].power;
-    const bravery = p.traits.courage + p.skills.fight;
+    const bravery = p.traits.courage + p.skills.fight + (doctrine === 'wrath' ? 0.3 : 0);
     if (bravery > 0.9 || (bravery > 0.6 && power < 5)) {
       add(6 + bravery * 2, () => doFight(sim, p, threat), 'fighting ' + threat.name);
     } else {
@@ -99,8 +101,8 @@ export function actDaily(sim, p) {
         () => doBuild(sim, p, s), `building ${PROJECTS[proj.type].desc}`);
     }
     const sickFolk = membersOf(sim, s).filter(o => o.sick && o.id !== p.id);
-    if (sickFolk.length && (p.skills.heal > 0.3 || p.traits.kindness > 0.7)) {
-      add(2 + p.traits.kindness * 3 + p.skills.heal * 2,
+    if (sickFolk.length && (p.skills.heal > 0.3 || p.traits.kindness > 0.7 || doctrine === 'mercy')) {
+      add(2 + p.traits.kindness * 3 + p.skills.heal * 2 + (doctrine === 'mercy' ? 1 : 0),
         () => doTend(sim, p, sickFolk), 'tending the sick');
     }
   }
@@ -114,8 +116,9 @@ export function actDaily(sim, p) {
     add(p.traits.temper * 3 - p.traits.kindness, () => feudAction(sim, p, enemy), 'settling a score');
   }
   add(p.traits.curiosity * 1.2 + (p.mood < -0.3 ? 0.6 : 0), () => doExplore(sim, p), 'wandering');
-  if (p.traits.faith > 0.5 && (s?.buildings.temple || sim.faithWitnessed > 0)) {
-    add(p.traits.faith * 1.5 + (p.mood < 0 ? 0.5 : 0), () => doPray(sim, p, s), 'praying');
+  if (p.traits.faith > 0.5 && (s?.buildings.temple || sim.faithWitnessed > 0 || p.religion !== null)) {
+    add(p.traits.faith * 1.5 + (p.religion !== null ? 0.8 : 0) + (p.mood < 0 ? 0.5 : 0),
+      () => doPray(sim, p, s), 'praying');
   }
 
   // A dying settlement is worth abandoning: refugees seek fuller hearths.
@@ -322,7 +325,12 @@ function doPray(sim, p, s) {
   if (s?.buildings.temple && dist(p.x, p.y, s.x, s.y) > 2) { moveToward(sim, p, s.x, s.y); return; }
   p.prayedToday = true;
   p.mood += 0.03;
-  const devotion = p.traits.faith * (s?.buildings.temple ? 2 : 1);
+  let devotion = p.traits.faith * (s?.buildings.temple ? 2 : 1);
+  // An organized faith prays louder — loudest when the god lives its doctrine.
+  const creed = religionOf(sim, p);
+  if (creed) {
+    devotion *= creed.doctrine === godTone(sim) ? 2.2 : 1.4;
+  }
   sim.faith += 0.15 * devotion;
 }
 

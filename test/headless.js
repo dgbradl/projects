@@ -3,6 +3,7 @@
 
 import { createSim, tick, stateHash } from '../src/core/sim.js';
 import { DAYS_PER_YEAR, yearOf } from '../src/core/world.js';
+import { castPower } from '../src/core/god.js';
 
 const seed = Number(process.argv[2] ?? 12345);
 const years = Number(process.argv[3] ?? 25);
@@ -49,6 +50,33 @@ if (!sim.extinct) {
     [...sim.settlements.values()].some(s => s.members.size > 0));
 } else {
   console.log(`note: extinction occurred (a legitimate outcome) after peak pop ${sim.peakPopulation}`);
+}
+
+// Religion: a merciful god begets a mercy faith; betrayal begets schism.
+{
+  const rsim = createSim(2024);
+  for (let d = 0; d < 8 * DAYS_PER_YEAR && !rsim.extinct; d++) {
+    tick(rsim);
+    if (rsim.day % 20 === 5) {
+      rsim.faith = 999;
+      const living = [...rsim.folk.values()].filter(p => p.alive);
+      if (living.length) castPower(rsim, 'heal', { person: living[0] });
+      const s = [...rsim.settlements.values()].find(s => s.members.size > 0);
+      if (s) castPower(rsim, 'bounty', { x: s.x, y: s.y });
+    }
+  }
+  check('a faith of mercy arose under a merciful god',
+    [...rsim.religions.values()].some(r => r.doctrine === 'mercy'));
+  for (let d = 0; d < 8 * DAYS_PER_YEAR && !rsim.extinct; d++) {
+    tick(rsim);
+    if (rsim.day % 12 === 5) {
+      rsim.faith = 999;
+      const s = [...rsim.settlements.values()].find(s => s.members.size > 0);
+      if (s) castPower(rsim, 'blight', { x: s.x + 3, y: s.y });
+    }
+  }
+  check('betrayed doctrine led to schism into a cult of dread',
+    [...rsim.religions.values()].some(r => r.doctrine === 'wrath' && r.schismOf !== null));
 }
 
 // Determinism: identical seeds must produce identical histories.

@@ -22,6 +22,7 @@ export function makePerson(sim, opts = {}) {
     epithet: null,
     wolfPacksSlain: 0,
     murders: 0,
+    religion: opts.religion ?? null,
     home: opts.home ?? null,          // settlement id
     traits: opts.traits || {
       courage: rng.float(), kindness: rng.float(), diligence: rng.float(),
@@ -103,12 +104,14 @@ export function metabolize(sim, p) {
   const season = seasonOf(sim.day);
   const s = settlementOf(sim, p);
   const tile = tileAt(sim.world, p.x, p.y);
+  // The orders of quiet endurance train the body to want less.
+  const stoic = p.religion !== null && sim.religions?.get(p.religion)?.doctrine === 'silence' ? 0.85 : 1;
 
   // Hunger
   p.needs.hunger = Math.min(1.5, p.needs.hunger + 0.16);
   if (p.needs.hunger > 0.45) tryEat(sim, p);
   if (p.needs.hunger >= 1) {
-    p.health -= 0.045;
+    p.health -= 0.045 * stoic;
     p.mood -= 0.03;
     if (p.task?.type !== 'getFood') p.task = null; // starving overrides plans
   }
@@ -126,7 +129,7 @@ export function metabolize(sim, p) {
     p.needs.warmth = Math.min(1, p.needs.warmth + 0.3);
   }
   if (p.needs.warmth <= 0.15) {
-    p.health -= 0.035;
+    p.health -= 0.035 * stoic;
     if (sim.rng.chance(0.03)) infect(sim, p, 'a chill');
   }
 

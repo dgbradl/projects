@@ -161,6 +161,7 @@ button:disabled { opacity: 0.4; cursor: default; }
 #inspector-body .rel-friend { color: var(--leaf); }
 #inspector-body .rel-foe { color: var(--blood); }
 #inspector-body .memory { font-style: italic; color: var(--ink-dim); font-size: 12px; }
+#inspector-body .creed { color: #c9b8e8; }
 #inspector-body a { color: var(--gold); cursor: pointer; text-decoration: none; }
 #inspector-body a:hover { text-decoration: underline; }
 

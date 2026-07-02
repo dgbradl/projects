@@ -10,6 +10,7 @@ import { actDaily } from './ai.js';
 import { monsterDaily } from './monsters.js';
 import { worldEvents } from './events.js';
 import { tryConceive, gestate } from './social.js';
+import { religionDaily } from './religion.js';
 import { chronicle } from './chronicle.js';
 
 export const WORLD_W = 110;
@@ -26,6 +27,9 @@ export function createSim(seed) {
     settlements: new Map(),
     monsters: new Map(),
     herds: new Map(),
+    religions: new Map(),
+    godDeeds: { mercy: 0, wrath: 0 },   // what the folk have seen you do
+    lastDeedDay: -9999,
     popHistory: [],
     chronicleLog: [],
     onChronicle: null,
@@ -100,6 +104,7 @@ export function tick(sim) {
   herdsDaily(sim);
   for (const s of sim.settlements.values()) settlementDaily(sim, s);
   worldEvents(sim);
+  religionDaily(sim);
 
   // Passive faith: belief sustains you even when no one prays aloud.
   let believers = 0;
