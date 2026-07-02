@@ -4,8 +4,9 @@
 
 import { tileAt, isPassable, findBestTile, dist, seasonOf } from './world.js';
 import {
-  isAdult, ageOf, settlementOf, adjustAff, relTo, kill,
+  isAdult, ageOf, settlementOf, adjustAff, relTo, kill, displayName, adjustSettlementRelation,
 } from './character.js';
+import { nearestHerd, cullHerd } from './herds.js';
 import { chronicle, remember } from './chronicle.js';
 import {
   PROJECTS, foundSettlement, joinSettlement, findSettlementSite, completeProject, membersOf, leaderOf,
@@ -24,7 +25,13 @@ export function moveToward(sim, p, tx, ty, speed = WALK_SPEED) {
     let moved = false;
     for (const [mx, my] of tries) {
       if (mx === 0 && my === 0) continue;
-      if (isPassable(sim.world, p.x + mx, p.y + my)) { p.x += mx; p.y += my; moved = true; break; }
+      if (isPassable(sim.world, p.x + mx, p.y + my)) {
+        p.x += mx; p.y += my; moved = true;
+        // Footsteps wear the land: enough of them become a visible path.
+        const t = tileAt(sim.world, p.x, p.y);
+        if (t) t.traffic = Math.min(30, t.traffic + 1);
+        break;
+      }
     }
     if (!moved) return false;
   }
@@ -54,10 +61,12 @@ export function actDaily(sim, p) {
     return;
   }
 
-  // A standing multi-day task (raiding, migrating) takes precedence
+  // A standing multi-day task (raiding, migrating, trading) takes precedence
   // unless survival overrides it.
   if (p.task?.type === 'raid') { doRaidMarch(sim, p); return; }
   if (p.task?.type === 'migrate') { doMigrate(sim, p); return; }
+  if (p.task?.type === 'trade') { doTradeMarch(sim, p); return; }
+  if (p.task?.type === 'goHome') { doGoHome(sim, p); return; }
 
   const threat = nearestMonster(sim, p, 8);
   const foodStock = s ? s.stock.food / Math.max(1, s.members.size) : p.carriedFood;
@@ -109,6 +118,22 @@ export function actDaily(sim, p) {
     add(p.traits.faith * 1.5 + (p.mood < 0 ? 0.5 : 0), () => doPray(sim, p, s), 'praying');
   }
 
+  // A dying settlement is worth abandoning: refugees seek fuller hearths.
+  if (s && s.members.size <= 3 && (s.stock.food < 2 || sim.day - s.lastRaidedDay < 40)) {
+    let refuge = null, refugeD = 61;
+    for (const o of sim.settlements.values()) {
+      if (o.id === s.id || o.members.size < 4) continue;
+      const d = dist(s.x, s.y, o.x, o.y);
+      if (d < refugeD) { refugeD = d; refuge = o; }
+    }
+    if (refuge) {
+      add(4, () => {
+        p.task = { type: 'migrate', x: refuge.x, y: refuge.y };
+        remember(p, sim, `gave up on ${s.name} and set out for ${refuge.name}`, -0.1);
+      }, 'abandoning a dying home');
+    }
+  }
+
   // Striking out: the ambitious, the exiled and the overcrowded found new homes.
   const crowded = s && s.members.size > 18;
   const leader = s ? leaderOf(sim, s) : null;
@@ -156,12 +181,14 @@ function doGetFood(sim, p, s) {
     p.needs.energy -= 0.1;
     return;
   }
-  // Hunt if skilled and bold.
+  // Hunt if skilled and bold — real deer, when the herds are near.
   if (p.skills.hunt + p.traits.courage > 1.1 && sim.rng.chance(0.4)) {
-    const success = sim.rng.chance(0.35 + p.skills.hunt * 0.5);
+    const herd = nearestHerd(sim, p.x, p.y, 10);
+    if (herd && dist(p.x, p.y, herd.x, herd.y) > 2) { moveToward(sim, p, herd.x, herd.y, 4); return; }
+    const success = sim.rng.chance((herd ? 0.55 : 0.25) + p.skills.hunt * 0.4);
     p.skills.hunt = Math.min(1, p.skills.hunt + 0.006);
     if (success) {
-      const meat = sim.rng.range(3, 7);
+      const meat = herd && cullHerd(sim, herd) ? sim.rng.range(5, 9) : sim.rng.range(2, 5);
       deposit(sim, p, s, meat);
     } else if (sim.rng.chance(0.06)) {
       p.injured += 5; p.health -= 0.15;
@@ -355,6 +382,42 @@ function doMigrate(sim, p) {
   const s = foundSettlement(sim, t.x, t.y, p);
   p.fame += 1;
   p.mood += 0.3;
+}
+
+function doTradeMarch(sim, p) {
+  const t = p.task;
+  const target = sim.settlements.get(t.to);
+  if (!target || target.members.size === 0) {
+    // Nobody left to feed; carry it home again.
+    p.task = { type: 'goHome' };
+    p.carriedTrade = t.carrying;
+    return;
+  }
+  p.activity = `carrying food to ${target.name}`;
+  moveToward(sim, p, target.x, target.y, 4);
+  if (dist(p.x, p.y, target.x, target.y) <= 2) {
+    target.stock.food += t.carrying;
+    const home = settlementOf(sim, p);
+    if (home) adjustSettlementRelation(home, target, 12);
+    for (const o of membersOf(sim, target)) adjustAff(o, p.id, 8);
+    p.fame += 0.3;
+    p.mood += 0.15;
+    chronicle(sim, 1, `${displayName(p)} arrived in ${target.name} with ${Math.round(t.carrying)} measures of food from ${home ? home.name : 'afar'}`,
+      { x: target.x, y: target.y, kind: 'trade', who: [p.id] });
+    remember(p, sim, `brought relief to ${target.name}`, 0.15);
+    p.task = { type: 'goHome' };
+  }
+}
+
+function doGoHome(sim, p) {
+  const s = settlementOf(sim, p);
+  if (!s) { p.task = null; return; }
+  p.activity = 'heading home';
+  moveToward(sim, p, s.x, s.y, 4);
+  if (dist(p.x, p.y, s.x, s.y) <= 2) {
+    if (p.carriedTrade) { s.stock.food += p.carriedTrade; p.carriedTrade = 0; }
+    p.task = null;
+  }
 }
 
 function doRaidMarch(sim, p) {

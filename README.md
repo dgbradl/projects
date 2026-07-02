@@ -5,14 +5,23 @@ A fantasy life simulator: a living, breathing world that shapes itself.
 You are its god — you may bless, curse, and portend, but never command.
 
 The folk of the vale live entirely on their own. They forage, farm, hunt and
-build; they fall in love, marry, raise children, and bury them. They make
-friends and lifelong enemies, brawl, murder, exile their killers, found new
-settlements out of ambition or resentment, and march to war against their
-neighbors. The world is not kind: winters freeze, droughts starve, plagues
-burn through crowded shelters, wolves stalk the lonely, trolls smash what
-folk build, and — if the vale grows rich enough to be worth the trip — a
-dragon may come. **Extinction is a real and likely outcome.** Every world's
-story is written into the chronicle as it happens.
+build; they fall in love (walking to the next village for it, if they must),
+marry, raise children, and bury them. They make friends and lifelong enemies,
+brawl, murder, exile their killers, found new settlements out of ambition or
+resentment, abandon dying ones as refugees, and march to war against their
+neighbors — out of hatred, hunger, or a cruel leader's plain greed. In good
+years they hold festivals, send food caravans to hungry neighbors, and earn
+names for their deeds: Trollsbane, Dragonslayer, the Red-Handed. Their
+footsteps wear visible paths into the land.
+
+The wilds live too: deer herds graze and multiply, and wolves hunt the deer
+before they hunt people — so when the herds thin in winter, the wolves turn
+bold. The world is not kind: winters freeze, droughts starve, plagues burn
+through crowded shelters, trolls smash what folk build, and — if the vale
+grows rich enough to be worth the trip — a dragon may come. **Extinction is
+a real and likely outcome.** Every world's story is written into the
+chronicle as it happens, and every person carries their own life story,
+told back to you when you click them.
 
 Running it
 ----------
@@ -37,9 +46,10 @@ The folk are never yours to command. They interpret what you do, remember
 it, and act on their own judgment. Smite too freely and they will fear you;
 save them and they will build temples.
 
-- Drag to pan, scroll to zoom, space to pause.
-- Click any person, settlement, or beast to follow their story: needs,
-  personality, bonds, grudges and memories.
+- Drag to pan, scroll to zoom, space to pause; the minimap jumps you anywhere.
+- Click any person, settlement, herd, or beast to know it: needs,
+  personality, bonds, grudges, memories — and their life as the chronicle
+  tells it. Press F to follow them as they go about their day.
 - Click a chronicle entry to jump to where it happened.
 
 How it works

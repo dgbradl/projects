@@ -1,7 +1,7 @@
 // DOM panels: divine acts, the inspector, and the chronicle feed.
 
 import { POWERS } from '../core/god.js';
-import { ageYears, isAdult, settlementOf } from '../core/character.js';
+import { ageYears, isAdult, settlementOf, displayName } from '../core/character.js';
 import { membersOf, leaderOf, PROJECTS, shelterCapacity } from '../core/settlement.js';
 import { seasonOf, yearOf, dayOfYear, tileAt } from '../core/world.js';
 
@@ -47,12 +47,19 @@ export function renderInspector(sim, selection, onSelectEntity) {
   if (!selection) {
     title.textContent = 'The Vale';
     body.innerHTML = worldSummary(sim);
+    drawSparkline(sim);
     return;
   }
   if (selection.kind === 'person') {
     const p = selection.ref;
-    title.textContent = p.name + (p.alive ? '' : ' †');
+    title.textContent = displayName(p) + (p.alive ? '' : ' †');
     body.innerHTML = personHtml(sim, p);
+  } else if (selection.kind === 'herd') {
+    const h = selection.ref;
+    title.textContent = 'Deer';
+    body.innerHTML = sim.herds.has(h.id)
+      ? `<div class="sub">A herd of deer, ${h.size} strong. Wolves and hunters both follow where they graze.</div>`
+      : '<div class="sub">The herd has scattered or fallen.</div>';
   } else if (selection.kind === 'settlement') {
     const s = selection.ref;
     title.textContent = s.name;
@@ -134,13 +141,25 @@ function personHtml(sim, p) {
     for (const { o, r } of rels.slice(0, 8)) {
       const cls = r.kin === 'spouse' || r.aff > 60 ? 'rel-love' : r.aff > 0 ? 'rel-friend' : 'rel-foe';
       const label = r.kin ? r.kin : r.aff > 60 ? 'dear friend' : r.aff > 0 ? 'friend' : r.aff > -60 ? 'disliked' : 'hated';
-      html += `<div><a data-person="${o.id}">${esc(o.name)}</a> <span class="${cls}">(${label})</span></div>`;
+      html += `<div><a data-person="${o.id}">${esc(displayName(o))}</a> <span class="${cls}">(${label})</span></div>`;
     }
   }
   if (p.memories.length) {
     html += '<h3>Remembers</h3>';
     for (const m of [...p.memories].reverse().slice(0, 5)) {
       html += `<div class="memory">Y${yearOf(m.day)}: ${esc(m.text)}</div>`;
+    }
+  }
+  // The world's record of them — their life as the chronicle tells it.
+  const story = [];
+  for (let i = sim.chronicleLog.length - 1; i >= 0 && story.length < 6; i--) {
+    const e = sim.chronicleLog[i];
+    if (e.who?.includes(p.id)) story.push(e);
+  }
+  if (story.length) {
+    html += '<h3>As the chronicle tells it</h3>';
+    for (const e of story) {
+      html += `<div class="memory">Y${e.year}: ${esc(e.text)}</div>`;
     }
   }
   return html;
@@ -152,7 +171,7 @@ function settlementHtml(sim, s) {
   const leader = leaderOf(sim, s);
   const b = s.buildings;
   let html = `<div class="sub">Founded year ${yearOf(s.foundedDay)} — ${members.length} folk</div>` +
-    (leader ? `<div class="sub">First among them: <a data-person="${leader.id}">${esc(leader.name)}</a></div>` : '') +
+    (leader ? `<div class="sub">First among them: <a data-person="${leader.id}">${esc(displayName(leader))}</a></div>` : '') +
     `<h3>Stores</h3>food ${Math.floor(s.stock.food)} · wood ${Math.floor(s.stock.wood)} · stone ${Math.floor(s.stock.stone)}` +
     `<h3>Buildings</h3>${b.shelter} shelter (room for ${shelterCapacity(s)}) · ${b.farm} farm` +
     `${b.wall ? ` · walls ×${b.wall}` : ''}${b.hall ? ' · hall' : ''}${b.temple ? ' · temple' : ''}`;
@@ -172,7 +191,7 @@ function settlementHtml(sim, s) {
   }
   html += '<h3>Folk</h3>';
   for (const p of members.slice(0, 20)) {
-    html += `<div><a data-person="${p.id}">${esc(p.name)}</a> <span class="sub">${ageYears(sim, p)}</span></div>`;
+    html += `<div><a data-person="${p.id}">${esc(displayName(p))}</a> <span class="sub">${ageYears(sim, p)}</span></div>`;
   }
   if (members.length > 20) html += `<div class="sub">…and ${members.length - 20} more</div>`;
   return html;
@@ -195,10 +214,34 @@ function tileHtml(t) {
 
 function worldSummary(sim) {
   const settlements = [...sim.settlements.values()].filter(s => s.members.size > 0);
+  let deer = 0;
+  for (const h of sim.herds.values()) deer += h.size;
   return `<div class="sub">${sim.livingCount} folk in ${settlements.length} settlement${settlements.length === 1 ? '' : 's'}.` +
-    ` ${sim.monsters.size} beast${sim.monsters.size === 1 ? '' : 's'} roam the wilds.</div>` +
-    `<div class="sub" style="margin-top:8px">Peak population: ${sim.peakPopulation}</div>` +
-    `<div style="margin-top:14px" class="memory">Drag to pan, scroll to zoom.<br>Click anything to know it.<br>Choose a divine act, then click the map to work your will.</div>`;
+    ` ${sim.monsters.size} beast${sim.monsters.size === 1 ? '' : 's'} roam the wilds, and some ${deer} deer.</div>` +
+    `<h3>Folk through the years</h3><canvas id="pop-spark" width="252" height="54"></canvas>` +
+    `<div class="sub">Peak population: ${sim.peakPopulation}</div>` +
+    `<div style="margin-top:14px" class="memory">Drag to pan, scroll to zoom, space to pause.<br>Click anything to know it; press F to follow it.<br>Choose a divine act, then click the map to work your will.</div>`;
+}
+
+function drawSparkline(sim) {
+  const c = document.getElementById('pop-spark');
+  if (!c || sim.popHistory.length < 2) return;
+  const ctx = c.getContext('2d');
+  const data = sim.popHistory;
+  const max = Math.max(...data, 1);
+  ctx.clearRect(0, 0, c.width, c.height);
+  ctx.strokeStyle = '#7a9b4e';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  for (let i = 0; i < data.length; i++) {
+    const x = (i / (data.length - 1)) * (c.width - 2) + 1;
+    const y = c.height - 2 - (data[i] / max) * (c.height - 6);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  ctx.fillStyle = '#8d8171';
+  ctx.font = '9px Georgia';
+  ctx.fillText(String(max), 2, 9);
 }
 
 // ---- chronicle feed ----

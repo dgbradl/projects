@@ -4,8 +4,9 @@
 import { beastName } from './names.js';
 import { chronicle, remember } from './chronicle.js';
 import { tileAt, isPassable, dist, seasonOf } from './world.js';
-import { kill, adjustAff } from './character.js';
+import { kill, adjustAff, displayName, grantEpithet } from './character.js';
 import { membersOf } from './settlement.js';
+import { nearestHerd, cullHerd } from './herds.js';
 
 export const MONSTER_KINDS = {
   wolfpack: { hp: 14, power: 3,   speed: 4, reward: 8,  menace: 1 },
@@ -19,7 +20,7 @@ export function spawnMonster(sim, kind, x, y, opts = {}) {
     id: sim.nextId++,
     kind,
     name: kind === 'wolfpack' ? 'a wolf pack' : `${beastName(sim.rng)} the ${kind}`,
-    x, y,
+    x, y, px: x, py: y,
     hp: def.hp, maxHp: def.hp,
     power: def.power,
     hunger: 0.5,
@@ -76,6 +77,7 @@ function richestSettlement(sim) {
 }
 
 export function monsterDaily(sim, m) {
+  m.px = m.x; m.py = m.y;
   m.hunger = Math.min(1.5, m.hunger + 0.06);
 
   // A beast that finds nothing to eat eventually leaves the vale.
@@ -93,14 +95,17 @@ export function monsterDaily(sim, m) {
   }
 
   if (m.kind === 'wolfpack') {
-    // Wolves live off wild game while there is any; they stalk folk only
-    // when lean — which above all means winter.
-    const t = tileAt(sim.world, m.x, m.y);
-    if (t && t.food > 1.5 && m.hunger > 0.4 && sim.rng.chance(0.35)) {
-      m.hunger = Math.max(0, m.hunger - 0.4);
-      t.food -= 1;
-      wander(sim, m);
-      return;
+    // Wolves hunt deer while there are deer to hunt; they stalk folk only
+    // when the herds fail them — which above all means winter.
+    if (m.hunger > 0.4) {
+      const herd = nearestHerd(sim, m.x, m.y, 16);
+      if (herd) {
+        moveMonster(sim, m, herd.x, herd.y);
+        if (dist(m.x, m.y, herd.x, herd.y) <= 1 && cullHerd(sim, herd)) {
+          m.hunger = Math.max(0, m.hunger - 0.9);
+        }
+        return;
+      }
     }
     const winter = seasonOf(sim.day) === 'winter';
     const desperate = m.hunger > (winter ? 0.6 : 0.9);
@@ -183,7 +188,8 @@ function rampage(sim, m, s) {
   for (const d of defenders) defense += d.skills.fight * 2.5 + d.traits.courage;
 
   const attack = m.power * sim.rng.range(0.7, 1.3);
-  chronicle(sim, m.kind === 'dragon' ? 3 : 2, `${m.name} attacked ${s.name}!`, { x: s.x, y: s.y, kind: 'monster' });
+  chronicle(sim, m.kind === 'dragon' ? 3 : 2, `${m.name} attacked ${s.name}!`,
+    { x: s.x, y: s.y, kind: 'monster', fx: m.kind === 'dragon' ? 'shake' : undefined });
 
   if (attack > defense) {
     // The beast wins the day: deaths, ruin, plunder.
@@ -236,12 +242,18 @@ export function slayMonster(sim, m, hero, helpers = []) {
   hero.skills.fight = Math.min(1, hero.skills.fight + 0.05);
   hero.mood += 0.3;
   chronicle(sim, def.menace >= 2 ? 3 : 2,
-    `${hero.name} slew ${m.name}${m.kills ? ` (killer of ${m.kills})` : ''}!`,
-    { x: m.x, y: m.y, kind: 'triumph' });
+    `${displayName(hero)} slew ${m.name}${m.kills ? ` (killer of ${m.kills})` : ''}!`,
+    { x: m.x, y: m.y, kind: 'triumph', who: [hero.id] });
   remember(hero, sim, `slew ${m.name}`, 0.3);
   for (const h of helpers) {
     if (h.id === hero.id) continue;
     h.mood += 0.15;
     adjustAff(h, hero.id, 10); // comrades admire the slayer
+  }
+  if (m.kind === 'dragon') grantEpithet(sim, hero, 'Dragonslayer');
+  else if (m.kind === 'troll') grantEpithet(sim, hero, 'Trollsbane');
+  else if (m.kind === 'wolfpack') {
+    hero.wolfPacksSlain++;
+    if (hero.wolfPacksSlain >= 3) grantEpithet(sim, hero, 'Wolfsbane');
   }
 }

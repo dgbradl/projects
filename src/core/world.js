@@ -73,6 +73,7 @@ export function generateWorld(rng, w, h) {
         stone: biome === BIOME.MOUNTAIN ? 60 : (elev > 0.6 ? 18 : 3),
         blight: 0,                       // god-inflicted corruption, 0..1
         bounty: 0,                       // god-granted abundance, 0..1
+        traffic: 0,                      // footsteps wear paths into the land
       };
     }
   }
@@ -105,6 +106,7 @@ export function regrowTiles(sim) {
     if (t.wood < 30 && t.biome === BIOME.FOREST) t.wood += 0.02;
     t.bounty = Math.max(0, t.bounty - 0.004);
     t.blight = Math.max(0, t.blight - 0.002);
+    if (t.traffic > 0) t.traffic = Math.max(0, t.traffic - 0.05); // untrodden paths grow over
   }
 }
 

@@ -103,10 +103,16 @@ function warAndRaids(sim) {
     const leader = leaderOf(sim, s);
     if (!leader) continue;
     const desperate = s.stock.food / s.members.size < 2;
+    // A cruel, ambitious leader needs no grievance — only a weaker, richer neighbor.
+    const covetous = leader.traits.ambition > 0.7 && leader.traits.kindness < 0.45;
     for (const [otherId, rel] of s.relations) {
       const other = sim.settlements.get(otherId);
       if (!other || other.members.size === 0) continue;
-      if (rel > -55 && !(desperate && rel < -25)) continue;
+      const hatred = rel < -55;
+      const hunger = desperate && rel < -25;
+      const conquest = covetous && rel < 30 && other.stock.food > 60 &&
+        other.members.size < s.members.size * 0.75;
+      if (!hatred && !hunger && !conquest) continue;
       const aggression = leader.traits.temper + leader.traits.ambition - leader.traits.kindness + (desperate ? 0.6 : 0);
       if (!sim.rng.chance(Math.max(0, aggression * 0.15))) continue;
       launchRaid(sim, s, other);

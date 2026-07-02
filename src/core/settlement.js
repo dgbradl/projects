@@ -2,9 +2,9 @@
 // squabble with their neighbors, and sometimes burn.
 
 import { settlementName } from './names.js';
-import { chronicle } from './chronicle.js';
-import { seasonOf, tileAt, findBestTile } from './world.js';
-import { adjustSettlementRelation } from './character.js';
+import { chronicle, remember } from './chronicle.js';
+import { seasonOf, dayOfYear, tileAt, findBestTile, dist } from './world.js';
+import { adjustSettlementRelation, adjustAff, displayName, isAdult } from './character.js';
 
 export const PROJECTS = {
   shelter: { wood: 20, stone: 4,  days: 14, desc: 'a shelter' },
@@ -28,13 +28,14 @@ export function foundSettlement(sim, x, y, founder) {
     relations: new Map(),        // other settlement id -> -100..100
     lastRaidedDay: -9999,
     raidCooldown: 0,
+    tradeCooldown: 0,
     fallen: false,
   };
   sim.settlements.set(s.id, s);
   if (founder) joinSettlement(sim, founder, s);
   chronicle(sim, 2, founder
-    ? `${founder.name} founded the settlement of ${s.name}`
-    : `The settlement of ${s.name} was founded`, { x, y, kind: 'founding' });
+    ? `${displayName(founder)} founded the settlement of ${s.name}`
+    : `The settlement of ${s.name} was founded`, { x, y, kind: 'founding', who: founder ? [founder.id] : undefined });
   return s;
 }
 
@@ -138,11 +139,70 @@ export function settlementDaily(sim, s) {
       const foodPressure = (s.stock.food / Math.max(1, s.members.size)) < 3;
       let drift = cur * -0.02;                       // slow regression to neutral
       if (foodPressure && d < 30) drift -= 1.2;      // hungry neighbors covet
+      if (!foodPressure && d < 40) drift += 0.1;     // fat years make decent neighbors
       if (s.buildings.hall && other.buildings.hall) drift += 0.3;
       adjustSettlementRelation(s, other, drift);
     }
   }
   if (s.raidCooldown > 0) s.raidCooldown--;
+  if (s.tradeCooldown > 0) s.tradeCooldown--;
+
+  maybeHoldFestival(sim, s, members);
+  maybeSendTrader(sim, s, members);
+}
+
+// Feasts: where there is a hall and a full larder, the folk celebrate.
+// Bonds form over shared tables — and so do marriages, in time.
+function maybeHoldFestival(sim, s, members) {
+  const doy = dayOfYear(sim.day);
+  const isFeastDay = doy === 12 || doy === 60; // first green; harvest
+  if (!isFeastDay || !s.buildings.hall || members.length < 4) return;
+  if (s.stock.food < members.length * 2 || sim.day - s.lastRaidedDay < 12) return;
+
+  s.stock.food -= members.length * 0.5;
+  const name = doy === 12 ? 'Festival of First Green' : 'Harvest Feast';
+  chronicle(sim, 1, `${s.name} held its ${name}`, { x: s.x, y: s.y, kind: 'festival' });
+  const present = members.filter(p => dist(p.x, p.y, s.x, s.y) <= 8);
+  for (const p of present) {
+    p.mood += 0.2;
+    p.needs.social = 1;
+    remember(p, sim, `danced at the ${name} in ${s.name}`);
+  }
+  // Everyone rubs shoulders with everyone.
+  for (let i = 0; i < present.length; i++) {
+    for (let j = i + 1; j < present.length; j++) {
+      const bonus = 4 + (present[i].sex !== present[j].sex &&
+        present[i].spouse === null && present[j].spouse === null &&
+        isAdult(sim, present[i]) && isAdult(sim, present[j]) ? 6 : 0);
+      adjustAff(present[i], present[j].id, bonus);
+      adjustAff(present[j], present[i].id, bonus);
+    }
+  }
+}
+
+// Generosity between friends: a settlement with a full granary sends a
+// trader — a real person, walking real roads — to a hungry neighbor.
+function maybeSendTrader(sim, s, members) {
+  if (sim.day % 8 !== 3 || members.length < 4 || s.tradeCooldown > 0) return;
+  const perHead = s.stock.food / members.length;
+  if (perHead < 8) return;
+  for (const [otherId, rel] of s.relations) {
+    if (rel < -5) continue;                      // no gifts across bad blood
+    const other = sim.settlements.get(otherId);
+    if (!other || other.members.size === 0) continue;
+    if (dist(s.x, s.y, other.x, other.y) > 55) continue;
+    if (other.stock.food / other.members.size > 4) continue;
+    const trader = members.find(p => isAdult(sim, p) && !p.task && !p.sick && p.traits.diligence > 0.4);
+    if (!trader) return;
+    const gift = Math.min(20, Math.floor(s.stock.food - members.length * 5));
+    if (gift < 5) return;
+    s.stock.food -= gift;
+    s.tradeCooldown = 20;
+    trader.task = { type: 'trade', to: other.id, carrying: gift };
+    chronicle(sim, 1, `${displayName(trader)} set out from ${s.name} with food for ${other.name}`,
+      { x: s.x, y: s.y, kind: 'trade', who: [trader.id] });
+    return;
+  }
 }
 
 export function completeProject(sim, s) {

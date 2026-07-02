@@ -110,7 +110,7 @@ export function castPower(sim, key, target) {
       p.traits.faith = Math.min(1, p.traits.faith + 0.25);
       remember(p, sim, 'was healed by a light from beyond', 0.3);
       witness(sim, p.x, p.y, 6, 1, 0);
-      chronicle(sim, 1, `${p.name} was healed by divine grace`, { x: p.x, y: p.y, kind: 'miracle' });
+      chronicle(sim, 1, `${p.name} was healed by divine grace`, { x: p.x, y: p.y, kind: 'miracle', who: [p.id] });
       result = `${p.name} is made whole.`;
       break;
     }
@@ -171,7 +171,7 @@ export function castPower(sim, key, target) {
       const t = tileAt(sim.world, x, y);
       if (t) { t.food *= 0.5; t.wood *= 0.5; }
       if (struck.length) {
-        chronicle(sim, 2, `Lightning from a clear sky slew ${struck.map(p => p.name).join(', ')}`, { x, y, kind: 'wrath' });
+        chronicle(sim, 2, `Lightning from a clear sky slew ${struck.map(p => p.name).join(', ')}`, { x, y, kind: 'wrath', who: struck.map(p => p.id) });
         witness(sim, x, y, 12, 0, 1.5);
         result = result || 'The bolt finds its mark.';
       }
@@ -193,7 +193,7 @@ export function castPower(sim, key, target) {
           while (s.buildings[b] > 0 && sim.rng.chance(0.5)) s.buildings[b]--;
         }
         s.lastRaidedDay = sim.day;
-        chronicle(sim, 3, `The earth shook and ${s.name} was thrown down`, { x: s.x, y: s.y, kind: 'wrath' });
+        chronicle(sim, 3, `The earth shook and ${s.name} was thrown down`, { x: s.x, y: s.y, kind: 'wrath', fx: 'shake' });
         for (const p of folkNear(sim, { id: -1, x: s.x, y: s.y }, 8)) {
           p.mood -= 0.3;
           if (sim.rng.chance(0.15)) { p.injured += 6; p.health -= 0.3; }

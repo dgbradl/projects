@@ -18,6 +18,10 @@ export function makePerson(sim, opts = {}) {
     alive: true,
     causeOfDeath: null,
     x: opts.x, y: opts.y,
+    px: opts.x, py: opts.y,           // previous-day position, for smooth rendering
+    epithet: null,
+    wolfPacksSlain: 0,
+    murders: 0,
     home: opts.home ?? null,          // settlement id
     traits: opts.traits || {
       courage: rng.float(), kindness: rng.float(), diligence: rng.float(),
@@ -45,6 +49,18 @@ export function makePerson(sim, opts = {}) {
   };
   sim.folk.set(p.id, p);
   return p;
+}
+
+export function displayName(p) {
+  return p.epithet ? `${p.name} ${p.epithet}` : p.name;
+}
+
+// A name earned is a name kept: only the first epithet sticks.
+export function grantEpithet(sim, p, epithet) {
+  if (p.epithet || !p.alive) return;
+  p.epithet = epithet;
+  chronicle(sim, 2, `${p.name} earned the name "${p.name} ${epithet}"`, { x: p.x, y: p.y, kind: 'epithet', who: [p.id] });
+  p.mood += 0.2;
 }
 
 export function ageOf(sim, p) { return sim.day - p.bornDay; }
@@ -191,10 +207,13 @@ export function kill(sim, p, cause, opts = {}) {
   const age = ageYears(sim, p);
   const killer = opts.killer || null;
   const importance = killer || p.fame > 3 ? 2 : 1;
-  let text = `${p.name} died of ${cause} at ${age}`;
-  if (killer) text = `${p.name} was slain by ${killer.name} at ${age}`;
-  if (opts.monster) text = `${p.name} was killed by ${opts.monster.name} at ${age}`;
-  chronicle(sim, importance, text, { x: p.x, y: p.y, kind: 'death' });
+  let text = `${displayName(p)} died of ${cause} at ${age}`;
+  if (killer) text = `${displayName(p)} was slain by ${displayName(killer)} at ${age}`;
+  if (opts.monster) text = `${displayName(p)} was killed by ${opts.monster.name} at ${age}`;
+  chronicle(sim, importance, text, {
+    x: p.x, y: p.y, kind: 'death',
+    who: killer ? [p.id, killer.id] : [p.id],
+  });
 
   // Grief and grudges ripple through the living.
   for (const other of sim.folk.values()) {

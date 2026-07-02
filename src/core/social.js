@@ -3,7 +3,8 @@
 import { chronicle, remember } from './chronicle.js';
 import { dist } from './world.js';
 import {
-  makePerson, isAdult, relTo, adjustAff, setKin, compat, kill, ageYears,
+  makePerson, isAdult, relTo, adjustAff, setKin, compat, kill, ageYears, displayName, grantEpithet,
+  adjustSettlementRelation,
 } from './character.js';
 import { joinSettlement } from './settlement.js';
 
@@ -50,12 +51,14 @@ export function eligible(sim, p) {
 }
 
 export function findMatch(sim, p) {
+  // Love is worth a journey: the search reaches into neighboring villages,
+  // though the near-at-hand have the advantage.
   let best = null, bestScore = 0.15;
-  for (const o of folkNear(sim, p, 12)) {
+  for (const o of folkNear(sim, p, 30)) {
     if (!eligible(sim, o) || o.sex === p.sex) continue;
     const r = relTo(p, o.id);
     if (r.kin) continue;
-    const score = compat(p, o) + r.aff / 100;
+    const score = compat(p, o) + r.aff / 100 - dist(p.x, p.y, o.x, o.y) * 0.008;
     if (score > bestScore) { bestScore = score; best = o; }
   }
   return best;
@@ -76,7 +79,7 @@ export function court(sim, p, o) {
       const dest = (ps?.members.size ?? 0) >= (os?.members.size ?? 0) ? ps : os;
       if (dest) { joinSettlement(sim, p, dest); joinSettlement(sim, o, dest); }
     }
-    chronicle(sim, 1, `${p.name} and ${o.name} were wed`, { x: p.x, y: p.y, kind: 'wedding' });
+    chronicle(sim, 1, `${displayName(p)} and ${displayName(o)} were wed`, { x: p.x, y: p.y, kind: 'wedding', who: [p.id, o.id] });
     remember(p, sim, `married ${o.name}`, 0.4);
     remember(o, sim, `married ${p.name}`, 0.4);
     // Rejected rivals take it hard.
@@ -96,11 +99,11 @@ export function court(sim, p, o) {
 export function tryConceive(sim, p) {
   if (p.sex !== 'f' || p.pregnantDays > 0 || p.spouse === null) return;
   const spouse = sim.folk.get(p.spouse);
-  if (!spouse?.alive || dist(p.x, p.y, spouse.x, spouse.y) > 4) return;
+  if (!spouse?.alive || dist(p.x, p.y, spouse.x, spouse.y) > 6) return;
   const age = ageYears(sim, p);
   if (age > 44) return;
   const wellFed = p.needs.hunger < 0.6;
-  if (wellFed && sim.rng.chance(0.028)) {
+  if (wellFed && sim.rng.chance(0.032)) {
     p.pregnantDays = 1;
     p.pregnantBy = spouse.id;
   }
@@ -137,7 +140,10 @@ export function gestate(sim, p) {
         adjustAff(o, child.id, 30);
       }
     }
-    chronicle(sim, 1, `${p.name} gave birth to ${child.name}`, { x: p.x, y: p.y, kind: 'birth' });
+    chronicle(sim, 1, `${displayName(p)} gave birth to ${child.name}`, {
+      x: p.x, y: p.y, kind: 'birth',
+      who: father ? [p.id, child.id, father.id] : [p.id, child.id],
+    });
     remember(p, sim, `gave birth to ${child.name}`, 0.35);
     p.pregnantBy = null;
   }
@@ -165,12 +171,14 @@ export function feudAction(sim, p, enemy) {
       kill(sim, enemy, 'murder', { killer: p });
       p.mood += 0.1;
       p.fame -= 2;
+      p.murders++;
+      if (p.murders >= 3) grantEpithet(sim, p, 'the Red-Handed');
       remember(p, sim, `killed ${enemy.name}, and would do it again`);
       exileIfCaught(sim, p, enemy);
     } else {
       p.injured += 6; p.health -= 0.25;
       adjustAff(enemy, p.id, -40);
-      chronicle(sim, 1, `${p.name} tried to kill ${enemy.name} and was beaten off`, { x: p.x, y: p.y, kind: 'feud' });
+      chronicle(sim, 1, `${displayName(p)} tried to kill ${displayName(enemy)} and was beaten off`, { x: p.x, y: p.y, kind: 'feud', who: [p.id, enemy.id] });
     }
   } else {
     // A brawl.
@@ -181,7 +189,12 @@ export function feudAction(sim, p, enemy) {
     adjustAff(enemy, p.id, -15);
     adjustAff(p, enemy.id, -5);
     p.mood += 0.05; enemy.mood -= 0.1;
-    chronicle(sim, 0, `${p.name} and ${enemy.name} came to blows`, { x: p.x, y: p.y, kind: 'feud' });
+    // A brawl across village lines sours both villages.
+    if (p.home !== null && enemy.home !== null && p.home !== enemy.home) {
+      const ps = sim.settlements.get(p.home), es = sim.settlements.get(enemy.home);
+      if (ps && es) adjustSettlementRelation(ps, es, -4);
+    }
+    chronicle(sim, 0, `${displayName(p)} and ${displayName(enemy)} came to blows`, { x: p.x, y: p.y, kind: 'feud', who: [p.id, enemy.id] });
     remember(enemy, sim, `was beaten by ${p.name}`);
   }
   return true;
@@ -201,7 +214,7 @@ function exileIfCaught(sim, murderer, victim) {
     s.members.delete(murderer.id);
     murderer.home = null;
     murderer.mood -= 0.3;
-    chronicle(sim, 2, `${murderer.name} was cast out of ${s.name} for the murder of ${victim.name}`, { x: s.x, y: s.y, kind: 'exile' });
+    chronicle(sim, 2, `${displayName(murderer)} was cast out of ${s.name} for the murder of ${victim.name}`, { x: s.x, y: s.y, kind: 'exile', who: [murderer.id, victim.id] });
     remember(murderer, sim, `was exiled from ${s.name}`);
     for (const id of s.members) {
       const o = sim.folk.get(id);

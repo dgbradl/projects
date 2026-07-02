@@ -41,6 +41,9 @@ const check = (name, ok) => {
 check('simulation ran without crashing', true);
 check('chronicle recorded history', sim.chronicleLog.length > 10);
 check('population is a sane number', sim.livingCount >= 0 && sim.livingCount < 3000);
+check('deer herds inhabit the wilds', sim.herds.size > 0);
+check('footpaths were worn into the land', sim.world.tiles.some(t => t.traffic > 4));
+check('population history recorded', sim.popHistory.length > 100);
 if (!sim.extinct) {
   check('some settlement exists (world still alive)',
     [...sim.settlements.values()].some(s => s.members.size > 0));

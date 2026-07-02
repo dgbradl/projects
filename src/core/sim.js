@@ -3,8 +3,9 @@
 
 import { makeRng } from './rng.js';
 import { generateWorld, regrowTiles, seasonOf, yearOf, DAYS_PER_YEAR, findBestTile, BIOME } from './world.js';
-import { makePerson, metabolize, isAdult, ageYears } from './character.js';
+import { makePerson, metabolize, isAdult, grantEpithet } from './character.js';
 import { settlementDaily } from './settlement.js';
+import { seedHerds, herdsDaily } from './herds.js';
 import { actDaily } from './ai.js';
 import { monsterDaily } from './monsters.js';
 import { worldEvents } from './events.js';
@@ -24,6 +25,8 @@ export function createSim(seed) {
     folk: new Map(),
     settlements: new Map(),
     monsters: new Map(),
+    herds: new Map(),
+    popHistory: [],
     chronicleLog: [],
     onChronicle: null,
     nextId: 1,
@@ -40,6 +43,7 @@ export function createSim(seed) {
   };
 
   seedTheVale(sim);
+  seedHerds(sim);
   return sim;
 }
 
@@ -83,6 +87,7 @@ export function tick(sim) {
   const living = [...sim.folk.values()].filter(p => p.alive);
   sim.rng.shuffle(living);
   for (const p of living) {
+    p.px = p.x; p.py = p.y;
     metabolize(sim, p);
     if (!p.alive) continue;
     gestate(sim, p);
@@ -92,6 +97,7 @@ export function tick(sim) {
   }
 
   for (const m of [...sim.monsters.values()]) monsterDaily(sim, m);
+  herdsDaily(sim);
   for (const s of sim.settlements.values()) settlementDaily(sim, s);
   worldEvents(sim);
 
@@ -106,6 +112,11 @@ export function tick(sim) {
   sim.livingCount = nowLiving.length;
   sim.peakPopulation = Math.max(sim.peakPopulation, sim.livingCount);
 
+  if (sim.day % 4 === 0) {
+    sim.popHistory.push(sim.livingCount);
+    if (sim.popHistory.length > 2400) sim.popHistory.splice(0, 400); // ~100 years kept
+  }
+
   if (sim.day % DAYS_PER_YEAR === 0) yearSummary(sim, nowLiving);
 
   if (sim.livingCount === 0 && prevCount > 0) {
@@ -119,6 +130,10 @@ export function tick(sim) {
 
 function yearSummary(sim, living) {
   const year = yearOf(sim.day);
+  // Renown accrues; the folk find names for their great ones.
+  for (const p of living) {
+    if (!p.epithet && p.fame >= 8) grantEpithet(sim, p, 'the Renowned');
+  }
   const settlements = [...sim.settlements.values()].filter(s => s.members.size > 0);
   let biggest = null;
   for (const s of settlements) if (!biggest || s.members.size > biggest.members.size) biggest = s;

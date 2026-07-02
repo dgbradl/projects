@@ -13,6 +13,8 @@ export function chronicle(sim, importance, text, opts = {}) {
     text,
     x: opts.x, y: opts.y,           // optional location for map pings
     kind: opts.kind || 'event',
+    who: opts.who,                  // ids of the people this is about (for life stories)
+    fx: opts.fx,                    // optional visual effect hint ('shake', 'bolt')
   };
   sim.chronicleLog.push(entry);
   if (sim.chronicleLog.length > 4000) sim.chronicleLog.splice(0, 500);
