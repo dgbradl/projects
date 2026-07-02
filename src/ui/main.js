@@ -115,12 +115,7 @@ function tryCast(wx, wy) {
   const result = castPower(sim, key, target);
   if (result) {
     banner(result);
-    if (key === 'lightning') { effects.bolt(wx, wy); effects.shake = 0.25; }
-    else if (key === 'quake') effects.shake = 1.4;
-    else {
-      const dark = key === 'blight' || key === 'beast';
-      effects.add(wx, wy, dark ? '#ff5533' : '#ffe9a0', true);
-    }
+    effects.power(key, wx, wy);
     terrain.paintedDay = -1; // the land may have changed under this act
     selectedPower = null;
     inspectorDirty = true;
@@ -218,7 +213,7 @@ buildPowerButtons((key) => {
   inspectorDirty = true;
   if (selectedPower && POWERS[key].target === 'world') {
     const result = castPower(sim, key, {});
-    if (result) banner(result);
+    if (result) { banner(result); effects.power(key, cam.x, cam.y); }
     selectedPower = null;
   } else if (selectedPower) {
     banner(`${POWERS[key].name}: choose your ${POWERS[key].target === 'person' ? 'soul' : POWERS[key].target === 'settlement' ? 'settlement' : 'place'}.`);
@@ -257,7 +252,7 @@ function frame(now) {
   effects.step(dt);
   // Movement interpolation: how far through the current sim-day we are.
   const alpha = speed === 0 ? 1 : Math.min(1, tickAccum);
-  render(ctx, sim, cam, selection, effects, hoverTile, alpha, terrain);
+  render(ctx, sim, cam, selection, effects, hoverTile, alpha, terrain, now / 1000);
   renderMinimap(mctx, sim, cam, terrain);
 
   uiClock += dt;

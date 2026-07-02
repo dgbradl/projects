@@ -66,6 +66,7 @@ export function generateWorld(rng, w, h) {
       const fertility = p.fertility * (0.7 + moist * 0.6);
       tiles[y * w + x] = {
         x, y, biome,
+        elev,                            // kept for relief shading and water depth
         fertility,                       // drives food regrowth
         food: fertility * 6,             // forageable food available now
         maxFood: fertility * 9,
