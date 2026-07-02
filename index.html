@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vale of Embers — a living world</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='13'>🔥</text></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <header id="topbar">
+    <div id="brand">Vale of Embers</div>
+    <div id="date" class="stat">—</div>
+    <div id="pop" class="stat">—</div>
+    <div id="faith" class="stat" title="Faith: earned by worship and wonder; spent on divine acts">—</div>
+    <div id="speed-controls">
+      <button data-speed="0" title="Pause">⏸</button>
+      <button data-speed="1" class="active" title="1 day / sec">▶</button>
+      <button data-speed="2" title="6 days / sec">▶▶</button>
+      <button data-speed="3" title="20 days / sec">▶▶▶</button>
+    </div>
+    <button id="newworld" title="Abandon this world and shape another">New World</button>
+  </header>
+
+  <aside id="powers">
+    <h2>Divine Acts</h2>
+    <div id="power-list"></div>
+    <div id="power-hint">You are a god of this vale.<br>You may bless, curse, and portend —<br>but never command.</div>
+  </aside>
+
+  <main id="viewport">
+    <canvas id="map"></canvas>
+    <div id="cast-banner" class="hidden"></div>
+  </main>
+
+  <aside id="inspector">
+    <h2 id="inspector-title">The Vale</h2>
+    <div id="inspector-body">Click a person, settlement or beast to watch their story.</div>
+  </aside>
+
+  <footer id="chronicle">
+    <div id="chronicle-head">
+      <h2>Chronicle</h2>
+      <label><input type="checkbox" id="chronicle-minor"> everyday life</label>
+    </div>
+    <div id="chronicle-list"></div>
+  </footer>
+</div>
+<div id="gameover" class="hidden">
+  <div id="gameover-box">
+    <h1>The vale falls silent</h1>
+    <p id="gameover-text"></p>
+    <button id="gameover-new">Shape a new world</button>
+  </div>
+</div>
+<script type="module" src="src/ui/main.js"></script>
+</body>
+</html>

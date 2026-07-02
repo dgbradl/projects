@@ -1,0 +1,11 @@
+{
+  "name": "vale-of-embers",
+  "version": "0.1.0",
+  "description": "A fantasy life simulator: an autonomous living world shaped by its inhabitants, watched over by a distant god (you).",
+  "type": "module",
+  "scripts": {
+    "start": "npx --yes http-server -p 8080 -c-1 .",
+    "test": "node test/headless.js"
+  },
+  "license": "MIT"
+}
