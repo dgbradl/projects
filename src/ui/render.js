@@ -932,6 +932,10 @@ export function render(ctx, sim, cam, selection, effects, hoverTile, alphaT, ter
     ctx.fillStyle = 'rgba(150, 110, 30, 0.10)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
+  if (sim.weather.ashDays > 0) {
+    ctx.fillStyle = 'rgba(88, 80, 72, 0.24)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
   stepWeather(ctx, sim, canvas, render._dt || 0.016);
 
   // Divine flash

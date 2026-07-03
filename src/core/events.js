@@ -2,8 +2,8 @@
 // wars folk wage on one another.
 
 import { chronicle, remember } from './chronicle.js';
-import { seasonOf, yearOf, dist, findBestTile, BIOME } from './world.js';
-import { infect, kill, adjustAff, adjustSettlementRelation, shapeTrait } from './character.js';
+import { seasonOf, yearOf, dist, findBestTile, isPassable, BIOME, DAYS_PER_YEAR } from './world.js';
+import { infect, kill, adjustAff, adjustSettlementRelation, shapeTrait, makePerson, setKin } from './character.js';
 import { membersOf, leaderOf, chiefOf } from './settlement.js';
 import { spawnMonster } from './monsters.js';
 import { doctrineOf, majorityReligion } from './religion.js';
@@ -80,7 +80,61 @@ export function worldEvents(sim) {
     }
   }
 
+  // Strangers over the mountains: the vale is not the whole world, and
+  // word of empty land travels. Dwindling worlds draw newcomers most.
+  if (sim.day - (sim.lastMigrationDay ?? -999) > DAYS_PER_YEAR &&
+      rng.chance(0.0006 + (pop > 0 && pop < 15 ? 0.002 : 0)) && pop > 0) {
+    arriveNewcomers(sim);
+  }
+
+  // The ash-veil: once in a long age the sky itself turns against the vale.
+  if (!sim.weather.ashDays && year >= 6 && rng.chance(0.00022)) {
+    sim.weather.ashDays = DAYS_PER_YEAR;
+    chronicle(sim, 3, 'The sky dimmed behind a veil of ash. The sun gives light but no strength.', { kind: 'disaster' });
+  }
+  if (sim.weather.ashDays > 0) {
+    sim.weather.ashDays--;
+    if (sim.day % 4 === 0) {
+      for (const p of sim.folk.values()) if (p.alive) p.mood -= 0.012;
+    }
+    if (sim.weather.ashDays === 0) {
+      chronicle(sim, 2, 'The veil of ash has lifted; the light returns', { kind: 'weather' });
+    }
+  }
+
   warAndRaids(sim);
+}
+
+function arriveNewcomers(sim) {
+  const rng = sim.rng;
+  sim.lastMigrationDay = sim.day;
+  // Find a passable spot on the map's edge.
+  let x = 0, y = 0, guard = 0;
+  do {
+    const edge = rng.pick(['n', 's', 'e', 'w']);
+    x = edge === 'e' ? sim.world.w - 3 : edge === 'w' ? 2 : rng.int(4, sim.world.w - 5);
+    y = edge === 's' ? sim.world.h - 3 : edge === 'n' ? 2 : rng.int(4, sim.world.h - 5);
+  } while (!isPassable(sim.world, x, y) && guard++ < 60);
+  if (!isPassable(sim.world, x, y)) return;
+
+  const n = rng.int(4, 8);
+  const band = [];
+  for (let i = 0; i < n; i++) {
+    const adult = i < n - 2 || rng.chance(0.5);
+    band.push(makePerson(sim, {
+      x: x + rng.int(-1, 1), y: y + rng.int(-1, 1),
+      bornDay: sim.day - (adult ? rng.int(16, 40) : rng.int(2, 12)) * DAYS_PER_YEAR,
+    }));
+  }
+  // A couple among them, already bound.
+  const a = band[0], b = band[1];
+  if (a.sex !== b.sex) {
+    a.spouse = b.id; b.spouse = a.id;
+    setKin(a, b, 'spouse', 'spouse');
+    a.rel.get(b.id).aff = 70; b.rel.get(a.id).aff = 70;
+  }
+  chronicle(sim, 2, `Strangers came over the mountains — ${n} newcomers seeking a home`,
+    { x, y, kind: 'founding' });
 }
 
 function wildTile(sim, preferBiome = null) {

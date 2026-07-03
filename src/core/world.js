@@ -98,7 +98,8 @@ export function growthFactor(season) {
 
 export function regrowTiles(sim) {
   const season = seasonOf(sim.day);
-  const g = growthFactor(season) * (sim.weather.rainDays > 0 ? 1.4 : 1.0) * (sim.weather.drought ? 0.35 : 1.0);
+  const g = growthFactor(season) * (sim.weather.rainDays > 0 ? 1.4 : 1.0) * (sim.weather.drought ? 0.35 : 1.0)
+    * (sim.weather.ashDays > 0 ? 0.45 : 1.0);   // an ash-dimmed sun grows little
   for (const t of sim.world.tiles) {
     if (t.biome === BIOME.WATER || t.biome === BIOME.MOUNTAIN) continue;
     const cap = t.maxFood * (1 + t.bounty * 1.5) * (1 - t.blight * 0.9);

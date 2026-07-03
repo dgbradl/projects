@@ -84,6 +84,7 @@ export function serialize(sim) {
     faithWitnessed: sim.faithWitnessed,
     godDeeds: { mercy: sim.godDeeds.mercy, wrath: sim.godDeeds.wrath },
     lastDeedDay: sim.lastDeedDay,
+    lastMigrationDay: sim.lastMigrationDay ?? null,
     nextId: sim.nextId,
     livingCount: sim.livingCount,
     peakPopulation: sim.peakPopulation,
@@ -125,6 +126,7 @@ export function deserialize(json) {
   sim.faithWitnessed = d.faithWitnessed;
   sim.godDeeds = d.godDeeds;
   sim.lastDeedDay = d.lastDeedDay;
+  sim.lastMigrationDay = d.lastMigrationDay ?? undefined;
   sim.nextId = d.nextId;
   sim.livingCount = d.livingCount;
   sim.peakPopulation = d.peakPopulation;
