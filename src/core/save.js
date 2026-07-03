@@ -78,6 +78,7 @@ export function serialize(sim) {
     herds: [...sim.herds.values()],
     religions: [...sim.religions.values()],
     shrines: [...sim.shrines.values()],
+    obituaries: sim.obituaries,
     chronicle: sim.chronicleLog.slice(-1500),
     faith: sim.faith,
     faithWitnessed: sim.faithWitnessed,
@@ -118,6 +119,7 @@ export function deserialize(json) {
   for (const r of d.religions) sim.religions.set(r.id, { ...r });
   sim.shrines.clear();
   for (const sh of d.shrines ?? []) sim.shrines.set(sh.id, { ...sh });
+  sim.obituaries = d.obituaries ?? [];
   sim.chronicleLog.push(...d.chronicle);
   sim.faith = d.faith;
   sim.faithWitnessed = d.faithWitnessed;

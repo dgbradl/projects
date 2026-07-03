@@ -29,6 +29,7 @@ export function createSim(seed) {
     herds: new Map(),
     religions: new Map(),
     shrines: new Map(),
+    obituaries: [],           // the dead endure in the record even when pruned
     godDeeds: { mercy: 0, wrath: 0 },   // what the folk have seen you do
     lastDeedDay: -9999,
     popHistory: [],

@@ -214,6 +214,12 @@ export function kill(sim, p, cause, opts = {}) {
   p.alive = false;
   p.causeOfDeath = cause;
   p.diedDay = sim.day;
+  sim.obituaries.push({
+    id: p.id, name: p.name, surname: p.surname, epithet: p.epithet,
+    alive: false, causeOfDeath: cause, bornDay: p.bornDay, diedDay: sim.day,
+    fame: p.fame, outlaw: p.outlaw,
+  });
+  if (sim.obituaries.length > 600) sim.obituaries.splice(0, 100);
   p.task = null;
   const s = settlementOf(sim, p);
   if (s) s.members.delete(p.id);

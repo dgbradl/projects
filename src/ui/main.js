@@ -12,6 +12,7 @@ import {
   updateTopBar, buildPowerButtons, updatePowerButtons,
   renderInspector, makeChronicleFeed,
 } from './panels.js';
+import { openLegends } from './legends.js';
 
 const TICK_RATES = [0, 1.5, 6, 20]; // days per second per speed setting
 
@@ -222,6 +223,12 @@ window.addEventListener('keydown', (e) => {
       banner(follow ? `Following ${selection.kind === 'person' ? displayName(selection.ref) : selection.ref.name ?? 'the herd'}.` : 'No longer following.');
     }
   }
+});
+document.getElementById('legends-open').addEventListener('click', () => {
+  openLegends(sim, {
+    onSelect: (sel) => { selection = sel; inspectorDirty = true; },
+    onLocate: (x, y) => { cam.x = x; cam.y = y; follow = false; },
+  });
 });
 document.getElementById('newworld').addEventListener('click', () => {
   if (sim.livingCount === 0 || confirm('Abandon this world and shape another?')) newWorld();

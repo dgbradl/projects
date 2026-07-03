@@ -20,6 +20,7 @@
       <button data-speed="2" title="6 days / sec">▶▶</button>
       <button data-speed="3" title="20 days / sec">▶▶▶</button>
     </div>
+    <button id="legends-open" title="Browse the whole history of this world">Legends</button>
     <button id="newworld" title="Abandon this world and shape another">New World</button>
   </header>
 
@@ -48,6 +49,22 @@
     </div>
     <div id="chronicle-list"></div>
   </footer>
+</div>
+<div id="legends" class="hidden">
+  <div id="legends-box">
+    <div id="legends-head">
+      <h1>Legends of the Vale</h1>
+      <button id="legends-close">✕</button>
+    </div>
+    <div id="legends-tabs">
+      <button data-tab="folk" class="active">Folk</button>
+      <button data-tab="settlements">Settlements</button>
+      <button data-tab="faiths">Faiths</button>
+      <button data-tab="wars">Wars</button>
+    </div>
+    <input id="legends-search" type="text" placeholder="Search…">
+    <div id="legends-list"></div>
+  </div>
 </div>
 <div id="gameover" class="hidden">
   <div id="gameover-box">

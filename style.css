@@ -190,6 +190,36 @@ button:disabled { opacity: 0.4; cursor: default; }
 .chron-entry.locatable { cursor: pointer; }
 .chron-entry.locatable:hover { text-decoration: underline; }
 
+/* ---- legends ---- */
+#legends {
+  position: fixed; inset: 0;
+  background: rgba(5, 4, 2, 0.75);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9;
+  transition: opacity 0.25s;
+}
+#legends-box {
+  width: 620px; max-width: 90vw;
+  height: 70vh;
+  background: var(--panel);
+  border: 1px solid var(--gold);
+  border-radius: 4px;
+  display: flex; flex-direction: column;
+  padding: 14px 18px;
+}
+#legends-head { display: flex; align-items: center; }
+#legends-head h1 { font-size: 18px; color: var(--gold); font-variant: small-caps; flex: 1; }
+#legends-tabs { display: flex; gap: 6px; margin: 10px 0 8px; }
+#legends-search {
+  background: #14110d; border: 1px solid var(--edge); color: var(--ink);
+  font-family: var(--font); padding: 5px 9px; border-radius: 3px; margin-bottom: 8px;
+}
+#legends-list { flex: 1; overflow-y: auto; font-size: 13px; }
+.legend-row { padding: 5px 6px; border-bottom: 1px solid #2a241c; cursor: pointer; line-height: 1.45; }
+.legend-row:hover { background: #2a241c; }
+.legend-row .sub { color: var(--ink-dim); font-size: 12px; }
+.legend-row .star { color: var(--gold); }
+
 /* ---- game over ---- */
 #gameover {
   position: fixed; inset: 0;
