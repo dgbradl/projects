@@ -691,6 +691,26 @@ export function render(ctx, sim, cam, selection, effects, hoverTile, alphaT, ter
 
   emitSmoke(effects, sim, render._dt || 0.016);
 
+  // Shrines: little stone cairns wrapped in a soft breathing glow.
+  for (const sh of sim.shrines.values()) {
+    const [sx, sy] = cam.toScreen(sh.x + 0.5, sh.y + 0.5);
+    if (sx < -30 || sy < -30 || sx > canvas.width + 30 || sy > canvas.height + 30) continue;
+    const breath = 0.6 + Math.sin(time * 1.6 + sh.id) * 0.25;
+    const hue = sh.tone === 'mercy' ? '255, 236, 170' : '200, 160, 255';
+    const grad = ctx.createRadialGradient(sx, sy, 1, sx, sy, z * 1.8);
+    grad.addColorStop(0, `rgba(${hue}, ${0.22 * breath})`);
+    grad.addColorStop(1, `rgba(${hue}, 0)`);
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(sx, sy, z * 1.8, 0, Math.PI * 2); ctx.fill();
+    drawShadow(ctx, sx, sy, z * 0.4);
+    ctx.fillStyle = '#8d8579';
+    ctx.fillRect(sx - z * 0.3, sy - z * 0.15, z * 0.6, z * 0.3);
+    ctx.fillStyle = '#a49c8e';
+    ctx.fillRect(sx - z * 0.18, sy - z * 0.42, z * 0.36, z * 0.3);
+    ctx.fillStyle = '#c2bab0';
+    ctx.fillRect(sx - z * 0.09, sy - z * 0.6, z * 0.18, z * 0.2);
+  }
+
   for (const s of sim.settlements.values()) {
     if (s.members.size === 0 && sim.day - s.foundedDay > 500) continue;
     const [sx, sy] = cam.toScreen(s.x + 0.5, s.y + 0.5);

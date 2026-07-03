@@ -119,7 +119,26 @@ export function recordDeed(sim, x, y, radius, tone, desc) {
       ? `Remember ${desc}, in the ${year}th year. The god provides for those who look up.`
       : `Fear ${desc}, in the ${year}th year. Walk carefully, for the god is watching.`;
     addVerse(sim, r, verse);
+    maybeRaiseShrine(sim, r, x, y, tone, desc);
   }
+}
+
+// Where the god touched the world, the faithful mark the ground.
+function maybeRaiseShrine(sim, r, x, y, tone, desc) {
+  if (sim.shrines.size >= 6) return;
+  for (const sh of sim.shrines.values()) {
+    if (dist(sh.x, sh.y, x, y) < 15) return; // holy ground already near
+  }
+  const shrine = {
+    id: sim.nextId++,
+    x, y,
+    religionId: r.id,
+    tone,
+    name: tone === 'mercy' ? `the shrine of ${desc}` : `the warding cairn of ${desc}`,
+    foundedDay: sim.day,
+  };
+  sim.shrines.set(shrine.id, shrine);
+  chronicle(sim, 1, `The faithful of ${r.name} raised ${shrine.name}`, { x, y, kind: 'shrine' });
 }
 
 // How the folk currently read their god, from the deeds they have witnessed.

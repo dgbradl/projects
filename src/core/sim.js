@@ -28,6 +28,7 @@ export function createSim(seed) {
     monsters: new Map(),
     herds: new Map(),
     religions: new Map(),
+    shrines: new Map(),
     godDeeds: { mercy: 0, wrath: 0 },   // what the folk have seen you do
     lastDeedDay: -9999,
     popHistory: [],

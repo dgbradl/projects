@@ -69,6 +69,13 @@ export function renderInspector(sim, selection, onSelectEntity) {
     const m = selection.ref;
     title.textContent = m.name;
     body.innerHTML = monsterHtml(sim, m);
+  } else if (selection.kind === 'shrine') {
+    const sh = selection.ref;
+    const r = sim.religions.get(sh.religionId);
+    title.textContent = 'Holy Ground';
+    body.innerHTML = `<div class="sub creed">${esc(sh.name)}</div>` +
+      `<div class="sub">raised in year ${yearOf(sh.foundedDay)}${r ? ` by the faithful of <a data-religion="${r.id}">${esc(r.name)}</a>` : ''}</div>` +
+      `<div class="memory" style="margin-top:8px">Pilgrims walk here from every corner of the vale.</div>`;
   } else if (selection.kind === 'religion') {
     const r = selection.ref;
     title.textContent = r.name;

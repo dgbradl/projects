@@ -22,6 +22,7 @@ function packPerson(p) {
     fame: p.fame, epithet: p.epithet, wolfPacksSlain: p.wolfPacksSlain,
     murders: p.murders, religion: p.religion,
     outlaw: p.outlaw ?? false, homelessDays: p.homelessDays ?? 0,
+    lastPilgrimage: p.lastPilgrimage ?? null,
   };
 }
 
@@ -76,6 +77,7 @@ export function serialize(sim) {
     monsters: [...sim.monsters.values()],
     herds: [...sim.herds.values()],
     religions: [...sim.religions.values()],
+    shrines: [...sim.shrines.values()],
     chronicle: sim.chronicleLog.slice(-1500),
     faith: sim.faith,
     faithWitnessed: sim.faithWitnessed,
@@ -114,6 +116,8 @@ export function deserialize(json) {
   for (const m of d.monsters) sim.monsters.set(m.id, { ...m });
   for (const h of d.herds) sim.herds.set(h.id, { ...h });
   for (const r of d.religions) sim.religions.set(r.id, { ...r });
+  sim.shrines.clear();
+  for (const sh of d.shrines ?? []) sim.shrines.set(sh.id, { ...sh });
   sim.chronicleLog.push(...d.chronicle);
   sim.faith = d.faith;
   sim.faithWitnessed = d.faithWitnessed;

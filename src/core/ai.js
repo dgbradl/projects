@@ -69,6 +69,7 @@ export function actDaily(sim, p) {
   if (p.task?.type === 'trade') { doTradeMarch(sim, p); return; }
   if (p.task?.type === 'goHome') { doGoHome(sim, p); return; }
   if (p.task?.type === 'hunt') { doManhunt(sim, p); return; }
+  if (p.task?.type === 'pilgrimage') { doPilgrimage(sim, p); return; }
 
   // The road turns some folk crooked: long homelessness curdles the
   // bitter-tempered into outlaws.
@@ -134,6 +135,19 @@ export function actDaily(sim, p) {
   if (p.traits.faith > 0.5 && (s?.buildings.temple || sim.faithWitnessed > 0 || p.religion !== null)) {
     add(p.traits.faith * 1.5 + (p.religion !== null ? 0.8 : 0) + (p.mood < 0 ? 0.5 : 0),
       () => doPray(sim, p, s), 'praying');
+  }
+  // The long walk to holy ground, once every few years.
+  if (p.religion !== null && p.traits.faith > 0.65 &&
+      sim.day - (p.lastPilgrimage ?? -999) > 96 * 2) {
+    let shrine = null;
+    for (const sh of sim.shrines.values()) {
+      if (sh.religionId === p.religion && dist(p.x, p.y, sh.x, sh.y) > 8) { shrine = sh; break; }
+    }
+    if (shrine) {
+      add(0.8 + p.traits.faith + (p.mood < -0.1 ? 0.7 : 0), () => {
+        p.task = { type: 'pilgrimage', shrine: shrine.id };
+      }, 'setting out on pilgrimage');
+    }
   }
 
   // A dying settlement is worth abandoning: refugees seek fuller hearths.
@@ -516,6 +530,21 @@ function doManhunt(sim, p) {
     quarry.skills.fight = Math.min(1, quarry.skills.fight + 0.02);
     remember(quarry, sim, 'slipped a hunter\'s noose');
   }
+}
+
+function doPilgrimage(sim, p) {
+  const shrine = sim.shrines.get(p.task.shrine);
+  if (!shrine) { p.task = null; return; }
+  p.activity = `on pilgrimage to ${shrine.name}`;
+  moveToward(sim, p, shrine.x, shrine.y, 3);
+  if (dist(p.x, p.y, shrine.x, shrine.y) > 1) return;
+  p.lastPilgrimage = sim.day;
+  p.mood += 0.25;
+  p.traits.faith = Math.min(1, p.traits.faith + 0.05);
+  p.needs.social = Math.min(1, p.needs.social + 0.3);
+  sim.faith += 3;
+  remember(p, sim, `knelt at ${shrine.name}`, 0.1);
+  p.task = { type: 'goHome' };
 }
 
 function doTradeMarch(sim, p) {

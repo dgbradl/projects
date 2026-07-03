@@ -34,7 +34,7 @@ const EFFECT_COLORS = {
   birth: '#a0d8e8', triumph: '#ffd700', disaster: '#8899ff', plague: '#8a2be2',
   festival: '#f0c674', trade: '#a3c1ad', epithet: '#ffd700',
   prophecy: '#e6d5ff', schism: '#c99aff', dedication: '#e6e0ff',
-  banditry: '#a8523c', succession: '#d9c17a',
+  banditry: '#a8523c', succession: '#d9c17a', shrine: '#ffecaa',
 };
 
 const SAVE_KEY = 'vale-of-embers-save';
@@ -103,6 +103,9 @@ function pickAt(wx, wy) {
   }
   for (const h of sim.herds.values()) {
     if (dist(h.x, h.y, wx, wy) < 3) return { kind: 'herd', ref: h };
+  }
+  for (const sh of sim.shrines.values()) {
+    if (dist(sh.x, sh.y, wx, wy) < 2) return { kind: 'shrine', ref: sh };
   }
   for (const s of sim.settlements.values()) {
     if (s.members.size === 0) continue;
@@ -182,6 +185,7 @@ function updateTooltip(mx, my) {
     const p = picked.ref;
     text = fullName(p) + (p.activity ? ` — ${p.activity}` : '');
   } else if (picked.kind === 'monster') text = picked.ref.name;
+  else if (picked.kind === 'shrine') text = picked.ref.name;
   else if (picked.kind === 'herd') text = 'a herd of deer';
   else if (picked.kind === 'settlement') text = `${picked.ref.name} (${picked.ref.members.size})`;
   if (!text) { tooltip.classList.add('hidden'); return; }
