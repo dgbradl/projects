@@ -13,6 +13,7 @@ import {
   renderInspector, makeChronicleFeed,
 } from './panels.js';
 import { openLegends } from './legends.js';
+import { initAudio, toggleMute, isMuted, updateAmbience, stinger } from './audio.js';
 
 const TICK_RATES = [0, 1.5, 6, 20]; // days per second per speed setting
 
@@ -74,6 +75,10 @@ function newWorld(resume = false) {
       effects.add(e.x, e.y, EFFECT_COLORS[e.kind] ?? '#ccc', e.importance >= 2);
     }
     if (e.fx === 'shake') effects.shake = 0.9;
+    if (e.kind === 'wedding') stinger('wedding');
+    else if (e.kind === 'war' || e.kind === 'battle') stinger('war');
+    else if (e.kind === 'miracle' && e.importance >= 1) stinger('miracle');
+    else if (e.importance >= 3) stinger('doom');
     if (e.kind === 'extinction') showGameOver();
     inspectorDirty = true;
   };
@@ -140,6 +145,8 @@ function tryCast(wx, wy) {
   if (result) {
     banner(result);
     effects.power(key, wx, wy);
+    if (key === 'lightning' || key === 'quake') stinger('thunder');
+    else if (key === 'heal' || key === 'bounty' || key === 'dream') stinger('miracle');
     terrain.paintedDay = -1; // the land may have changed under this act
     selectedPower = null;
     inspectorDirty = true;
@@ -224,6 +231,14 @@ window.addEventListener('keydown', (e) => {
     }
   }
 });
+// The world finds its voice on the first human touch.
+window.addEventListener('pointerdown', initAudio, { once: true });
+window.addEventListener('keydown', initAudio, { once: true });
+document.getElementById('mute').addEventListener('click', () => {
+  initAudio();
+  document.getElementById('mute').textContent = toggleMute() ? '🔇' : '🔊';
+});
+
 document.getElementById('legends-open').addEventListener('click', () => {
   openLegends(sim, {
     onSelect: (sel) => { selection = sel; inspectorDirty = true; },
@@ -281,6 +296,7 @@ function frame(now) {
   }
 
   effects.step(dt);
+  updateAmbience(sim, dt);
   // Movement interpolation: how far through the current sim-day we are.
   const alpha = speed === 0 ? 1 : Math.min(1, tickAccum);
   render(ctx, sim, cam, selection, effects, hoverTile, alpha, terrain, now / 1000);
