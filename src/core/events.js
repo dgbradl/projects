@@ -4,7 +4,7 @@
 import { chronicle, remember } from './chronicle.js';
 import { seasonOf, yearOf, dist, findBestTile, BIOME } from './world.js';
 import { infect, kill, adjustAff, adjustSettlementRelation } from './character.js';
-import { membersOf, leaderOf } from './settlement.js';
+import { membersOf, leaderOf, chiefOf } from './settlement.js';
 import { spawnMonster } from './monsters.js';
 import { doctrineOf, majorityReligion } from './religion.js';
 
@@ -101,7 +101,7 @@ function warAndRaids(sim) {
   if (sim.day % 6 !== 0) return;
   for (const s of sim.settlements.values()) {
     if (s.members.size < 5 || s.raidCooldown > 0) continue;
-    const leader = leaderOf(sim, s);
+    const leader = chiefOf(sim, s) ?? leaderOf(sim, s);
     if (!leader) continue;
     const desperate = s.stock.food / s.members.size < 2;
     // A cruel, ambitious leader needs no grievance — only a weaker, richer neighbor.

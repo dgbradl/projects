@@ -2,7 +2,7 @@
 
 import { POWERS } from '../core/god.js';
 import { ageYears, isAdult, settlementOf, displayName, fullName } from '../core/character.js';
-import { membersOf, leaderOf, PROJECTS, shelterCapacity } from '../core/settlement.js';
+import { membersOf, chiefOf, PROJECTS, shelterCapacity } from '../core/settlement.js';
 import { seasonOf, yearOf, dayOfYear, tileAt, DAYS_PER_YEAR } from '../core/world.js';
 import { religionOf, majorityReligion, countFollowers, DOCTRINES, godTone } from '../core/religion.js';
 
@@ -187,10 +187,10 @@ function personHtml(sim, p) {
 function settlementHtml(sim, s) {
   const members = membersOf(sim, s);
   if (!members.length) return '<div class="sub">Abandoned. The wind moves through empty doorways.</div>';
-  const leader = leaderOf(sim, s);
+  const leader = chiefOf(sim, s);
   const b = s.buildings;
   let html = `<div class="sub">Founded year ${yearOf(s.foundedDay)} — ${members.length} folk</div>` +
-    (leader ? `<div class="sub">First among them: <a data-person="${leader.id}">${esc(displayName(leader))}</a></div>` : '') +
+    (leader ? `<div class="sub">Chief: <a data-person="${leader.id}">${esc(displayName(leader))}</a></div>` : '') +
     `<h3>Stores</h3>food ${Math.floor(s.stock.food)} · wood ${Math.floor(s.stock.wood)} · stone ${Math.floor(s.stock.stone)}` +
     `<h3>Buildings</h3>${b.shelter} shelter (room for ${shelterCapacity(s)}) · ${b.farm} farm` +
     `${b.wall ? ` · walls ×${b.wall}` : ''}${b.hall ? ' · hall' : ''}${b.temple ? ' · temple' : ''}`;

@@ -21,6 +21,7 @@ export function foundSettlement(sim, x, y, founder) {
     name: settlementName(sim.rng),
     x, y,
     founderId: founder ? founder.id : null,
+    chiefId: founder ? founder.id : null,
     foundedDay: sim.day,
     members: new Set(),
     stock: { food: 10, wood: 10, stone: 0 },
@@ -60,14 +61,87 @@ export function membersOf(sim, s) {
 
 export function shelterCapacity(s) { return s.buildings.shelter * 5; }
 
-// A settlement's leader: the living member with the most standing.
+// Standing: what a claim to leadership rests on.
+function standing(p) {
+  return p.traits.ambition * 2 + p.fame + (p.skills.fight + p.skills.build) * 0.5;
+}
+
+// The member with the most standing (used for succession).
 export function leaderOf(sim, s) {
   let best = null, bestScore = -1;
   for (const p of membersOf(sim, s)) {
-    const score = p.traits.ambition * 2 + p.fame + (p.skills.fight + p.skills.build) * 0.5;
+    const score = standing(p);
     if (score > bestScore) { bestScore = score; best = p; }
   }
   return best;
+}
+
+// The current chief — an actual office, held until death, departure or coup.
+export function chiefOf(sim, s) {
+  if (s.chiefId !== null && s.chiefId !== undefined) {
+    const chief = sim.folk.get(s.chiefId);
+    if (chief?.alive && chief.home === s.id) return chief;
+  }
+  return null;
+}
+
+function succession(sim, s, reason) {
+  const heir = leaderOf(sim, s);
+  s.chiefId = heir ? heir.id : null;
+  if (heir && s.members.size >= 3) {
+    heir.fame += 0.5;
+    chronicle(sim, 1, `${displayName(heir)} now leads ${s.name}${reason ? ` (${reason})` : ''}`,
+      { x: s.x, y: s.y, kind: 'succession', who: [heir.id] });
+  }
+}
+
+// Ambition is patient, not loyal: a strong rival who despises the chief
+// will eventually make a play for the seat.
+function maybeChallenge(sim, s, members) {
+  if (sim.day % 16 !== 9 || members.length < 5) return;
+  const chief = chiefOf(sim, s);
+  if (!chief) return;
+  // Ambition needs no grievance — though grievance helps.
+  const rival = members.find(p =>
+    p.id !== chief.id && isAdult(sim, p) &&
+    p.traits.ambition > 0.7 &&
+    standing(p) > standing(chief) * 0.7 &&
+    (p.rel.get(chief.id)?.aff ?? 0) < 15);
+  if (!rival) return;
+  const grudge = (rival.rel.get(chief.id)?.aff ?? 0) < -20;
+  if (!sim.rng.chance(0.06 + rival.traits.temper * 0.1 + (grudge ? 0.25 : 0))) return;
+
+  const support = (person) => {
+    let backers = 0;
+    for (const o of members) {
+      if (o.id === person.id) continue;
+      if ((o.rel.get(person.id)?.aff ?? 0) > 25) backers++;
+    }
+    return backers;
+  };
+  const rivalScore = (standing(rival) + support(rival) * 0.8) * sim.rng.range(0.7, 1.3);
+  const chiefScore = (standing(chief) + support(chief) * 0.8 + 0.3) * sim.rng.range(0.7, 1.3);
+
+  if (rivalScore > chiefScore) {
+    s.chiefId = rival.id;
+    rival.fame += 1;
+    rival.mood += 0.3;
+    chief.mood -= 0.4;
+    adjustAff(chief, rival.id, -45);
+    adjustAff(rival, chief.id, -20);
+    chronicle(sim, 2, `${displayName(rival)} wrested leadership of ${s.name} from ${displayName(chief)}`,
+      { x: s.x, y: s.y, kind: 'succession', who: [rival.id, chief.id] });
+    remember(chief, sim, `was cast down as chief of ${s.name} by ${rival.name}`);
+    remember(rival, sim, `took leadership of ${s.name}`, 0.2);
+  } else {
+    rival.mood -= 0.35;
+    rival.fame -= 0.5;
+    adjustAff(chief, rival.id, -35);
+    adjustAff(rival, chief.id, -30);
+    chronicle(sim, 1, `${displayName(chief)} put down ${displayName(rival)}'s bid to lead ${s.name}`,
+      { x: s.x, y: s.y, kind: 'succession', who: [chief.id, rival.id] });
+    remember(rival, sim, `was humiliated before all of ${s.name}`);
+  }
 }
 
 // Choose what to build next, by communal need. Nobody orders this from above;
@@ -153,6 +227,9 @@ export function settlementDaily(sim, s) {
   if (s.raidCooldown > 0) s.raidCooldown--;
   if (s.tradeCooldown > 0) s.tradeCooldown--;
 
+  // The seat of the chief never sits empty for long.
+  if (!chiefOf(sim, s)) succession(sim, s, s.chiefId ? 'after the last chief' : null);
+  maybeChallenge(sim, s, members);
   maybeHoldFestival(sim, s, members);
   maybeSendTrader(sim, s, members);
 }

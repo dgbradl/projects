@@ -38,7 +38,7 @@ function unpackPerson(d) {
 function packSettlement(s) {
   return {
     id: s.id, name: s.name, x: s.x, y: s.y,
-    founderId: s.founderId, foundedDay: s.foundedDay,
+    founderId: s.founderId, foundedDay: s.foundedDay, chiefId: s.chiefId ?? null,
     members: [...s.members],
     stock: { food: s.stock.food, wood: s.stock.wood, stone: s.stock.stone },
     buildings: s.buildings, project: s.project,

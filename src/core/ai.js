@@ -10,7 +10,7 @@ import { nearestHerd, cullHerd } from './herds.js';
 import { doctrineOf, religionOf, godTone } from './religion.js';
 import { chronicle, remember } from './chronicle.js';
 import {
-  PROJECTS, foundSettlement, joinSettlement, findSettlementSite, completeProject, membersOf, leaderOf,
+  PROJECTS, foundSettlement, joinSettlement, findSettlementSite, completeProject, membersOf, chiefOf,
 } from './settlement.js';
 import { socialize, findMatch, court, feudAction, worstEnemy, folkNear, eligible } from './social.js';
 import { MONSTER_KINDS, slayMonster } from './monsters.js';
@@ -139,7 +139,7 @@ export function actDaily(sim, p) {
 
   // Striking out: the ambitious, the exiled and the overcrowded found new homes.
   const crowded = s && s.members.size > 18;
-  const leader = s ? leaderOf(sim, s) : null;
+  const leader = s ? chiefOf(sim, s) : null;
   const resentsLeader = leader && leader.id !== p.id && relTo(p, leader.id).aff < -40;
   if (!s) {
     add(5, () => doSeekHome(sim, p), 'seeking a home');
