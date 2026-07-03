@@ -103,6 +103,10 @@ function db(): PDO
         email VARCHAR(255) NOT NULL,
         expires DATETIME NOT NULL
     )');
+    $pdo->exec('CREATE TABLE IF NOT EXISTS profiles (
+        email VARCHAR(255) NOT NULL PRIMARY KEY,
+        data TEXT NOT NULL
+    )');
     return $pdo;
 }
 
@@ -241,7 +245,32 @@ switch ($action) {
         $st = $pdo->prepare('SELECT data FROM shots WHERE email = ? ORDER BY shot_date DESC LIMIT ' . MAX_SHOTS_RETURNED);
         $st->execute([$email]);
         $shots = array_map(fn($row) => json_decode($row['data'], true), $st->fetchAll());
-        echo json_encode(['shots' => $shots, 'ai' => ANTHROPIC_API_KEY !== '']);
+
+        $st = $pdo->prepare('SELECT data FROM profiles WHERE email = ?');
+        $st->execute([$email]);
+        $profileRaw = $st->fetchColumn();
+        $profile = is_string($profileRaw) ? json_decode($profileRaw, true) : null;
+
+        echo json_encode([
+            'shots' => $shots,
+            'profile' => is_array($profile) ? $profile : null,
+            'ai' => ANTHROPIC_API_KEY !== '',
+        ]);
+        break;
+    }
+
+    case 'profile': {
+        $email = require_session($pdo, $body);
+        $profile = $body['profile'] ?? null;
+        if (!is_array($profile)) {
+            fail(400, 'Missing profile');
+        }
+        $json = json_encode($profile);
+        if (strlen($json) > 32768) {
+            fail(400, 'Profile too large');
+        }
+        $pdo->prepare('REPLACE INTO profiles (email, data) VALUES (?, ?)')->execute([$email, $json]);
+        echo json_encode(['ok' => true]);
         break;
     }
 

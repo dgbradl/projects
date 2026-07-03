@@ -7,7 +7,11 @@ Built on the **ball flight laws**: the ball starts roughly where the clubface po
 ## What's in it
 
 - **New Shot** — tap through what happened and get a diagnosis: what happened at impact, likely causes ranked, what to work on, and drills with instructions.
-- **History & Trends** — every shot is stored in MySQL, keyed to your Google account; each allowed user has their own private history. After a few shots, Trends shows your most common miss and where practice time pays off.
+- **History with sessions** — shots are stored in MySQL keyed to your Google account, and grouped automatically into range sessions/rounds (shots more than 3 hours apart start a new session), each with a flush-rate summary.
+- **Fix tracking** — mark any diagnosed miss as your current focus and the app measures how often it shows up before vs. after ("Big slice: 45% → 20%"), synced across your devices. Past fixes keep their before/after record.
+- **Progress charts** — flush rate per session, with your tracked miss overlaid, drawn on a dependency-free canvas.
+- **Range plans** — one tap generates a drill prescription for your focus (or top miss), sized for a bucket of balls, with tap-to-check items and a tracked-shots finisher.
+- **Practice priority** — the Practice tab ranks your recurring misses so range time goes where strokes leak.
 - **Offline-first** — the app shell is cached by a service worker and shots save locally first, so everything works with no signal on the course; changes queue up and sync to the server when you're back online.
 - **Google sign-in, enforced server-side** — only the emails allowlisted in `config.php` can log in or touch any data.
 - **Optional AI coach** — the Anthropic API key lives in `config.php` on the server, never in the browser; the API proxies the calls.

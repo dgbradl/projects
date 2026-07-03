@@ -291,6 +291,40 @@ button.primary:active { filter: brightness(0.9); }
 }
 .stat-row .count { font-weight: 700; }
 .good { color: var(--accent); }
+.bad { color: var(--danger); }
+
+.session-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin: 16px 2px 8px;
+}
+
+.focus-numbers { font-size: 1.3rem; margin: 4px 0; }
+
+#progress-chart {
+  width: 100%;
+  height: 190px;
+  display: block;
+}
+
+.plan-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.plan-item:last-of-type { border-bottom: none; }
+.plan-check { font-size: 1.25rem; line-height: 1.2; }
+.plan-item.done strong { text-decoration: line-through; color: var(--muted); }
+.plan-item.done .drill-how { text-decoration: line-through; }
 
 /* --- tab bar --- */
 
