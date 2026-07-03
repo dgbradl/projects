@@ -13,7 +13,7 @@
 const AUTH_CONFIG = {
   // From console.cloud.google.com → APIs & Services → Credentials.
   // Looks like: 1234567890-abc123.apps.googleusercontent.com
-  clientId: 'YOUR_CLIENT_ID.apps.googleusercontent.com',
+  clientId: '12003697926-bckpncnchm31qj8mgpa03c6nrps92e8k.apps.googleusercontent.com',
 };
 
 const STORAGE_AUTH = 'swingcoach.auth';
