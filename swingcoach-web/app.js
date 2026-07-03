@@ -407,6 +407,60 @@ function buzz() {
   if (navigator.vibrate) navigator.vibrate(8);
 }
 
+/* Inline target icon — used wherever the UI talks about the current focus,
+ * so the language matches the Practice tab icon. */
+const ICON_TARGET = '<svg class="icon-inline" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/></svg>';
+
+/* Tiny dependency-free confetti burst for finished rounds / completed plans. */
+function celebrate() {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const canvas = document.createElement('canvas');
+  canvas.className = 'confetti';
+  document.body.appendChild(canvas);
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = innerWidth * dpr;
+  canvas.height = innerHeight * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const styles = getComputedStyle(document.documentElement);
+  const colors = [
+    styles.getPropertyValue('--accent').trim(),
+    '#f4b63f', '#e0604f', '#5aa9e6', '#ffffff',
+  ];
+  const parts = Array.from({ length: 90 }, () => ({
+    x: innerWidth / 2 + (Math.random() - 0.5) * 80,
+    y: innerHeight * 0.55,
+    vx: (Math.random() - 0.5) * 11,
+    vy: -(6 + Math.random() * 9),
+    size: 4 + Math.random() * 5,
+    rot: Math.random() * Math.PI,
+    vr: (Math.random() - 0.5) * 0.3,
+    color: colors[Math.floor(Math.random() * colors.length)],
+  }));
+
+  const start = performance.now();
+  (function frame(now) {
+    const t = (now - start) / 1000;
+    ctx.clearRect(0, 0, innerWidth, innerHeight);
+    for (const p of parts) {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.35; // gravity
+      p.rot += p.vr;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = Math.max(0, 1 - t / 1.4);
+      ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+      ctx.restore();
+    }
+    if (t < 1.4) requestAnimationFrame(frame);
+    else canvas.remove();
+  })(start);
+}
+
 function quickLog(outcome) {
   buzz();
   const shot = Object.assign(
@@ -501,10 +555,10 @@ function showDiagnosis(shot) {
   if (trackable) {
     const focus = activeFocus();
     if (focus && focus.pattern === trackable.pattern) {
-      parts.push(`<div class="card"><h3>Fix tracking</h3><p class="hint">🎯 You're already tracking <strong>${esc(focus.label)}</strong> — this shot counts toward your progress chart on the Practice tab.</p></div>`);
+      parts.push(`<div class="card"><h3>Fix tracking</h3><p class="hint">${ICON_TARGET} You're already tracking <strong>${esc(focus.label)}</strong> — this shot counts toward your progress chart on the Practice tab.</p></div>`);
     } else {
       const replaces = focus ? ` (replaces your current focus: ${esc(focus.label)})` : '';
-      parts.push(`<div class="card"><h3>Fix tracking</h3><button class="link-btn" id="track-btn">🎯 Make "${esc(trackable.label)}" my focus</button><p class="hint">The app will measure how often this miss shows up before vs. after today, so you can see the fix working${replaces}.</p></div>`);
+      parts.push(`<div class="card"><h3>Fix tracking</h3><button class="link-btn" id="track-btn">${ICON_TARGET} Make "${esc(trackable.label)}" my focus</button><p class="hint">The app will measure how often this miss shows up before vs. after today, so you can see the fix working${replaces}.</p></div>`);
     }
   }
 
@@ -632,6 +686,17 @@ function renderScorecard(el, round) {
   const t = roundTotals(round);
   const day = new Date(round.date).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
 
+  const strokeClass = hole => {
+    if (hole.strokes === null || hole.par === null) return '';
+    if (hole.strokes < hole.par) return ' under';
+    if (hole.strokes > hole.par) return ' over';
+    return '';
+  };
+  const nineTotal = (from) => {
+    const nine = { holes: round.holes.slice(from, from + 9) };
+    const totals = roundTotals(nine);
+    return totals.strokes || '·';
+  };
   const holeRows = round.holes.map((hole, i) => `
     <div class="hole-row" data-hole="${i}">
       <span class="hole-num">${i + 1}</span>
@@ -640,10 +705,14 @@ function renderScorecard(el, round) {
       ).join('')}</div>
       <div class="stroke-stepper">
         <button class="step-btn" data-step="-1">−</button>
-        <span class="stroke-value${hole.strokes !== null && hole.par !== null ? (hole.strokes < hole.par ? ' good' : (hole.strokes > hole.par ? ' bad' : '')) : ''}">${hole.strokes === null ? '·' : hole.strokes}</span>
+        <span class="stroke-value${strokeClass(hole)}">${hole.strokes === null ? '·' : hole.strokes}</span>
         <button class="step-btn" data-step="1">+</button>
       </div>
-    </div>`).join('');
+    </div>${(i === 8 && round.holes.length === 18)
+      ? `<div class="nine-row"><span>OUT</span><span id="sc-out">${nineTotal(0)}</span></div>`
+      : ''}${(i === 17)
+      ? `<div class="nine-row"><span>IN</span><span id="sc-in">${nineTotal(9)}</span></div>`
+      : ''}`).join('');
 
   el.innerHTML = `
     <div class="card">
@@ -671,8 +740,8 @@ function renderScorecard(el, round) {
   const refreshStrokeCell = (row, hole) => {
     const cell = row.querySelector('.stroke-value');
     cell.textContent = hole.strokes === null ? '·' : hole.strokes;
-    cell.classList.toggle('good', hole.strokes !== null && hole.par !== null && hole.strokes < hole.par);
-    cell.classList.toggle('bad', hole.strokes !== null && hole.par !== null && hole.strokes > hole.par);
+    cell.classList.toggle('under', hole.strokes !== null && hole.par !== null && hole.strokes < hole.par);
+    cell.classList.toggle('over', hole.strokes !== null && hole.par !== null && hole.strokes > hole.par);
     cell.classList.remove('pop');
     void cell.offsetWidth; // restart the animation
     cell.classList.add('pop');
@@ -686,6 +755,10 @@ function renderScorecard(el, round) {
     score.classList.add('pop');
     document.getElementById('sc-thru').textContent =
       `thru ${totals.holesPlayed}${totals.toPar !== null ? ' · ' + formatToPar(totals.toPar) : ''}`;
+    const out = document.getElementById('sc-out');
+    const inn = document.getElementById('sc-in');
+    if (out) out.textContent = roundTotals({ holes: round.holes.slice(0, 9) }).strokes || '·';
+    if (inn) inn.textContent = roundTotals({ holes: round.holes.slice(9, 18) }).strokes || '·';
   };
   const persist = () => {
     saveRounds();
@@ -729,7 +802,10 @@ function renderScorecard(el, round) {
   document.getElementById('round-finish').addEventListener('click', () => {
     round.finished = !round.finished;
     roundChanged(round);
-    if (round.finished) state.editingRoundId = null;
+    if (round.finished) {
+      state.editingRoundId = null;
+      celebrate();
+    }
     renderRounds();
   });
   document.getElementById('round-delete').addEventListener('click', () => {
@@ -751,6 +827,26 @@ function roundChanged(round) {
 }
 
 /* ---------------------------------------------------------------- history */
+
+/* The mini glyph that summarizes a shot in history rows — same visual
+ * language as the quick grid and flight picker. */
+function glyphForShot(shot) {
+  const lefty = state.settings.handedness === 'left';
+  const mirror = lefty ? ' mirror' : '';
+  if (shot.contact !== 'flush') {
+    if (QUICK_GLYPHS[shot.contact]) {
+      return { d: QUICK_GLYPHS[shot.contact], cls: shot.contact === 'shank' ? mirror : '' };
+    }
+    return { d: 'M12 8 L24 18 M24 8 L12 18', cls: '' }; // toe/heel: generic X
+  }
+  if (shot.curve === 'slice' || shot.curve === 'fade') return { d: QUICK_GLYPHS.slice, cls: mirror };
+  if (shot.curve === 'hook' || shot.curve === 'draw') return { d: QUICK_GLYPHS.hook, cls: mirror };
+  if (shot.startLine !== 'straight') {
+    const isPull = (shot.startLine === 'left') !== lefty;
+    return { d: isPull ? QUICK_GLYPHS.pull : QUICK_GLYPHS.push, cls: mirror };
+  }
+  return { d: QUICK_GLYPHS.flush, cls: ' flush' };
+}
 
 function renderHistory() {
   const el = document.getElementById('history-list');
@@ -774,7 +870,9 @@ function renderHistory() {
       const item = document.createElement('div');
       item.className = 'history-item';
       const when = new Date(shot.date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+      const glyph = glyphForShot(shot);
       item.innerHTML = `
+        <svg class="shot-glyph${glyph.cls}" viewBox="0 0 36 26" aria-hidden="true"><path d="${glyph.d}"/></svg>
         <div class="info">
           <div class="summary">${esc(shotSummary(shot))}</div>
           <div class="when">${esc(when)}</div>
@@ -851,11 +949,11 @@ function renderTrends() {
       progress = `<p class="hint">${st.afterCount} shot${st.afterCount === 1 ? '' : 's'} logged since ${esc(since)} — log about 5 more and your before/after numbers appear here.</p>`;
     }
     parts.push(`<div class="card"><h3>Current focus</h3>
-      <p><strong>🎯 ${esc(focus.label)}</strong></p>${progress}
+      <p class="focus-title"><strong>${ICON_TARGET} ${esc(focus.label)}</strong></p>${progress}
       <button class="link-btn" id="stop-focus-btn">Stop tracking</button></div>`);
   } else {
     const suggestion = patterns.length
-      ? `<button class="link-btn" id="start-focus-btn">🎯 Make "${esc(patterns[0].label)}" my focus</button>`
+      ? `<button class="link-btn" id="start-focus-btn">${ICON_TARGET} Make "${esc(patterns[0].label)}" my focus</button>`
       : '<p class="hint">Log a few shots and your most common miss will show up here, ready to track.</p>';
     parts.push(`<div class="card"><h3>Current focus</h3>
       <p class="hint">Pick one miss to fix. The app measures how often it shows up before vs. after, so you know if the fix is real.</p>${suggestion}</div>`);
@@ -946,6 +1044,8 @@ function renderTrends() {
       const i = Number(div.dataset.planIndex);
       state.plan.items[i].done = !state.plan.items[i].done;
       savePlan();
+      buzz();
+      if (state.plan.items.every(item => item.done)) celebrate();
       renderTrends();
     });
   });

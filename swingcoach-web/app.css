@@ -612,10 +612,44 @@ button.primary {
 .stroke-value {
   min-width: 36px;
   text-align: center;
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
+
+/* Classic scorecard notation: circle = under par, square = over par */
+.stroke-value.under, .stroke-value.over {
+  min-width: 30px;
+  width: 30px;
+  height: 30px;
+  line-height: 27px;
+  margin: 0 3px;
+  display: inline-block;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  color: var(--accent);
+}
+.stroke-value.over {
+  border-color: var(--danger);
+  border-radius: 7px;
+  color: var(--danger);
+}
+
+.nine-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 4px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  background: var(--card-2);
+  margin: 0 -16px;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+.nine-row span:last-child { font-size: 0.9rem; color: var(--text); font-variant-numeric: tabular-nums; }
 
 /* ---------------------------------------------------------- auth gate --- */
 
@@ -682,6 +716,47 @@ button.primary {
 }
 
 #tabbar button.active { color: var(--accent); }
+
+/* ------------------------------------------------------- inline icons --- */
+
+.icon-inline {
+  width: 17px;
+  height: 17px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  vertical-align: -3px;
+  margin-right: 2px;
+}
+
+.focus-title { font-size: 1.05rem; }
+.focus-title .icon-inline { color: var(--accent); }
+
+/* history mini glyphs */
+.shot-glyph {
+  width: 30px;
+  height: 24px;
+  flex: none;
+  stroke: var(--muted);
+  fill: none;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.shot-glyph.flush { stroke: var(--accent); }
+.shot-glyph.mirror { transform: scaleX(-1); }
+
+/* ----------------------------------------------------------- confetti --- */
+
+.confetti {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 50;
+}
 
 /* -------------------------------------------------------------- motion --- */
 
