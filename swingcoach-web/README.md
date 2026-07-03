@@ -1,6 +1,6 @@
 # SwingCoach (web) 🏌️
 
-Describe what your golf shot did — contact, start line, curve, trajectory — and get an instant diagnosis of the likely swing fault, with fixes and practice drills. This is the web/PWA version of the SwingCoach iOS app in this repo: same diagnosis engine, no sideloading, no 7-day expiry.
+Describe what your golf shot did — contact, start line, curve, trajectory — and get an instant diagnosis of the likely swing fault, with fixes and practice drills. A self-hostable PWA: open it on your phone, add it to your home screen, and it behaves like an app.
 
 Built on the **ball flight laws**: the ball starts roughly where the clubface points at impact and curves away from the swing path, so from what you saw the ball do, the app works backward to what your swing was doing.
 

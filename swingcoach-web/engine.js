@@ -160,8 +160,10 @@ function flightDiagnosis(shot, handedness) {
     case 'pull.slice':
     case 'pull.fade':
       d = {
-        headline: 'Pull-slice: the classic over-the-top move',
-        whatHappened: 'The ball started on your pull side and curved back across — your swing path was cutting sharply across the ball (out-to-in) with the clubface open to that path.',
+        headline: shot.curve === 'slice'
+          ? 'Pull-slice: the classic over-the-top move'
+          : 'Pull-fade: a mild across-the-ball pattern',
+        whatHappened: 'The ball started on your pull side and curved back across — your swing path was cutting across the ball (out-to-in) with the clubface open to that path.',
         likelyCauses: [
           "Starting the downswing with your shoulders and arms instead of your lower body, throwing the club 'over the top' of the ideal path.",
           "A grip that's too weak (hands rotated toward the target), leaving the face open.",
@@ -175,6 +177,9 @@ function flightDiagnosis(shot, handedness) {
         drills: [DRILLS.headcover, DRILLS.gripCheck, DRILLS.pump],
         isPositive: false,
       };
+      if (shot.curve === 'fade') {
+        d = softened(d, 'Heads up: if the ball starts only slightly on your pull side and finishes AT the target, that’s the classic playable fade — many pros build their game on it. Only chase the fixes below if the start line is too far across or the curve is costing you distance.');
+      }
       return d;
 
     case 'center.slice':
@@ -203,7 +208,9 @@ function flightDiagnosis(shot, handedness) {
     case 'push.slice':
     case 'push.fade':
       d = {
-        headline: 'Push-slice: face wide open',
+        headline: shot.curve === 'slice'
+          ? 'Push-slice: face wide open'
+          : 'Push-fade: face hanging open',
         whatHappened: 'The ball started on your push side and kept curving further away — the clubface was open to both your target and your swing path. This is a face-control problem more than a path problem.',
         likelyCauses: [
           'The clubface never squared up: weak grip, cupped lead wrist at the top, or no forearm rotation through impact.',
@@ -248,8 +255,12 @@ function flightDiagnosis(shot, handedness) {
     case 'pull.hook':
     case 'pull.draw':
       return {
-        headline: 'Pull-hook: closed face, path across',
-        whatHappened: "The ball started on your pull side and curved even further — the clubface was closed to your target and closed to your path. This is the 'snap hook' pattern and it usually shows up under pressure or with fast tempo.",
+        headline: shot.curve === 'hook'
+          ? 'Pull-hook: closed face, path across'
+          : "Pull-draw: the 'double cross'",
+        whatHappened: shot.curve === 'hook'
+          ? "The ball started on your pull side and curved even further — the clubface was closed to your target and closed to your path. This is the 'snap hook' pattern and it usually shows up under pressure or with fast tempo."
+          : "The ball started on your pull side and drew even further away — face closed to your target and to your path. Golfers call this the 'double cross' (often it appears when you set up for a fade and the face closes anyway), and it finishes well on your pull side.",
         likelyCauses: [
           'A very strong grip combined with an over-the-top path.',
           'Flipping or rolling the hands hard through impact (often from slowing your body rotation).',
@@ -337,7 +348,7 @@ function contactDiagnosis(shot) {
           "Ball position too far forward for the club, or trying to 'help' the ball into the air.",
         ],
         fixes: [
-          'At impact roughly 80% of your weight should be over your lead foot — feel like you finish your swing with the trail heel fully off the ground.',
+          'At impact 70–80% of your weight should be over your lead foot — feel like you finish your swing with the trail heel fully off the ground.',
           'Trust the loft: hit DOWN on the ball with irons; the club gets it airborne, not a scoop.',
           'Set up with slightly more weight on your lead side (55/45) and keep it there on short shots.',
         ],
@@ -348,12 +359,11 @@ function contactDiagnosis(shot) {
     case 'thin':
       return {
         headline: 'Thin contact: catching the ball on the way up',
-        whatHappened: "The leading edge struck the middle of the ball — the club's low point was behind the ball or you rose out of your posture before impact.",
+        whatHappened: "The leading edge struck the middle of the ball — the club's low point was behind the ball or you rose out of your posture before impact. Thin and fat are actually the same fault (a low point in the wrong place); slightly different timing gives you one or the other, which is why they often show up in the same round.",
         likelyCauses: [
           "Standing up / straightening the legs through impact ('early extension').",
           'Trying to lift or scoop the ball into the air.',
           'Ball too far forward, or weight falling back at the strike.',
-          'Interestingly, thin and fat are the same fault — a low point behind the ball. Slightly less bad timing gives you thin instead of fat.',
         ],
         fixes: [
           "Keep your chest bent over the ball through impact — feel 'covering' the ball with your chest.",
@@ -385,7 +395,7 @@ function contactDiagnosis(shot) {
     case 'toe':
       return {
         headline: 'Toe strike: the club came up short of the ball',
-        whatHappened: 'Contact was out on the toe of the face, which costs ball speed and usually adds hook spin (gear effect).',
+        whatHappened: 'Contact was out on the toe of the face, which costs ball speed. With the driver and fairway woods a toe strike also adds hook spin (gear effect); with irons that effect is minimal — the miss mostly just loses distance and comes out to the push side.',
         likelyCauses: [
           'Pulling the arms in toward your body through impact.',
           'Standing too far from the ball at address.',
