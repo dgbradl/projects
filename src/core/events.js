@@ -56,8 +56,9 @@ export function worldEvents(sim) {
     if (t) spawnMonster(sim, 'dragon', t.x, t.y);
   }
 
-  // Plague: rare, terrible, and it spreads in close quarters.
-  if (!sim.plague.active && pop > 15 && rng.chance(0.0012)) {
+  // Plague: rare, terrible, and it spreads in close quarters — the more
+  // crowded the world, the sooner it finds its way in.
+  if (!sim.plague.active && pop > 15 && rng.chance(0.0009 * (1 + pop / 80))) {
     sim.plague.active = true;
     sim.plague.daysLeft = rng.int(24, 48);
     chronicle(sim, 3, 'A plague has come. Folk cough blood and pray.', { kind: 'plague' });

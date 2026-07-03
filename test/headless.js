@@ -86,6 +86,27 @@ if (!sim.extinct) {
   check('betrayed doctrine led to schism into a cult of dread', sawSchism);
 }
 
+// Longevity: an 80-year world must stay bounded in memory and brisk to tick.
+{
+  const lsim = createSim(4242);
+  let totalMs = 0, ticks = 0;
+  for (let d = 0; d < 80 * DAYS_PER_YEAR && !lsim.extinct; d++) {
+    const t0 = performance.now();
+    tick(lsim);
+    totalMs += performance.now() - t0;
+    ticks++;
+  }
+  const avgMs = totalMs / ticks;
+  console.log(`\n80-year run: pop ${lsim.livingCount} (peak ${lsim.peakPopulation}), ` +
+    `avg tick ${avgMs.toFixed(2)}ms, folk records ${lsim.folk.size}, ` +
+    `chronicle ${lsim.chronicleLog.length}, obituaries ${lsim.obituaries.length}`);
+  check('80 years without crashing', true);
+  check('tick stays under 8ms on average', avgMs < 8);
+  check('dead are pruned (folk records bounded)', lsim.folk.size < lsim.livingCount + 1000);
+  check('chronicle stays bounded', lsim.chronicleLog.length <= 4000);
+  check('obituaries stay bounded', lsim.obituaries.length <= 600);
+}
+
 // Save/load: a resumed world must continue exactly as the original would.
 {
   const original = createSim(555);

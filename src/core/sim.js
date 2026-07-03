@@ -88,6 +88,7 @@ export function tick(sim) {
   sim.day++;
 
   regrowTiles(sim);
+  for (const s of sim.settlements.values()) s.farmhands = 0;
 
   // The living act in shuffled order so no one has a standing advantage.
   const living = [...sim.folk.values()].filter(p => p.alive);

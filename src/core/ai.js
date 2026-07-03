@@ -213,7 +213,7 @@ function doGetFood(sim, p, s) {
       return;
     }
     p.activity = 'fishing';
-    const catchAmt = 1.2 + p.skills.fish * 3 + (sim.weather.rainDays > 0 ? 0.5 : 0);
+    const catchAmt = 0.8 + p.skills.fish * 1.8 + (sim.weather.rainDays > 0 ? 0.4 : 0);
     p.skills.fish = Math.min(1, p.skills.fish + 0.006);
     p.needs.energy -= 0.08;
     deposit(sim, p, s, catchAmt);
@@ -222,7 +222,11 @@ function doGetFood(sim, p, s) {
   // Farms first, in season.
   if (s && s.buildings.farm > 0 && seasonOf(sim.day) !== 'winter') {
     if (dist(p.x, p.y, s.x, s.y) > 2) { moveToward(sim, p, s.x, s.y); return; }
-    const yieldAmt = (1.5 + p.skills.farm * 2.5) * Math.min(s.buildings.farm, 3);
+    // Fields only hold so many hands: the more farmers today, the thinner
+    // each row. (farmhands resets at the top of every tick.)
+    const crowdFactor = Math.max(0.35, 1 - (s.farmhands ?? 0) * 0.08);
+    s.farmhands = (s.farmhands ?? 0) + 1;
+    const yieldAmt = (0.9 + p.skills.farm * 1.6) * Math.min(s.buildings.farm, 2) * crowdFactor;
     s.stock.food += yieldAmt;
     p.skills.farm = Math.min(1, p.skills.farm + 0.005);
     p.needs.energy -= 0.1;

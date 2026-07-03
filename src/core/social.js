@@ -128,7 +128,10 @@ export function tryConceive(sim, p) {
   const age = ageYears(sim, p);
   if (age > 44) return;
   const wellFed = p.needs.hunger < 0.6;
-  if (wellFed && sim.rng.chance(0.032)) {
+  // Crowded villages cool the cradle.
+  const home = p.home !== null ? sim.settlements.get(p.home) : null;
+  const crowd = home && home.members.size > 14 ? 0.6 : 1;
+  if (wellFed && sim.rng.chance(0.032 * crowd)) {
     p.pregnantDays = 1;
     p.pregnantBy = spouse.id;
   }
