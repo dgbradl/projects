@@ -531,8 +531,9 @@ function drawPerson(ctx, sim, p, cam, alpha, time) {
   const sy = syBase - bob;
 
   drawShadow(ctx, sx, syBase, r);
-  const bodyColor = s ? settlementColor(s) : '#cfc4ae';
-  const headColor = s ? settlementColor(s, 76) : '#e8e0cc';
+  // Outlaws go hooded and gray; honest folk wear their village's color.
+  const bodyColor = p.outlaw ? '#4a443c' : s ? settlementColor(s) : '#cfc4ae';
+  const headColor = p.outlaw ? '#5f584e' : s ? settlementColor(s, 76) : '#e8e0cc';
   ctx.fillStyle = bodyColor;
   ctx.beginPath();
   ctx.ellipse(sx, sy, r * 0.82, r, 0, 0, Math.PI * 2);

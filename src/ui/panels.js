@@ -137,7 +137,7 @@ function personHtml(sim, p) {
   const stage = !isAdult(sim, p) ? 'child' : age >= 55 ? 'elder' : 'adult';
   let html = `<div class="sub">${p.sex === 'f' ? 'Woman' : 'Man'}, ${age} years (${stage}) — ${moodWord(p.mood)}` +
     `${p.sick ? ', <b>sick</b>' : ''}${p.injured > 0 ? ', injured' : ''}${p.pregnantDays > 0 ? ', with child' : ''}</div>` +
-    `<div class="sub">${s ? `of <a data-settlement="${s.id}">${esc(s.name)}</a>` : 'homeless wanderer'}` +
+    `<div class="sub">${s ? `of <a data-settlement="${s.id}">${esc(s.name)}</a>` : p.outlaw ? '<span class="rel-foe">outlaw</span>' : 'homeless wanderer'}` +
     `${p.activity ? ` — ${esc(p.activity)}` : ''}</div>` +
     `<div class="sub" style="margin-top:4px">${traitWords(p.traits)}</div>` +
     houseLine(sim, p) +

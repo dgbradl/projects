@@ -24,6 +24,8 @@ export function makePerson(sim, opts = {}) {
     wolfPacksSlain: 0,
     murders: 0,
     religion: opts.religion ?? null,
+    outlaw: false,
+    homelessDays: 0,
     home: opts.home ?? null,          // settlement id
     traits: opts.traits || {
       courage: rng.float(), kindness: rng.float(), diligence: rng.float(),

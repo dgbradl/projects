@@ -31,6 +31,8 @@ export function foundSettlement(sim, x, y, founder) {
     lastRaidedDay: -9999,
     raidCooldown: 0,
     tradeCooldown: 0,
+    robbedCount: 0,
+    wantedId: null,
     fallen: false,
   };
   sim.settlements.set(s.id, s);
@@ -226,6 +228,25 @@ export function settlementDaily(sim, s) {
   }
   if (s.raidCooldown > 0) s.raidCooldown--;
   if (s.tradeCooldown > 0) s.tradeCooldown--;
+
+  // Justice: repeated robberies raise a posse.
+  if ((s.robbedCount ?? 0) >= 2 && s.wantedId !== null && members.length >= 6 && sim.day % 8 === 1) {
+    const quarry = sim.folk.get(s.wantedId);
+    if (quarry?.alive && quarry.outlaw) {
+      const hunters = members
+        .filter(p => !p.task && !p.sick && isAdult(sim, p) && p.skills.fight + p.traits.courage > 0.9)
+        .slice(0, 2);
+      if (hunters.length) {
+        for (const h of hunters) h.task = { type: 'hunt', target: s.wantedId };
+        s.robbedCount = 0;
+        chronicle(sim, 1, `${s.name} sent hunters after the outlaw ${displayName(quarry)}`,
+          { x: s.x, y: s.y, kind: 'banditry', who: [quarry.id] });
+      }
+    } else {
+      s.robbedCount = 0;
+      s.wantedId = null;
+    }
+  }
 
   // The seat of the chief never sits empty for long.
   if (!chiefOf(sim, s)) succession(sim, s, s.chiefId ? 'after the last chief' : null);

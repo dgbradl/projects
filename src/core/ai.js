@@ -68,6 +68,21 @@ export function actDaily(sim, p) {
   if (p.task?.type === 'migrate') { doMigrate(sim, p); return; }
   if (p.task?.type === 'trade') { doTradeMarch(sim, p); return; }
   if (p.task?.type === 'goHome') { doGoHome(sim, p); return; }
+  if (p.task?.type === 'hunt') { doManhunt(sim, p); return; }
+
+  // The road turns some folk crooked: long homelessness curdles the
+  // bitter-tempered into outlaws.
+  if (!s) {
+    p.homelessDays = (p.homelessDays ?? 0) + 1;
+    if (!p.outlaw && p.homelessDays > 60 && p.traits.kindness < 0.35 && p.traits.temper > 0.55) {
+      p.outlaw = true;
+      chronicle(sim, 1, `${displayName(p)} turned to banditry`, { x: p.x, y: p.y, kind: 'banditry', who: [p.id] });
+      remember(p, sim, 'gave up on honest company and took to the road');
+    }
+  } else {
+    p.homelessDays = 0;
+  }
+  if (p.outlaw) { outlawDay(sim, p); return; }
 
   const threat = nearestMonster(sim, p, 8);
   const foodStock = s ? s.stock.food / Math.max(1, s.members.size) : p.carriedFood;
@@ -390,6 +405,102 @@ function doMigrate(sim, p) {
   const s = foundSettlement(sim, t.x, t.y, p);
   p.fame += 1;
   p.mood += 0.3;
+}
+
+// ---------- The outlaw's day: lurk, rob, survive ----------
+function outlawDay(sim, p) {
+  const threat = nearestMonster(sim, p, 8);
+  if (threat) { doFlee(sim, p, threat); return; }
+  if (p.needs.hunger > 0.8) { doGetFood(sim, p, null); p.activity = 'scrounging'; return; }
+  if (p.needs.energy < 0.25) { p.needs.energy = Math.min(1, p.needs.energy + 0.5); p.activity = 'lying low'; return; }
+
+  // Prey: someone alone on the road carrying something worth taking.
+  let mark = null, markD = 11;
+  for (const o of sim.folk.values()) {
+    if (!o.alive || o.id === p.id || o.outlaw) continue;
+    const worth = o.carriedFood + (o.task?.type === 'trade' ? o.task.carrying : 0);
+    if (worth < 2) continue;
+    if (folkNear(sim, o, 3).filter(n => !n.outlaw).length > 1) continue; // too many witnesses
+    const d = dist(p.x, p.y, o.x, o.y);
+    if (d < markD) { markD = d; mark = o; }
+  }
+  if (mark) { doRob(sim, p, mark); return; }
+
+  // Otherwise haunt the roads: worn paths far from village eyes.
+  const lurkSpot = findBestTile(sim.world, p.x, p.y, 10, (t, d) => {
+    if (t.traffic < 5) return 0;
+    for (const s of sim.settlements.values()) {
+      if (s.members.size > 0 && dist(t.x, t.y, s.x, s.y) < 7) return 0;
+    }
+    return t.traffic - d * 0.3;
+  });
+  if (lurkSpot) moveToward(sim, p, lurkSpot.x, lurkSpot.y);
+  else doExplore(sim, p);
+  p.activity = 'lying in wait';
+}
+
+function doRob(sim, p, mark) {
+  p.activity = 'stalking a traveler';
+  if (dist(p.x, p.y, mark.x, mark.y) > 1) { moveToward(sim, p, mark.x, mark.y, 4); return; }
+  const outlawArm = p.skills.fight * 2.5 + p.traits.courage + 0.5;
+  const markArm = mark.skills.fight * 2.5 + mark.traits.courage;
+  if (outlawArm * sim.rng.range(0.7, 1.3) > markArm) {
+    let loot = mark.carriedFood;
+    mark.carriedFood = 0;
+    if (mark.task?.type === 'trade') {
+      loot += mark.task.carrying;
+      mark.task = null;
+    }
+    p.carriedFood += loot;
+    if (sim.rng.chance(0.3)) { mark.injured += 4; mark.health -= 0.12; }
+    mark.mood -= 0.25;
+    adjustAff(mark, p.id, -50);
+    chronicle(sim, 1, `${displayName(mark)} was waylaid on the road by the outlaw ${displayName(p)}`,
+      { x: p.x, y: p.y, kind: 'banditry', who: [p.id, mark.id] });
+    remember(mark, sim, `was robbed by ${p.name}`);
+    remember(p, sim, `robbed ${mark.name} on the road`);
+    const home = mark.home !== null ? sim.settlements.get(mark.home) : null;
+    if (home) {
+      home.robbedCount = (home.robbedCount ?? 0) + 1;
+      home.wantedId = p.id;
+    }
+  } else {
+    p.injured += 5;
+    p.health -= 0.2;
+    mark.fame += 0.3;
+    adjustAff(mark, p.id, -40);
+    chronicle(sim, 1, `${displayName(mark)} fought off the outlaw ${displayName(p)}`,
+      { x: p.x, y: p.y, kind: 'banditry', who: [mark.id, p.id] });
+    remember(p, sim, `was beaten bloody by ${mark.name}`);
+    moveToward(sim, p, p.x + sim.rng.int(-8, 8), p.y + sim.rng.int(-8, 8), 4);
+  }
+}
+
+// A posse on an outlaw's trail.
+function doManhunt(sim, p) {
+  const quarry = sim.folk.get(p.task.target);
+  p.task.days = (p.task.days ?? 0) + 1;
+  if (!quarry?.alive || !quarry.outlaw || p.task.days > 25) {
+    p.task = null;
+    return;
+  }
+  p.activity = `hunting the outlaw ${quarry.name}`;
+  moveToward(sim, p, quarry.x, quarry.y, 4);
+  if (dist(p.x, p.y, quarry.x, quarry.y) > 1) return;
+  const allies = folkNear(sim, p, 2).filter(o => o.task?.type === 'hunt');
+  const posseArm = (p.skills.fight * 3 + p.traits.courage) * (1 + allies.length * 0.5) * sim.rng.range(0.8, 1.3);
+  const outlawArm = (quarry.skills.fight * 3 + quarry.traits.courage + 1) * sim.rng.range(0.7, 1.3);
+  if (posseArm > outlawArm) {
+    kill(sim, quarry, 'justice', { killer: p });
+    p.fame += 1;
+    for (const a of allies) { a.task = null; a.mood += 0.1; }
+    p.task = null;
+  } else {
+    p.injured += 4;
+    p.health -= 0.15;
+    quarry.skills.fight = Math.min(1, quarry.skills.fight + 0.02);
+    remember(quarry, sim, 'slipped a hunter\'s noose');
+  }
 }
 
 function doTradeMarch(sim, p) {

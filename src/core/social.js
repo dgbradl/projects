@@ -240,6 +240,7 @@ function exileIfCaught(sim, murderer, victim) {
   if (outrage >= 2) {
     s.members.delete(murderer.id);
     murderer.home = null;
+    murderer.outlaw = true;   // cast out with blood on their hands
     murderer.mood -= 0.3;
     chronicle(sim, 2, `${displayName(murderer)} was cast out of ${s.name} for the murder of ${victim.name}`, { x: s.x, y: s.y, kind: 'exile', who: [murderer.id, victim.id] });
     remember(murderer, sim, `was exiled from ${s.name}`);

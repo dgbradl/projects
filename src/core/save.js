@@ -21,6 +21,7 @@ function packPerson(p) {
     task: p.task, memories: p.memories, inspired: p.inspired,
     fame: p.fame, epithet: p.epithet, wolfPacksSlain: p.wolfPacksSlain,
     murders: p.murders, religion: p.religion,
+    outlaw: p.outlaw ?? false, homelessDays: p.homelessDays ?? 0,
   };
 }
 
@@ -44,6 +45,7 @@ function packSettlement(s) {
     buildings: s.buildings, project: s.project,
     relations: [...s.relations.entries()],
     lastRaidedDay: s.lastRaidedDay, raidCooldown: s.raidCooldown,
+    robbedCount: s.robbedCount ?? 0, wantedId: s.wantedId ?? null,
     tradeCooldown: s.tradeCooldown ?? 0, fallen: s.fallen,
     templeReligion: s.templeReligion,
   };
