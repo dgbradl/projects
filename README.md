@@ -14,14 +14,27 @@ years they hold festivals, send food caravans to hungry neighbors, and earn
 names for their deeds: Trollsbane, Dragonslayer, the Red-Handed. Their
 footsteps wear visible paths into the land.
 
+They carry family names down the generations, crown chiefs and depose them
+in coups, fish from little boats, keep sheep against the winter, hold
+festivals, send food caravans to hungry neighbors, and raise monuments in
+their golden ages. Exiled murderers turn outlaw and haunt the roads until a
+posse runs them down. Prophets proclaim religions shaped by what you have
+actually done, write scripture about real witnessed events, raise shrines
+where miracles fell, and walk cross-country pilgrimages — and their faiths
+schism when betrayed. What happens to a person becomes who they are: grief
+embitters, war hardens or breaks, festivals mellow.
+
 The wilds live too: deer herds graze and multiply, and wolves hunt the deer
 before they hunt people — so when the herds thin in winter, the wolves turn
 bold. The world is not kind: winters freeze, droughts starve, plagues burn
-through crowded shelters, trolls smash what folk build, and — if the vale
-grows rich enough to be worth the trip — a dragon may come. **Extinction is
-a real and likely outcome.** Every world's story is written into the
-chronicle as it happens, and every person carries their own life story,
-told back to you when you click them.
+through crowded shelters, trolls smash what folk build, bands of strangers
+arrive over the mountains, once in an age a veil of ash dims the sun for a
+year, and — if the vale grows rich enough to be worth the trip — a dragon
+may come. **Extinction is a real and likely outcome.** Every world's story
+is written into the chronicle as it happens (searchable, with a full
+Legends browser of every soul, settlement, faith and war), every person
+carries their own life story, and the whole world autosaves and resumes
+exactly where you left it.
 
 Running it
 ----------
@@ -84,12 +97,12 @@ How it works
 - The core is fully deterministic per seed and runs headless:
 
 ```
-npm test                     # sanity + determinism checks
+npm test                     # sanity, determinism, save/load and 80-year stress checks
 node test/headless.js 42 30  # watch 30 years of seed 42 from the terminal
 ```
 
 Ideas for later
 ---------------
 
-Save/load worlds, named heirlooms and lineage records, terrain-altering
-powers, ambient audio, seafaring migration.
+Named heirlooms, terrain-altering powers, seafaring migration, prophets
+who dream in scripture, multi-vale worlds.

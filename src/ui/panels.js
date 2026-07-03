@@ -357,7 +357,7 @@ function worldSummary(sim) {
     }
   }
   html += `<h3>Folk through the years</h3><canvas id="pop-spark" width="252" height="54"></canvas>` +
-    `<div class="sub">Peak population: ${sim.peakPopulation}</div>` +
+    `<div class="sub">Peak population: ${sim.peakPopulation} · seed ${sim.seed}</div>` +
     `<div style="margin-top:14px" class="memory">Drag to pan, scroll to zoom, space to pause.<br>Click anything to know it; press F to follow it.<br>Choose a divine act, then click the map to work your will.</div>`;
   return html;
 }

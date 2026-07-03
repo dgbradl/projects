@@ -1,6 +1,7 @@
 // Bootstrap: game loop, input, and the wiring between sim and UI.
 
 import { createSim, tick } from '../core/sim.js';
+import { hashString } from '../core/rng.js';
 import { serialize, deserialize } from '../core/save.js';
 import { POWERS, castPower } from '../core/god.js';
 import { dist } from '../core/world.js';
@@ -56,10 +57,10 @@ function loadWorld() {
   }
 }
 
-function newWorld(resume = false) {
+function newWorld(resume = false, seed = null) {
   const saved = resume ? loadWorld() : null;
   if (!resume) localStorage.removeItem(SAVE_KEY);
-  sim = saved ?? createSim(Math.floor(Math.random() * 2 ** 31));
+  sim = saved ?? createSim(seed ?? Math.floor(Math.random() * 2 ** 31));
   cam = makeCamera(canvas, sim.world.w, sim.world.h);
   terrain = makeTerrain(sim.world);
   effects = makeEffects();
@@ -218,6 +219,7 @@ document.querySelectorAll('#speed-controls button').forEach((btn) => {
   });
 });
 window.addEventListener('keydown', (e) => {
+  if (!sim) return;
   if (e.key === ' ') {
     e.preventDefault();
     const target = speed === 0 ? 1 : 0;
@@ -280,6 +282,7 @@ function frame(now) {
   const dt = Math.min(0.1, (now - lastTime) / 1000);
   lastTime = now;
   setRenderDt(dt);
+  if (!sim) { requestAnimationFrame(frame); return; }  // still at the threshold
 
   tickAccum += dt * TICK_RATES[speed];
   let ticksThisFrame = 0;
@@ -314,7 +317,38 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
-newWorld(true);   // resume the last world if one was saved
+// ---- the threshold: splash first, world after ----
+function parseSeed() {
+  const raw = document.getElementById('seed-input').value.trim();
+  if (!raw) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) && raw === String(n) ? (n >>> 0) : hashString(raw);
+}
+
+function dismissSplash() {
+  document.getElementById('splash').classList.add('hidden');
+}
+
+{
+  const hasSave = !!localStorage.getItem(SAVE_KEY);
+  const resumeBtn = document.getElementById('splash-resume');
+  if (hasSave) {
+    resumeBtn.classList.remove('hidden');
+    resumeBtn.addEventListener('click', () => { newWorld(true); dismissSplash(); });
+  }
+  document.getElementById('splash-new').addEventListener('click', () => {
+    newWorld(false, parseSeed());
+    dismissSplash();
+  });
+}
+document.getElementById('help-open').addEventListener('click', () =>
+  document.getElementById('help').classList.remove('hidden'));
+document.getElementById('help-close').addEventListener('click', () =>
+  document.getElementById('help').classList.add('hidden'));
+document.getElementById('help').addEventListener('click', (e) => {
+  if (e.target.id === 'help') document.getElementById('help').classList.add('hidden');
+});
+
 resize();
 requestAnimationFrame(frame);
 

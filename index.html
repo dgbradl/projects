@@ -20,6 +20,7 @@
       <button data-speed="2" title="6 days / sec">▶▶</button>
       <button data-speed="3" title="20 days / sec">▶▶▶</button>
     </div>
+    <button id="help-open" title="How to be a god">?</button>
     <button id="mute" title="Sound on/off">🔊</button>
     <button id="legends-open" title="Browse the whole history of this world">Legends</button>
     <button id="newworld" title="Abandon this world and shape another">New World</button>
@@ -51,6 +52,33 @@
     </div>
     <div id="chronicle-list"></div>
   </footer>
+</div>
+<div id="splash">
+  <div id="splash-box">
+    <h1>Vale of Embers</h1>
+    <p class="lore">Beyond the mountains lies a vale that no map remembers.
+    Folk will come to it, love in it, build and burn and bury in it —
+    entirely on their own. You are its god. You may bless, curse and portend.
+    You may never command.<br><br>
+    The world is not kind. Extinction is likely. Everything will be written down.</p>
+    <div id="splash-buttons">
+      <button id="splash-resume" class="hidden">Return to your world</button>
+      <button id="splash-new">Shape a new world</button>
+    </div>
+    <div id="splash-seed">
+      <label>seed (optional): <input id="seed-input" type="text" placeholder="fate decides"></label>
+    </div>
+  </div>
+</div>
+<div id="help" class="hidden">
+  <div id="help-box">
+    <div id="legends-head"><h1 style="flex:1;font-size:18px;color:var(--gold);font-variant:small-caps">How to be a god</h1><button id="help-close">✕</button></div>
+    <div id="help-body">
+      <p><b>Watch.</b> Drag to pan, scroll to zoom, space to pause, ▶▶▶ to hurry the years. Click anyone or anything to know it; press <b>F</b> to follow them through their days. The minimap travels; <b>Legends</b> holds the whole history; the chronicle below records it as it happens (searchable).</p>
+      <p><b>Influence, never command.</b> Faith is your only currency — earned through worship, prayer, pilgrimage and witnessed deeds. Spend it on divine acts from the left panel. The folk interpret everything: enough miracles and a prophet will proclaim a faith of mercy; enough wrath, a cult of dread; long silence, an order of endurance. Betray a doctrine and it will schism.</p>
+      <p><b>Let go.</b> They will marry for love, feud for decades, crown and depose chiefs, turn outlaw, raise monuments, and write scripture about what you did. Some worlds flourish. Most do not. The chronicle remembers either way.</p>
+    </div>
+  </div>
 </div>
 <div id="legends" class="hidden">
   <div id="legends-box">

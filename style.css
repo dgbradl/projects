@@ -196,6 +196,45 @@ button:disabled { opacity: 0.4; cursor: default; }
 .chron-entry.locatable { cursor: pointer; }
 .chron-entry.locatable:hover { text-decoration: underline; }
 
+/* ---- splash & help ---- */
+#splash {
+  position: fixed; inset: 0;
+  background: radial-gradient(ellipse at center, #241e15 0%, #0c0a07 75%);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 20;
+  transition: opacity 0.8s;
+}
+#splash.hidden { pointer-events: none; }
+#splash-box { max-width: 520px; text-align: center; padding: 30px; }
+#splash-box h1 {
+  color: var(--gold); font-variant: small-caps; letter-spacing: 3px;
+  font-size: 42px; margin-bottom: 18px; font-weight: normal;
+}
+#splash-box .lore { color: var(--ink-dim); font-style: italic; line-height: 1.7; margin-bottom: 26px; }
+#splash-buttons { display: flex; gap: 12px; justify-content: center; margin-bottom: 16px; }
+#splash-buttons button { font-size: 15px; padding: 9px 22px; }
+#splash-resume { background: var(--gold); color: #1a1206; }
+#splash-seed { font-size: 12px; color: var(--ink-dim); }
+#splash-seed input {
+  background: #14110d; border: 1px solid var(--edge); color: var(--ink);
+  font-family: var(--font); padding: 3px 8px; border-radius: 3px; width: 140px;
+}
+#help {
+  position: fixed; inset: 0;
+  background: rgba(5, 4, 2, 0.75);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9;
+}
+#help-box {
+  width: 560px; max-width: 90vw;
+  background: var(--panel);
+  border: 1px solid var(--gold);
+  border-radius: 4px;
+  padding: 16px 22px 20px;
+}
+#help-body p { font-size: 13.5px; line-height: 1.65; margin-top: 12px; color: var(--ink); }
+#help-body b { color: var(--gold); }
+
 /* ---- legends ---- */
 #legends {
   position: fixed; inset: 0;
