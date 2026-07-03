@@ -75,6 +75,7 @@ function newWorld(resume = false) {
       effects.add(e.x, e.y, EFFECT_COLORS[e.kind] ?? '#ccc', e.importance >= 2);
     }
     if (e.fx === 'shake') effects.shake = 0.9;
+    if (e.fx === 'clash' && e.x !== undefined) effects.clash(e.x, e.y);
     if (e.kind === 'wedding') stinger('wedding');
     else if (e.kind === 'war' || e.kind === 'battle') stinger('war');
     else if (e.kind === 'miracle' && e.importance >= 1) stinger('miracle');

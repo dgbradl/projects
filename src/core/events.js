@@ -181,7 +181,7 @@ export function resolveRaidIfReady(sim, targetId, fromId) {
     for (const d of dead) kill(sim, d, 'battle', { killer: raiders[0], blamedSettlement: from.id });
     for (const d of raiderDead) kill(sim, d, 'battle', { killer: defenders[0] ?? null, blamedSettlement: target.id });
     target.lastRaidedDay = sim.day;
-    chronicle(sim, 2, `Raiders from ${from.name} sacked ${target.name}, carrying off ${Math.round(loot)} stores`, { x: target.x, y: target.y, kind: 'war' });
+    chronicle(sim, 2, `Raiders from ${from.name} sacked ${target.name}, carrying off ${Math.round(loot)} stores`, { x: target.x, y: target.y, kind: 'war', fx: 'clash' });
     for (const p of membersOf(sim, target)) {
       p.mood -= 0.25;
       remember(p, sim, `survived the sack of ${target.name}`);
@@ -196,7 +196,7 @@ export function resolveRaidIfReady(sim, targetId, fromId) {
     const defDead = battleDeaths(defenders, Math.ceil(defenders.length * 0.1));
     for (const d of raiderDead) kill(sim, d, 'battle', { killer: defenders[0] ?? null, blamedSettlement: target.id });
     for (const d of defDead) kill(sim, d, 'battle', { killer: raiders[0], blamedSettlement: from.id });
-    chronicle(sim, 2, `${target.name} threw back the raiders of ${from.name}`, { x: target.x, y: target.y, kind: 'war' });
+    chronicle(sim, 2, `${target.name} threw back the raiders of ${from.name}`, { x: target.x, y: target.y, kind: 'war', fx: 'clash' });
     for (const d of defenders) { if (d.alive) { d.mood += 0.15; d.fame += 0.3; } }
   }
   adjustSettlementRelation(from, target, -25);

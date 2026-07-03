@@ -207,7 +207,7 @@ function rampage(sim, m, s) {
 
   const attack = m.power * sim.rng.range(0.7, 1.3);
   chronicle(sim, m.kind === 'dragon' ? 3 : 2, `${m.name} attacked ${s.name}!`,
-    { x: s.x, y: s.y, kind: 'monster', fx: m.kind === 'dragon' ? 'shake' : undefined });
+    { x: s.x, y: s.y, kind: 'monster', fx: m.kind === 'dragon' ? 'shake' : 'clash' });
 
   if (attack > defense) {
     // The beast wins the day: deaths, ruin, plunder.

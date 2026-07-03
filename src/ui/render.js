@@ -175,6 +175,19 @@ export function makeEffects() {
     spawn(n, fn) {
       for (let i = 0; i < n && parts.length < 900; i++) parts.push(fn(i));
     },
+    // Steel on steel: the visible instant of a battle.
+    clash(x, y) {
+      const R = Math.random;
+      api.spawn(34, () => ({
+        x: x + (R() - 0.5) * 4, y: y + (R() - 0.5) * 4,
+        vx: (R() - 0.5) * 5, vy: -R() * 3.5, g: 7,
+        life: 0.4 + R() * 0.5, max: 0.9, size: 1.2 + R() * 1.6,
+        color: R() > 0.45 ? [255, 90, 60] : [220, 225, 235], glow: true,
+      }));
+      list.push({ type: 'ring', x, y, color: '#ff5a3c', big: true, t: 1 });
+      list.push({ type: 'ring', x, y, color: '#dde1eb', big: false, t: 1.15 });
+      api.shake = Math.max(api.shake, 0.25);
+    },
     // The spectacle of each divine act.
     power(key, x, y) {
       const R = Math.random;
@@ -622,6 +635,25 @@ function drawPerson(ctx, sim, p, cam, alpha, time) {
     ctx.strokeStyle = '#8a2be2';
     ctx.lineWidth = 1;
     ctx.beginPath(); ctx.arc(sx, sy - r * 0.3, r + 2, 0, Math.PI * 2); ctx.stroke();
+  }
+  // Raiders march under their village's banner.
+  if (p.task?.type === 'raid') {
+    const from = p.task.from !== undefined ? sim.settlements.get(p.task.from) : null;
+    const poleH = r * 3;
+    ctx.strokeStyle = '#5c4a36';
+    ctx.lineWidth = Math.max(1, z * 0.06);
+    ctx.beginPath();
+    ctx.moveTo(sx + r * 0.7, sy);
+    ctx.lineTo(sx + r * 0.7, sy - poleH);
+    ctx.stroke();
+    const flutter = Math.sin(time * 7 + p.id) * r * 0.3;
+    ctx.fillStyle = from ? settlementColor(from) : '#c0392b';
+    ctx.beginPath();
+    ctx.moveTo(sx + r * 0.7, sy - poleH);
+    ctx.lineTo(sx + r * 0.7 + r * 1.4, sy - poleH + r * 0.35 + flutter * 0.3);
+    ctx.lineTo(sx + r * 0.7, sy - poleH + r * 0.8);
+    ctx.closePath();
+    ctx.fill();
   }
 }
 
