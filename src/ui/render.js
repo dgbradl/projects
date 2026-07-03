@@ -845,6 +845,25 @@ export function render(ctx, sim, cam, selection, effects, hoverTile, alphaT, ter
   drawClouds(ctx, sim, cam, time);
   ctx.restore();
 
+  // Seasonal light: the year turns and the light turns with it, blending
+  // smoothly between the greens of spring, gold of summer, amber of autumn
+  // and thin blue of winter (anchored mid-season, crossfading between).
+  {
+    const anchors = [
+      [180, 255, 190, 0.035], // spring
+      [255, 215, 140, 0.045], // summer
+      [255, 170, 90, 0.055],  // autumn
+      [150, 180, 255, 0.075], // winter
+    ];
+    const yearPos = (dayOfYear(sim.day) - 1) / 96 * 4; // 0..4 in season units
+    const idx = Math.floor(yearPos - 0.5 + 4) % 4;     // anchor behind mid-season
+    const frac = (yearPos - 0.5 + 4) % 1;
+    const a = anchors[idx], b = anchors[(idx + 1) % 4];
+    const tint = a.map((v, i) => lerp(v, b[i], frac));
+    ctx.fillStyle = `rgba(${tint[0] | 0}, ${tint[1] | 0}, ${tint[2] | 0}, ${tint[3]})`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
   // Weather veils and particles
   if (sim.weather.storm) {
     ctx.fillStyle = 'rgba(40, 45, 70, 0.28)';
