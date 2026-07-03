@@ -36,7 +36,7 @@ const EFFECT_COLORS = {
   birth: '#a0d8e8', triumph: '#ffd700', disaster: '#8899ff', plague: '#8a2be2',
   festival: '#f0c674', trade: '#a3c1ad', epithet: '#ffd700',
   prophecy: '#e6d5ff', schism: '#c99aff', dedication: '#e6e0ff',
-  banditry: '#a8523c', succession: '#d9c17a', shrine: '#ffecaa',
+  banditry: '#a8523c', succession: '#d9c17a', shrine: '#ffecaa', monument: '#e0d8c8',
 };
 
 const SAVE_KEY = 'vale-of-embers-save';

@@ -236,7 +236,7 @@ function settlementHtml(sim, s) {
     `<h3>Stores</h3>food ${Math.floor(s.stock.food)} · wood ${Math.floor(s.stock.wood)} · stone ${Math.floor(s.stock.stone)}` +
     ((s.sheep ?? 0) > 0 ? `<div class="sub">${s.sheep} sheep · wool ${Math.floor(s.stock.wool ?? 0)}</div>` : '') +
     `<h3>Buildings</h3>${b.shelter} shelter (room for ${shelterCapacity(s)}) · ${b.farm} farm` +
-    `${b.wall ? ` · walls ×${b.wall}` : ''}${b.hall ? ' · hall' : ''}${b.temple ? ' · temple' : ''}`;
+    `${b.wall ? ` · walls ×${b.wall}` : ''}${b.dock ? ' · dock' : ''}${b.pen ? ' · pen' : ''}${b.hall ? ' · hall' : ''}${b.temple ? ' · temple' : ''}${b.monument ? ' · monument' : ''}`;
   const creed = majorityReligion(sim, s);
   if (creed) {
     const dedicated = s.templeReligion !== undefined && sim.religions.get(s.templeReligion);

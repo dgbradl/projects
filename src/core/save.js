@@ -44,7 +44,7 @@ function packSettlement(s) {
     founderId: s.founderId, foundedDay: s.foundedDay, chiefId: s.chiefId ?? null,
     members: [...s.members],
     stock: { food: s.stock.food, wood: s.stock.wood, stone: s.stock.stone, wool: s.stock.wool ?? 0 },
-    buildings: { dock: 0, pen: 0, ...s.buildings }, project: s.project, dockAt: s.dockAt ?? null,
+    buildings: { dock: 0, pen: 0, monument: 0, ...s.buildings }, project: s.project, dockAt: s.dockAt ?? null,
     sheep: s.sheep ?? 0,
     relations: [...s.relations.entries()],
     lastRaidedDay: s.lastRaidedDay, raidCooldown: s.raidCooldown,

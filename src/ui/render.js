@@ -480,10 +480,12 @@ function drawSettlement(ctx, sim, s, cam, time) {
   }
 
   // Houses ring the plaza; the hall and temple stand nearest the center.
+  // Prosperous villages show it in their roofs.
+  const golden = !dead && s.buildings.monument > 0;
   const houseSize = Math.max(5, z * 0.95);
   const wall = dead ? '#3c362e' : '#6b5843';
-  const roofLit = dead ? '#4a443c' : '#b09468';
-  const roofDark = dead ? '#403a32' : '#7d674a';
+  const roofLit = dead ? '#4a443c' : golden ? '#c9a566' : '#b09468';
+  const roofDark = dead ? '#403a32' : golden ? '#8f7448' : '#7d674a';
   const n = Math.min(s.buildings.shelter, 9);
   for (let i = 0; i < n; i++) {
     const a = (i / 9) * Math.PI * 2 + 0.35 + hash2(s.id, i) * 0.25;
@@ -502,6 +504,28 @@ function drawSettlement(ctx, sim, s, cam, time) {
     ctx.moveTo(tx - z * 0.12, ty - houseSize * 0.6);
     ctx.lineTo(tx, ty - houseSize * 1.25);
     ctx.lineTo(tx + z * 0.12, ty - houseSize * 0.6);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Monument: an obelisk that outlasts everyone who raised it.
+  if (s.buildings.monument > 0) {
+    const mx = sx - rad * 0.55, my = sy - rad * 0.4;
+    drawShadow(ctx, mx, my, z * 0.5);
+    const h = z * 1.7;
+    ctx.fillStyle = dead ? '#4a443c' : '#9a938a';
+    ctx.beginPath();
+    ctx.moveTo(mx - z * 0.22, my);
+    ctx.lineTo(mx - z * 0.1, my - h);
+    ctx.lineTo(mx + z * 0.1, my - h);
+    ctx.lineTo(mx + z * 0.22, my);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = dead ? '#55504a' : '#c4bdb2';
+    ctx.beginPath();
+    ctx.moveTo(mx - z * 0.1, my - h);
+    ctx.lineTo(mx, my - h - z * 0.28);
+    ctx.lineTo(mx + z * 0.1, my - h);
     ctx.closePath();
     ctx.fill();
   }

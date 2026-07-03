@@ -15,7 +15,22 @@ export const PROJECTS = {
   wall:    { wood: 14, stone: 20, days: 20, desc: 'walls' },
   hall:    { wood: 30, stone: 10, days: 24, desc: 'a meeting hall' },
   temple:  { wood: 24, stone: 30, days: 30, desc: 'a temple' },
+  monument: { wood: 10, stone: 45, days: 36, desc: 'a monument' },
 };
+
+// How well a village is doing, 0 (starving) to 3 (a golden age).
+export function prosperityOf(sim, s) {
+  const pop = s.members.size;
+  if (pop === 0) return 0;
+  const foodPerHead = s.stock.food / pop;
+  const built = s.buildings.farm + s.buildings.hall * 2 + s.buildings.temple * 2 +
+    s.buildings.wall + (s.buildings.dock ?? 0) + (s.buildings.pen ?? 0);
+  let tier = 0;
+  if (foodPerHead > 3 && pop >= 5) tier = 1;
+  if (foodPerHead > 7 && pop >= 8 && built >= 3) tier = 2;
+  if (foodPerHead > 11 && pop >= 12 && s.buildings.hall) tier = 3;
+  return tier;
+}
 
 // The nearest open water within reach of the village, if any.
 export function waterNear(sim, s, radius = 6) {
@@ -175,6 +190,8 @@ function chooseProject(sim, s) {
   if (s.buildings.hall < 1 && pop >= 10) wants.push(['hall', 4]);
   if (s.buildings.temple < 1 && pop >= 10 && (sim.faithWitnessed > 2 || majorityReligion(sim, s))) wants.push(['temple', 5]);
   if (season === 'autumn' && capacity < pop + 2) wants.push(['shelter', 6]);
+  // Golden ages leave marks in stone.
+  if (!s.buildings.monument && prosperityOf(sim, s) >= 3) wants.push(['monument', 2]);
   if (!wants.length) return null;
   wants.sort((a, b) => b[1] - a[1]);
   return wants[0][0];
@@ -251,6 +268,9 @@ export function settlementDaily(sim, s) {
   }
   if (s.raidCooldown > 0) s.raidCooldown--;
   if (s.tradeCooldown > 0) s.tradeCooldown--;
+
+  // A monument is a quiet, standing prayer.
+  if (s.buildings.monument) sim.faith = Math.min(200, sim.faith + 0.02);
 
   // Justice: repeated robberies raise a posse.
   if ((s.robbedCount ?? 0) >= 2 && s.wantedId !== null && members.length >= 6 && sim.day % 8 === 1) {
@@ -354,6 +374,19 @@ export function completeProject(sim, s) {
       chronicle(sim, 2, `${s.name} raised a temple and dedicated it to ${creed.name}`, { x: s.x, y: s.y, kind: 'dedication' });
       return;
     }
+  }
+  if (proj.type === 'monument') {
+    // Dedicated to the greatest deed the village remembers — or to the god.
+    let hero = null;
+    for (const p of membersOf(sim, s)) {
+      if (p.fame >= 3 && (!hero || p.fame > hero.fame)) hero = p;
+    }
+    const dedication = hero ? `to ${displayName(hero)}` : 'to the god above';
+    chronicle(sim, 2, `${s.name}, in its plenty, raised a monument ${dedication}`,
+      { x: s.x, y: s.y, kind: 'monument', who: hero ? [hero.id] : undefined });
+    if (hero) { hero.fame += 1; hero.mood += 0.3; }
+    for (const p of membersOf(sim, s)) p.mood += 0.1;
+    return;
   }
   chronicle(sim, 1, `${s.name} finished building ${PROJECTS[proj.type].desc}`, { x: s.x, y: s.y, kind: 'building' });
 }
