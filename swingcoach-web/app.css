@@ -572,6 +572,66 @@ button.primary {
 
 /* -------------------------------------------------------------- motion --- */
 
+/* Tab content slides up + fades each time a tab is shown */
+.tab { animation: fade-up 0.26s var(--ease-out); }
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+}
+
+/* Cards cascade in with a slight stagger */
+.card { animation: fade-up 0.3s var(--ease-out) backwards; }
+.tab .card:nth-of-type(2), .overlay-content .card:nth-of-type(2) { animation-delay: 0.045s; }
+.tab .card:nth-of-type(3), .overlay-content .card:nth-of-type(3) { animation-delay: 0.09s; }
+.tab .card:nth-of-type(4), .overlay-content .card:nth-of-type(4) { animation-delay: 0.135s; }
+.tab .card:nth-of-type(5), .overlay-content .card:nth-of-type(5) { animation-delay: 0.18s; }
+.tab .card:nth-of-type(n+6), .overlay-content .card:nth-of-type(n+6) { animation-delay: 0.21s; }
+
+/* Diagnosis overlay rises like a sheet */
+#diagnosis-overlay { animation: sheet-in 0.34s var(--ease-out); }
+
+@keyframes sheet-in {
+  from { transform: translateY(5%); opacity: 0.3; }
+}
+
+/* Toast slides up from the tab bar */
+#toast { animation: toast-in 0.28s var(--ease-out); }
+
+@keyframes toast-in {
+  from { transform: translateY(16px); opacity: 0; }
+}
+
+/* Tactile press feedback on every tappable control */
+.grid button, .segmented button, button.primary, .link-btn,
+.par-btn, .step-btn, .delete-btn, #tabbar button, .plan-item, .history-item {
+  transition:
+    transform 0.12s var(--ease-out),
+    background-color 0.16s ease,
+    border-color 0.16s ease,
+    color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.grid button:active, .segmented button:active, button.primary:active,
+.par-btn:active, .step-btn:active { transform: scale(0.95); }
+.link-btn:active, #tabbar button:active { transform: scale(0.93); }
+.history-item:active, .plan-item:active { transform: scale(0.985); }
+
+#tabbar button.active svg { animation: tab-bounce 0.3s var(--ease-spring); }
+
+@keyframes tab-bounce {
+  0% { transform: scale(0.85); }
+  60% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+/* Value change pop (scorecard numbers) */
+.pop { animation: pop 0.28s var(--ease-spring); }
+
+@keyframes pop {
+  40% { transform: scale(1.35); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

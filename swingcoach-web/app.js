@@ -338,7 +338,13 @@ function renderQuickForm() {
   });
 }
 
+/* Light haptic tick where supported (Android Chrome; harmless no-op on iOS). */
+function buzz() {
+  if (navigator.vibrate) navigator.vibrate(8);
+}
+
 function quickLog(outcome) {
+  buzz();
   const shot = Object.assign(
     newShot(state.shot.club),
     quickShotFields(outcome.id, state.settings.handedness),
@@ -569,8 +575,8 @@ function renderScorecard(el, round) {
           <p class="hint">${esc(day)} · ${round.holes.length} holes</p>
         </div>
         <div class="scorecard-total">
-          <div class="big-score">${t.strokes || 0}</div>
-          <div class="hint">thru ${t.holesPlayed}${t.toPar !== null ? ' · ' + formatToPar(t.toPar) : ''}</div>
+          <div class="big-score" id="sc-score">${t.strokes || 0}</div>
+          <div class="hint" id="sc-thru">thru ${t.holesPlayed}${t.toPar !== null ? ' · ' + formatToPar(t.toPar) : ''}</div>
         </div>
       </div>
       <p class="hint">Set par once per hole (tap 3/4/5), then +/− your strokes.</p>
@@ -582,12 +588,43 @@ function renderScorecard(el, round) {
       <button class="link-btn bad" id="round-delete">Delete round</button>
     </div>`;
 
+  /* Steppers update the DOM surgically instead of re-rendering the card, so
+   * scroll position holds and the changed number can pop. */
+  const refreshStrokeCell = (row, hole) => {
+    const cell = row.querySelector('.stroke-value');
+    cell.textContent = hole.strokes === null ? '·' : hole.strokes;
+    cell.classList.toggle('good', hole.strokes !== null && hole.par !== null && hole.strokes < hole.par);
+    cell.classList.toggle('bad', hole.strokes !== null && hole.par !== null && hole.strokes > hole.par);
+    cell.classList.remove('pop');
+    void cell.offsetWidth; // restart the animation
+    cell.classList.add('pop');
+  };
+  const refreshTotals = () => {
+    const totals = roundTotals(round);
+    const score = document.getElementById('sc-score');
+    score.textContent = totals.strokes || 0;
+    score.classList.remove('pop');
+    void score.offsetWidth;
+    score.classList.add('pop');
+    document.getElementById('sc-thru').textContent =
+      `thru ${totals.holesPlayed}${totals.toPar !== null ? ' · ' + formatToPar(totals.toPar) : ''}`;
+  };
+  const persist = () => {
+    saveRounds();
+    markRoundDirty(round.id);
+  };
+
   el.querySelectorAll('.hole-row').forEach(row => {
     const hole = round.holes[Number(row.dataset.hole)];
     row.querySelectorAll('.par-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         hole.par = Number(btn.dataset.par);
-        roundChanged(round);
+        row.querySelectorAll('.par-btn').forEach(b =>
+          b.classList.toggle('selected', Number(b.dataset.par) === hole.par));
+        refreshStrokeCell(row, hole);
+        refreshTotals();
+        persist();
+        buzz();
       });
     });
     row.querySelectorAll('.step-btn').forEach(btn => {
@@ -599,7 +636,10 @@ function renderScorecard(el, round) {
           const next = hole.strokes + step;
           hole.strokes = next < 1 ? null : Math.min(next, 20);
         }
-        roundChanged(round);
+        refreshStrokeCell(row, hole);
+        refreshTotals();
+        persist();
+        buzz();
       });
     });
   });
