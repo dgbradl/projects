@@ -461,8 +461,22 @@ function showDiagnosis(shot) {
   const d = diagnose(shot, state.settings.handedness);
   const parts = [];
 
-  parts.push(`<p class="headline">${esc(d.headline)}</p>`);
-  parts.push(`<p class="shot-summary">${esc(shotSummary(shot))}</p>`);
+  // Hero: this shot's flight, drawn in and flown by the ball.
+  const observed = fieldsToObserved(shot.startLine, shot.curve, state.settings.handedness);
+  const heroD = flightPathD(observed.s, observed.c);
+  parts.push(`<div class="card hero-card">
+    <svg class="hero-flight${d.isPositive ? '' : ' hero-miss'}" viewBox="10 0 300 216" aria-hidden="true">
+      <line class="fp-target" x1="160" y1="196" x2="160" y2="30"/>
+      <g class="fp-flag"><line x1="160" y1="30" x2="160" y2="10"/><path d="M160 10l12 4.5-12 4.5z"/></g>
+      <path class="fp-sel-draw" d="${heroD}"/>
+      <circle class="fp-ball" r="4.5">
+        <animateMotion dur="0.9s" begin="0.15s" fill="freeze" keyPoints="0;1" keyTimes="0;1" calcMode="spline" keySplines="0.3 0 0.3 1" path="${heroD}"/>
+      </circle>
+      <circle class="fp-tee" cx="160" cy="196" r="5"/>
+    </svg>
+    <p class="headline">${esc(d.headline)}</p>
+    <p class="shot-summary">${esc(shotSummary(shot))}</p>
+  </div>`);
 
   if (d.whatHappened) {
     parts.push(`<div class="card"><h3>What happened at impact</h3><p>${esc(d.whatHappened)}</p></div>`);
@@ -829,7 +843,9 @@ function renderTrends() {
     let progress;
     if (st.afterCount >= 5 && st.beforeRate !== null) {
       const better = st.afterRate <= st.beforeRate;
-      progress = `<p class="focus-numbers"><strong class="${better ? 'good' : 'bad'}">${st.beforeRate}% → ${st.afterRate}%</strong></p>
+      const delta = st.beforeRate - st.afterRate;
+      progress = `<p class="focus-numbers"><strong class="${better ? 'good' : 'bad'}">${st.beforeRate}% → ${st.afterRate}%</strong>
+        <span class="chip ${better ? 'chip-good' : 'chip-bad'}">${better ? '▼' : '▲'} ${Math.abs(delta)} pts</span></p>
         <p class="hint">How often this miss shows up: before vs. since ${esc(since)} (${st.afterCount} shots since, ${st.beforeCount} before). ${better ? 'It\'s working — keep going.' : 'Not moving yet — that\'s normal early on; stick with the drills.'}</p>`;
     } else {
       progress = `<p class="hint">${st.afterCount} shot${st.afterCount === 1 ? '' : 's'} logged since ${esc(since)} — log about 5 more and your before/after numbers appear here.</p>`;
@@ -939,7 +955,8 @@ function renderTrends() {
 }
 
 /* Hand-drawn canvas chart: green bars = flush rate per session; red line =
- * the tracked miss's rate per session (when a focus is active). */
+ * the tracked miss's rate per session (when a focus is active). Bars grow
+ * and the line reveals on first paint. */
 function drawProgressChart(canvas, series) {
   if (!series.length) return;
   const styles = getComputedStyle(document.documentElement);
@@ -958,53 +975,84 @@ function drawProgressChart(canvas, series) {
   const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
 
-  const padL = 32, padR = 6, padT = 10, padB = 22;
+  const padL = 32, padR = 6, padT = 14, padB = 22;
   const w = cssW - padL - padR;
   const h = cssH - padT - padB;
   const y = pct => padT + h * (1 - pct / 100);
-
-  ctx.font = '10px -apple-system, sans-serif';
-  ctx.lineWidth = 1;
-  for (const g of [0, 50, 100]) {
-    ctx.strokeStyle = border;
-    ctx.beginPath();
-    ctx.moveTo(padL, y(g));
-    ctx.lineTo(padL + w, y(g));
-    ctx.stroke();
-    ctx.fillStyle = muted;
-    ctx.textAlign = 'right';
-    ctx.fillText(g + '%', padL - 5, y(g) + 3);
-  }
-
   const slot = w / series.length;
   const barW = Math.min(26, slot * 0.5);
-  series.forEach((s, i) => {
-    const cx = padL + slot * i + slot / 2;
-    ctx.fillStyle = accent;
-    ctx.fillRect(cx - barW / 2, y(s.flushPct), barW, y(0) - y(s.flushPct));
-    ctx.fillStyle = muted;
-    ctx.textAlign = 'center';
-    ctx.fillText(s.label, cx, cssH - 7);
-  });
+  const hasFocus = series.some(s => s.focusPct !== null);
 
-  if (series.some(s => s.focusPct !== null)) {
-    ctx.strokeStyle = danger;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    series.forEach((s, i) => {
-      const cx = padL + slot * i + slot / 2;
-      if (i === 0) ctx.moveTo(cx, y(s.focusPct));
-      else ctx.lineTo(cx, y(s.focusPct));
-    });
-    ctx.stroke();
-    ctx.fillStyle = danger;
-    series.forEach((s, i) => {
-      const cx = padL + slot * i + slot / 2;
+  function draw(k) {
+    ctx.clearRect(0, 0, cssW, cssH);
+    ctx.font = '600 10px Manrope, -apple-system, sans-serif';
+    ctx.lineWidth = 1;
+    for (const g of [0, 50, 100]) {
+      ctx.strokeStyle = border;
       ctx.beginPath();
-      ctx.arc(cx, y(s.focusPct), 3, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.moveTo(padL, y(g));
+      ctx.lineTo(padL + w, y(g));
+      ctx.stroke();
+      ctx.fillStyle = muted;
+      ctx.textAlign = 'right';
+      ctx.fillText(g + '%', padL - 5, y(g) + 3);
+    }
+
+    series.forEach((s, i) => {
+      const cx = padL + slot * i + slot / 2;
+      const top = y(s.flushPct * k);
+      const height = y(0) - top;
+      ctx.fillStyle = accent;
+      if (height > 0.5) {
+        ctx.beginPath();
+        ctx.roundRect(cx - barW / 2, top, barW, height, [5, 5, 0, 0]);
+        ctx.fill();
+        if (k === 1 && s.flushPct > 0) {
+          ctx.fillStyle = muted;
+          ctx.textAlign = 'center';
+          ctx.fillText(s.flushPct + '', cx, top - 4);
+        }
+      }
+      ctx.fillStyle = muted;
+      ctx.textAlign = 'center';
+      ctx.fillText(s.label, cx, cssH - 7);
     });
+
+    if (hasFocus) {
+      // Line fades in during the second half of the animation.
+      ctx.globalAlpha = Math.max(0, (k - 0.4) / 0.6);
+      ctx.strokeStyle = danger;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      series.forEach((s, i) => {
+        const cx = padL + slot * i + slot / 2;
+        if (i === 0) ctx.moveTo(cx, y(s.focusPct));
+        else ctx.lineTo(cx, y(s.focusPct));
+      });
+      ctx.stroke();
+      ctx.fillStyle = danger;
+      series.forEach((s, i) => {
+        const cx = padL + slot * i + slot / 2;
+        ctx.beginPath();
+        ctx.arc(cx, y(s.focusPct), 3, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+    }
   }
+
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduceMotion) {
+    draw(1);
+    return;
+  }
+  const start = performance.now();
+  const DURATION = 550;
+  (function frame(now) {
+    const p = Math.min(1, (now - start) / DURATION);
+    draw(1 - Math.pow(1 - p, 3)); // ease-out cubic
+    if (p < 1) requestAnimationFrame(frame);
+  })(start);
 }
 
 /* --------------------------------------------------------------- settings */

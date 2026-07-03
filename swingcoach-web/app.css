@@ -363,7 +363,42 @@ button.primary {
   margin: 20px 4px 10px;
 }
 
-.focus-numbers { font-size: 1.45rem; margin: 6px 0; font-variant-numeric: tabular-nums; }
+.focus-numbers {
+  font-size: 1.45rem;
+  margin: 6px 0;
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  padding: 4px 9px;
+  border-radius: 999px;
+}
+.chip-good { background: var(--accent-soft); color: var(--accent); }
+.chip-bad { background: var(--danger-soft); color: var(--danger); }
+
+/* --- diagnosis hero --- */
+
+.hero-card { text-align: center; }
+
+.hero-flight {
+  width: 62%;
+  max-width: 220px;
+  display: block;
+  margin: 0 auto 4px;
+}
+
+.hero-flight.hero-miss .fp-sel-draw { stroke: var(--danger); }
+.hero-flight.hero-miss .fp-ball { fill: var(--danger); }
+
+.hero-card .headline { margin-top: 2px; }
+.hero-card .shot-summary { margin-bottom: 4px; }
 
 #progress-chart {
   width: 100%;
