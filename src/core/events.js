@@ -3,7 +3,7 @@
 
 import { chronicle, remember } from './chronicle.js';
 import { seasonOf, yearOf, dist, findBestTile, BIOME } from './world.js';
-import { infect, kill, adjustAff, adjustSettlementRelation } from './character.js';
+import { infect, kill, adjustAff, adjustSettlementRelation, shapeTrait } from './character.js';
 import { membersOf, leaderOf, chiefOf } from './settlement.js';
 import { spawnMonster } from './monsters.js';
 import { doctrineOf, majorityReligion } from './religion.js';
@@ -182,7 +182,14 @@ export function resolveRaidIfReady(sim, targetId, fromId) {
     for (const d of raiderDead) kill(sim, d, 'battle', { killer: defenders[0] ?? null, blamedSettlement: target.id });
     target.lastRaidedDay = sim.day;
     chronicle(sim, 2, `Raiders from ${from.name} sacked ${target.name}, carrying off ${Math.round(loot)} stores`, { x: target.x, y: target.y, kind: 'war' });
-    for (const p of membersOf(sim, target)) { p.mood -= 0.25; remember(p, sim, `survived the sack of ${target.name}`); }
+    for (const p of membersOf(sim, target)) {
+      p.mood -= 0.25;
+      remember(p, sim, `survived the sack of ${target.name}`);
+      // War remakes its survivors: the bold harden, the meek shrink.
+      shapeTrait(p, p.traits.courage > 0.5 ? 'courage' : 'temper', 0.025);
+      if (p.traits.courage <= 0.5) shapeTrait(p, 'courage', -0.03);
+      shapeTrait(p, 'kindness', -0.01);
+    }
     for (const r of raiders) { if (r.alive) { r.mood += 0.1; r.fame += 0.5; } }
   } else {
     const raiderDead = battleDeaths(raiders, Math.ceil(raiders.length * 0.4));

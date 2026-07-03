@@ -4,7 +4,7 @@
 import { settlementName } from './names.js';
 import { chronicle, remember } from './chronicle.js';
 import { seasonOf, dayOfYear, tileAt, findBestTile, dist } from './world.js';
-import { adjustSettlementRelation, adjustAff, displayName, isAdult } from './character.js';
+import { adjustSettlementRelation, adjustAff, displayName, isAdult, shapeTrait } from './character.js';
 import { majorityReligion } from './religion.js';
 
 export const PROJECTS = {
@@ -294,6 +294,8 @@ function maybeHoldFestival(sim, s, members) {
     p.mood += 0.2;
     p.needs.social = 1;
     remember(p, sim, `danced at the ${name} in ${s.name}`);
+    shapeTrait(p, 'temper', -0.012);   // good years sand the edges off
+    shapeTrait(p, 'kindness', 0.006);
   }
   // Everyone rubs shoulders with everyone.
   for (let i = 0; i < present.length; i++) {

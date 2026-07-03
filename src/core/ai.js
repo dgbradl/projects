@@ -4,7 +4,7 @@
 
 import { tileAt, isPassable, findBestTile, dist, seasonOf } from './world.js';
 import {
-  isAdult, ageOf, settlementOf, adjustAff, relTo, kill, displayName, adjustSettlementRelation,
+  isAdult, ageOf, settlementOf, adjustAff, relTo, kill, displayName, adjustSettlementRelation, shapeTrait,
 } from './character.js';
 import { nearestHerd, cullHerd } from './herds.js';
 import { doctrineOf, religionOf, godTone } from './religion.js';
@@ -483,6 +483,8 @@ function doRob(sim, p, mark) {
     p.carriedFood += loot;
     if (sim.rng.chance(0.3)) { mark.injured += 4; mark.health -= 0.12; }
     mark.mood -= 0.25;
+    shapeTrait(mark, 'temper', 0.025);
+    shapeTrait(mark, 'kindness', -0.015);
     adjustAff(mark, p.id, -50);
     chronicle(sim, 1, `${displayName(mark)} was waylaid on the road by the outlaw ${displayName(p)}`,
       { x: p.x, y: p.y, kind: 'banditry', who: [p.id, mark.id] });

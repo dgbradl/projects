@@ -4,7 +4,7 @@
 import { beastName } from './names.js';
 import { chronicle, remember } from './chronicle.js';
 import { tileAt, isPassable, dist, seasonOf } from './world.js';
-import { kill, adjustAff, displayName, grantEpithet } from './character.js';
+import { kill, adjustAff, displayName, grantEpithet, shapeTrait } from './character.js';
 import { membersOf } from './settlement.js';
 import { nearestHerd, cullHerd } from './herds.js';
 
@@ -226,7 +226,10 @@ function rampage(sim, m, s) {
     s.stock.food -= eaten;
     m.hunger = 0;
     s.lastRaidedDay = sim.day;
-    for (const p of membersOf(sim, s)) { p.mood -= 0.15; }
+    for (const p of membersOf(sim, s)) {
+      p.mood -= 0.15;
+      shapeTrait(p, 'courage', p.traits.courage > 0.55 ? 0.02 : -0.025);
+    }
     // Gorged beasts grow bored of the same larder.
     m.rampages = (m.rampages || 0) + 1;
     if (m.rampages >= (m.kind === 'dragon' ? 4 : 3)) {
@@ -259,6 +262,7 @@ export function slayMonster(sim, m, hero, helpers = []) {
   hero.fame += def.menace * 2;
   hero.skills.fight = Math.min(1, hero.skills.fight + 0.05);
   hero.mood += 0.3;
+  shapeTrait(hero, 'courage', 0.03);
   chronicle(sim, def.menace >= 2 ? 3 : 2,
     `${displayName(hero)} slew ${m.name}${m.kills ? ` (killer of ${m.kills})` : ''}!`,
     { x: m.x, y: m.y, kind: 'triumph', who: [hero.id] });

@@ -155,6 +155,7 @@ export function metabolize(sim, p) {
     if (sim.rng.chance(0.11 + (p.tendedToday ? 0.12 : 0) + (p.needs.hunger < 0.6 ? 0.03 : 0))) {
       p.sick = false; p.sickDays = 0;
       remember(p, sim, 'recovered from sickness', 0.1);
+      if (p.tendedToday) shapeTrait(p, 'kindness', 0.02); // cared-for hands learn to care
     }
   }
   p.tendedToday = false;
@@ -236,9 +237,12 @@ export function kill(sim, p, cause, opts = {}) {
     if (r.aff > 40 || r.kin) {
       other.mood -= r.kin ? 0.35 : 0.2;
       remember(other, sim, `grieved for ${p.name}`);
+      shapeTrait(other, 'kindness', -0.015);
       if (killer && killer.alive) {
         adjustAff(other, killer.id, -70);
         remember(other, sim, `swore ${killer.name} would pay for ${p.name}'s death`);
+        shapeTrait(other, 'temper', 0.03);   // vengeance takes root
+        shapeTrait(other, 'courage', 0.02);
       }
       if (opts.blamedSettlement !== undefined && other.home !== null && other.home !== opts.blamedSettlement) {
         const os = sim.settlements.get(other.home);
@@ -253,6 +257,12 @@ export function kill(sim, p, cause, opts = {}) {
     const sp = sim.folk.get(p.spouse);
     if (sp && sp.alive) sp.spouse = null;
   }
+}
+
+// What happens to a person becomes who they are: grief embitters, terror
+// cows or hardens, gentleness gentles. Small pushes, accumulated for life.
+export function shapeTrait(p, trait, delta) {
+  p.traits[trait] = Math.max(0, Math.min(1, p.traits[trait] + delta));
 }
 
 export function adjustSettlementRelation(a, b, delta) {
