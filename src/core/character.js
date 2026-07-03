@@ -128,9 +128,11 @@ export function metabolize(sim, p) {
   if (season === 'winter' || (tile && tile.biome === 'tundra')) {
     const sheltered = s && Math.abs(p.x - s.x) + Math.abs(p.y - s.y) <= 3 && s.buildings.shelter * 5 >= s.members.size * 0.8;
     const fire = s && s.stock.wood > 0;
+    const woolClad = s && (s.stock.wool ?? 0) >= s.members.size * 0.4;
     let drain = 0.22;
     if (sheltered) drain -= 0.13;
     if (fire) drain -= 0.08;
+    if (woolClad) drain -= 0.04;
     if (sim.weather.storm) drain += 0.1;
     p.needs.warmth = Math.max(0, p.needs.warmth - Math.max(0.01, drain));
   } else {

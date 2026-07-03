@@ -498,6 +498,28 @@ function drawSettlement(ctx, sim, s, cam, time) {
     ctx.fill();
   }
 
+  // Sheep pen: a fenced fold with its little white flock.
+  if (s.buildings.pen > 0) {
+    const a = 3.6;
+    const px = sx + Math.cos(a) * rad * 1.4, py = sy + Math.sin(a) * rad * 1.3;
+    const pw = z * 1.7, ph = z * 1.2;
+    ctx.strokeStyle = dead ? '#4a443c' : '#8a7050';
+    ctx.lineWidth = Math.max(1, z * 0.12);
+    ctx.strokeRect(px - pw / 2, py - ph / 2, pw, ph);
+    if (!dead) {
+      ctx.fillStyle = '#e8e4da';
+      const flock = Math.min(s.sheep ?? 0, 6);
+      for (let i = 0; i < flock; i++) {
+        const ox = (hash2(s.id, i * 3) - 0.5) * (pw - z * 0.4);
+        const oy = (hash2(i * 7, s.id) - 0.5) * (ph - z * 0.4);
+        const nibble = Math.sin(time * 2.5 + i * 2.1) > 0.7 ? z * 0.05 : 0;
+        ctx.beginPath();
+        ctx.ellipse(px + ox, py + oy + nibble, Math.max(1.4, z * 0.2), Math.max(1, z * 0.14), 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
   // Dock: planks reaching out over the water.
   if (s.buildings.dock > 0 && s.dockAt) {
     const [dx, dy] = cam.toScreen(s.dockAt.x + 0.5, s.dockAt.y + 0.5);

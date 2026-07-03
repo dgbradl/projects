@@ -42,8 +42,9 @@ function packSettlement(s) {
     id: s.id, name: s.name, x: s.x, y: s.y,
     founderId: s.founderId, foundedDay: s.foundedDay, chiefId: s.chiefId ?? null,
     members: [...s.members],
-    stock: { food: s.stock.food, wood: s.stock.wood, stone: s.stock.stone },
-    buildings: { dock: 0, ...s.buildings }, project: s.project, dockAt: s.dockAt ?? null,
+    stock: { food: s.stock.food, wood: s.stock.wood, stone: s.stock.stone, wool: s.stock.wool ?? 0 },
+    buildings: { dock: 0, pen: 0, ...s.buildings }, project: s.project, dockAt: s.dockAt ?? null,
+    sheep: s.sheep ?? 0,
     relations: [...s.relations.entries()],
     lastRaidedDay: s.lastRaidedDay, raidCooldown: s.raidCooldown,
     robbedCount: s.robbedCount ?? 0, wantedId: s.wantedId ?? null,
@@ -57,6 +58,8 @@ function unpackSettlement(d) {
     ...d,
     members: new Set(d.members),
     relations: new Map(d.relations),
+    stock: { wool: 0, ...d.stock },
+    sheep: d.sheep ?? 0,
     tradeCooldown: d.tradeCooldown ?? 0,
   };
 }

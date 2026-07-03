@@ -109,6 +109,24 @@ export function monsterDaily(sim, m) {
     }
     const winter = seasonOf(sim.day) === 'winter';
     const desperate = m.hunger > (winter ? 0.6 : 0.9);
+    // Before wolves dare stalk people, they try the pens.
+    if (desperate) {
+      let fold = null, foldD = 15;
+      for (const s of sim.settlements.values()) {
+        if ((s.sheep ?? 0) < 1 || s.members.size === 0) continue;
+        const d = dist(m.x, m.y, s.x, s.y);
+        if (d < foldD) { foldD = d; fold = s; }
+      }
+      if (fold) {
+        moveMonster(sim, m, fold.x, fold.y);
+        if (dist(m.x, m.y, fold.x, fold.y) <= 2) {
+          fold.sheep--;
+          m.hunger = Math.max(0, m.hunger - 0.9);
+          chronicle(sim, 0, `Wolves got into the pens of ${fold.name}`, { x: fold.x, y: fold.y, kind: 'monster' });
+        }
+        return;
+      }
+    }
     const prey = desperate ? nearestPrey(sim, m, 18) : null;
     if (prey) {
       const nearbyFolk = countFolkNear(sim, prey.x, prey.y, 3);

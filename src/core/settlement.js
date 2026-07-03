@@ -10,6 +10,7 @@ import { majorityReligion } from './religion.js';
 export const PROJECTS = {
   shelter: { wood: 20, stone: 4,  days: 14, desc: 'a shelter' },
   farm:    { wood: 8,  stone: 0,  days: 10, desc: 'a farm' },
+  pen:     { wood: 12, stone: 0,  days: 8,  desc: 'a sheep pen' },
   dock:    { wood: 16, stone: 0,  days: 12, desc: 'a dock' },
   wall:    { wood: 14, stone: 20, days: 20, desc: 'walls' },
   hall:    { wood: 30, stone: 10, days: 24, desc: 'a meeting hall' },
@@ -30,9 +31,10 @@ export function foundSettlement(sim, x, y, founder) {
     chiefId: founder ? founder.id : null,
     foundedDay: sim.day,
     members: new Set(),
-    stock: { food: 10, wood: 10, stone: 0 },
-    buildings: { shelter: 1, farm: 0, dock: 0, wall: 0, hall: 0, temple: 0 },
+    stock: { food: 10, wood: 10, stone: 0, wool: 0 },
+    buildings: { shelter: 1, farm: 0, dock: 0, pen: 0, wall: 0, hall: 0, temple: 0 },
     dockAt: null,
+    sheep: 0,
     project: null,               // { type, workLeft, paid }
     relations: new Map(),        // other settlement id -> -100..100
     lastRaidedDay: -9999,
@@ -167,6 +169,7 @@ function chooseProject(sim, s) {
   if (capacity < pop) wants.push(['shelter', 10 + (pop - capacity)]);
   if (s.buildings.farm < Math.ceil(pop / 4) && foodPerHead < 12) wants.push(['farm', 8]);
   if (!s.buildings.dock && pop >= 5 && foodPerHead < 10 && waterNear(sim, s)) wants.push(['dock', 7]);
+  if (!s.buildings.pen && pop >= 6) wants.push(['pen', 4]);
   if (recentlyAttacked && s.buildings.wall < 2) wants.push(['wall', 9]);
   if (s.buildings.wall < 1 && pop >= 8) wants.push(['wall', 3]);
   if (s.buildings.hall < 1 && pop >= 10) wants.push(['hall', 4]);
@@ -188,9 +191,21 @@ export function settlementDaily(sim, s) {
   }
   s.fallen = false;
 
-  // Winter fires burn wood.
+  // Winter fires burn wood; wool wears thin.
   if (seasonOf(sim.day) === 'winter') {
     s.stock.wood = Math.max(0, s.stock.wood - Math.max(1, members.length * 0.15));
+    s.stock.wool = Math.max(0, (s.stock.wool ?? 0) - members.length * 0.015);
+  }
+
+  // The flock: breeding in spring, wool year-round, mutton in famine.
+  if ((s.sheep ?? 0) > 0) {
+    if (seasonOf(sim.day) === 'spring' && s.sheep < s.buildings.pen * 6 && sim.rng.chance(0.03)) s.sheep++;
+    s.stock.wool = Math.min(members.length * 2, (s.stock.wool ?? 0) + s.sheep * 0.02);
+    if (s.stock.food / Math.max(1, members.length) < 1.5 && s.sheep > 1 && sim.rng.chance(0.3)) {
+      s.sheep--;
+      s.stock.food += 6;
+      chronicle(sim, 0, `${s.name} slaughtered a sheep against the hunger`, { x: s.x, y: s.y, kind: 'event' });
+    }
   }
 
   // Farms yield food in the growing seasons if someone farmed this year.
@@ -325,6 +340,10 @@ export function completeProject(sim, s) {
   if (proj.type === 'dock') {
     const w = waterNear(sim, s, 8);
     s.dockAt = w ? { x: w.x, y: w.y } : null;
+  }
+  if (proj.type === 'pen') {
+    s.sheep = (s.sheep ?? 0) + 3;
+    chronicle(sim, 0, `${s.name} gathered wild sheep into its new pen`, { x: s.x, y: s.y, kind: 'building' });
   }
   if (proj.type === 'temple') {
     const creed = majorityReligion(sim, s);
