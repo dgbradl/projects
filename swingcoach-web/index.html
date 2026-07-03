@@ -82,11 +82,28 @@
       </div>
 
       <div class="card">
+        <h3>Account</h3>
+        <p id="signed-in-as" class="hint">Not signed in</p>
+        <button class="link-btn" id="sign-out-btn">Sign out</button>
+      </div>
+
+      <div class="card">
         <h3>About</h3>
         <p class="hint">Describe what your ball did and get a diagnosis of the likely swing fault, based on the ball flight laws: the ball starts roughly where the clubface points, and curves away from the swing path. Shots are saved in this browser only.</p>
       </div>
     </section>
   </main>
+
+  <!-- Sign-in gate (shown until an allowed Google account signs in) -->
+  <div id="auth-gate" class="overlay auth-gate">
+    <div class="auth-box">
+      <img src="icon-192.png" alt="" width="72" height="72" class="auth-logo">
+      <h2>SwingCoach</h2>
+      <p class="hint">Sign in with an allowed Google account to continue.</p>
+      <div id="gsi-button"></div>
+      <p id="auth-error" class="ai-error hidden"></p>
+    </div>
+  </div>
 
   <!-- Diagnosis overlay -->
   <div id="diagnosis-overlay" class="overlay hidden">
@@ -106,5 +123,6 @@
 
   <script src="engine.js"></script>
   <script src="app.js"></script>
+  <script src="auth.js"></script>
 </body>
 </html>

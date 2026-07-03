@@ -222,6 +222,27 @@ button.primary:active { filter: brightness(0.9); }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* --- sign-in gate --- */
+
+.auth-gate {
+  z-index: 30; /* above the diagnosis overlay */
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  padding: 24px;
+  max-width: 320px;
+}
+
+.auth-box h2 { margin: 0; }
+.auth-logo { border-radius: 16px; }
+
 /* --- history --- */
 
 .history-item {
