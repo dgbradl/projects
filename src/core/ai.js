@@ -190,6 +190,21 @@ function childDay(sim, p, s, ageDays) {
 // ---------- Actions ----------
 function doGetFood(sim, p, s) {
   const homeX = s ? s.x : p.x, homeY = s ? s.y : p.y;
+  // The water gives generously — until it freezes.
+  if (s?.buildings.dock > 0 && s.dockAt && seasonOf(sim.day) !== 'winter' &&
+      (p.skills.fish > 0.35 || sim.rng.chance(0.35))) {
+    if (dist(p.x, p.y, s.dockAt.x, s.dockAt.y) > 1) {
+      moveToward(sim, p, s.dockAt.x, s.dockAt.y);
+      p.activity = 'heading out to fish';
+      return;
+    }
+    p.activity = 'fishing';
+    const catchAmt = 1.2 + p.skills.fish * 3 + (sim.weather.rainDays > 0 ? 0.5 : 0);
+    p.skills.fish = Math.min(1, p.skills.fish + 0.006);
+    p.needs.energy -= 0.08;
+    deposit(sim, p, s, catchAmt);
+    return;
+  }
   // Farms first, in season.
   if (s && s.buildings.farm > 0 && seasonOf(sim.day) !== 'winter') {
     if (dist(p.x, p.y, s.x, s.y) > 2) { moveToward(sim, p, s.x, s.y); return; }

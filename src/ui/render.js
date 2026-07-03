@@ -498,6 +498,18 @@ function drawSettlement(ctx, sim, s, cam, time) {
     ctx.fill();
   }
 
+  // Dock: planks reaching out over the water.
+  if (s.buildings.dock > 0 && s.dockAt) {
+    const [dx, dy] = cam.toScreen(s.dockAt.x + 0.5, s.dockAt.y + 0.5);
+    const ang = Math.atan2(dy - sy, dx - sx);
+    ctx.save();
+    ctx.translate(dx - Math.cos(ang) * z * 0.8, dy - Math.sin(ang) * z * 0.8);
+    ctx.rotate(ang);
+    ctx.fillStyle = dead ? '#4a443c' : '#7d674a';
+    ctx.fillRect(-z * 1.2, -z * 0.22, z * 2.2, z * 0.44);
+    ctx.restore();
+  }
+
   // Hearthlight: on winter evenings the village glows.
   if (!dead && s.stock.wood > 0 && snowFactor(sim.day) > 0.2) {
     const flick = 0.75 + Math.sin(time * 7 + s.id) * 0.25;
@@ -530,7 +542,17 @@ function drawPerson(ctx, sim, p, cam, alpha, time) {
   const bob = moving ? Math.abs(Math.sin(time * 9 + p.id * 1.7)) * r * 0.45 : 0;
   const sy = syBase - bob;
 
-  drawShadow(ctx, sx, syBase, r);
+  // Fishers bob on the water in little hulls instead of casting a land shadow.
+  const afloat = p.activity === 'fishing';
+  if (afloat) {
+    const rock = Math.sin(time * 2 + p.id) * r * 0.15;
+    ctx.fillStyle = '#6b5230';
+    ctx.beginPath();
+    ctx.ellipse(sx, syBase + r * 0.5 + rock, r * 1.5, r * 0.55, 0, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    drawShadow(ctx, sx, syBase, r);
+  }
   // Outlaws go hooded and gray; honest folk wear their village's color.
   const bodyColor = p.outlaw ? '#4a443c' : s ? settlementColor(s) : '#cfc4ae';
   const headColor = p.outlaw ? '#5f584e' : s ? settlementColor(s, 76) : '#e8e0cc';

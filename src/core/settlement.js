@@ -10,10 +10,16 @@ import { majorityReligion } from './religion.js';
 export const PROJECTS = {
   shelter: { wood: 20, stone: 4,  days: 14, desc: 'a shelter' },
   farm:    { wood: 8,  stone: 0,  days: 10, desc: 'a farm' },
+  dock:    { wood: 16, stone: 0,  days: 12, desc: 'a dock' },
   wall:    { wood: 14, stone: 20, days: 20, desc: 'walls' },
   hall:    { wood: 30, stone: 10, days: 24, desc: 'a meeting hall' },
   temple:  { wood: 24, stone: 30, days: 30, desc: 'a temple' },
 };
+
+// The nearest open water within reach of the village, if any.
+export function waterNear(sim, s, radius = 6) {
+  return findBestTile(sim.world, s.x, s.y, radius, (t, d) => t.biome === 'water' ? radius + 1 - d : 0);
+}
 
 export function foundSettlement(sim, x, y, founder) {
   const s = {
@@ -25,7 +31,8 @@ export function foundSettlement(sim, x, y, founder) {
     foundedDay: sim.day,
     members: new Set(),
     stock: { food: 10, wood: 10, stone: 0 },
-    buildings: { shelter: 1, farm: 0, wall: 0, hall: 0, temple: 0 },
+    buildings: { shelter: 1, farm: 0, dock: 0, wall: 0, hall: 0, temple: 0 },
+    dockAt: null,
     project: null,               // { type, workLeft, paid }
     relations: new Map(),        // other settlement id -> -100..100
     lastRaidedDay: -9999,
@@ -159,6 +166,7 @@ function chooseProject(sim, s) {
   const wants = [];
   if (capacity < pop) wants.push(['shelter', 10 + (pop - capacity)]);
   if (s.buildings.farm < Math.ceil(pop / 4) && foodPerHead < 12) wants.push(['farm', 8]);
+  if (!s.buildings.dock && pop >= 5 && foodPerHead < 10 && waterNear(sim, s)) wants.push(['dock', 7]);
   if (recentlyAttacked && s.buildings.wall < 2) wants.push(['wall', 9]);
   if (s.buildings.wall < 1 && pop >= 8) wants.push(['wall', 3]);
   if (s.buildings.hall < 1 && pop >= 10) wants.push(['hall', 4]);
@@ -314,6 +322,10 @@ export function completeProject(sim, s) {
   if (!proj) return;
   s.buildings[proj.type] = (s.buildings[proj.type] || 0) + 1;
   s.project = null;
+  if (proj.type === 'dock') {
+    const w = waterNear(sim, s, 8);
+    s.dockAt = w ? { x: w.x, y: w.y } : null;
+  }
   if (proj.type === 'temple') {
     const creed = majorityReligion(sim, s);
     if (creed) {

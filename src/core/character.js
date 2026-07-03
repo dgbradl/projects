@@ -40,6 +40,7 @@ export function makePerson(sim, opts = {}) {
     skills: {
       forage: rng.range(0.1, 0.5), hunt: rng.range(0, 0.4), farm: rng.range(0, 0.4),
       build: rng.range(0, 0.4), fight: rng.range(0, 0.4), heal: rng.range(0, 0.3),
+      fish: rng.range(0, 0.4),
     },
     rel: new Map(),                    // otherId -> { aff: -100..100, kin: string|null }
     spouse: null,
