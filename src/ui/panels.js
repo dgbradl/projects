@@ -1,7 +1,7 @@
 // DOM panels: divine acts, the inspector, and the chronicle feed.
 
 import { POWERS } from '../core/god.js';
-import { ageYears, isAdult, settlementOf, displayName } from '../core/character.js';
+import { ageYears, isAdult, settlementOf, displayName, fullName } from '../core/character.js';
 import { membersOf, leaderOf, PROJECTS, shelterCapacity } from '../core/settlement.js';
 import { seasonOf, yearOf, dayOfYear, tileAt, DAYS_PER_YEAR } from '../core/world.js';
 import { religionOf, majorityReligion, countFollowers, DOCTRINES, godTone } from '../core/religion.js';
@@ -53,7 +53,7 @@ export function renderInspector(sim, selection, onSelectEntity) {
   }
   if (selection.kind === 'person') {
     const p = selection.ref;
-    title.textContent = displayName(p) + (p.alive ? '' : ' †');
+    title.textContent = fullName(p) + (p.alive ? '' : ' †');
     body.innerHTML = personHtml(sim, p);
   } else if (selection.kind === 'herd') {
     const h = selection.ref;
@@ -112,6 +112,15 @@ function traitWords(t) {
   return words.length ? words.join(', ') : 'unremarkable';
 }
 
+function houseLine(sim, p) {
+  if (!p.surname) return '';
+  let living = 0;
+  for (const o of sim.folk.values()) {
+    if (o.alive && o.surname === p.surname) living++;
+  }
+  return `<div class="sub">of house ${esc(p.surname)} — ${living} living</div>`;
+}
+
 function creedLine(sim, p) {
   const creed = religionOf(sim, p);
   if (!creed) return '';
@@ -131,6 +140,7 @@ function personHtml(sim, p) {
     `<div class="sub">${s ? `of <a data-settlement="${s.id}">${esc(s.name)}</a>` : 'homeless wanderer'}` +
     `${p.activity ? ` — ${esc(p.activity)}` : ''}</div>` +
     `<div class="sub" style="margin-top:4px">${traitWords(p.traits)}</div>` +
+    houseLine(sim, p) +
     creedLine(sim, p) +
     `<h3>Condition</h3>` +
     `health ${bar(p.health, p.health < 0.4)}` +

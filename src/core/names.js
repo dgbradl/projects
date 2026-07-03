@@ -12,6 +12,15 @@ const SETTLE_A = ['Oak', 'Stone', 'Ash', 'Raven', 'Mill', 'Thorn', 'Elm', 'Wolf'
 const SETTLE_B = ['stead', 'holm', 'brook', 'field', 'haven', 'watch', 'ford', 'dale', 'moor', 'fall',
   'crest', 'hearth', 'gate', 'run', 'shade', 'rest', 'barrow', 'mere', 'wick', 'reach'];
 
+const SURNAME_A = ['Ash', 'Briar', 'Thorn', 'Oak', 'Fen', 'Stone', 'Wolf', 'Hearth', 'Mar', 'Elder',
+  'Rush', 'Heath', 'Cinder', 'Dun', 'Gale', 'Holt', 'Iron', 'Moss', 'Rook', 'Tarn'];
+const SURNAME_B = ['down', 'holt', 'ward', 'ley', 'wick', 'combe', 'thistle', 'born', 'well', 'mere',
+  'field', 'shaw', 'croft', 'gate', 'row', 'wood', 'fell', 'bank', 'hollow', 'strand'];
+
+export function surname(rng) {
+  return rng.pick(SURNAME_A) + rng.pick(SURNAME_B);
+}
+
 const BEAST_NAMES = ['Grukk', 'Old Maw', 'Sharptooth', 'The Grey Sorrow', 'Bonecrack', 'Hollowfang',
   'Murgha', 'The Pale Hunger', 'Duskclaw', 'Rotmaw', 'Vharzul', 'Ashwing', 'The Red Ruin',
   'Skorn', 'Nightgnaw', 'The Withering', 'Korgoth', 'Emberjaw'];

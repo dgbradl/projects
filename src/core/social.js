@@ -148,6 +148,7 @@ export function gestate(sim, p) {
       x: p.x, y: p.y, home: p.home,
       traits: blendTraits(sim, p, father),
       religion: p.religion,            // raised in the mother's faith
+      surname: (father?.surname ?? p.surname) || null,   // the house continues
     });
     if (p.home !== null) {
       const s = sim.settlements.get(p.home);

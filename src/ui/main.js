@@ -4,7 +4,7 @@ import { createSim, tick } from '../core/sim.js';
 import { serialize, deserialize } from '../core/save.js';
 import { POWERS, castPower } from '../core/god.js';
 import { dist } from '../core/world.js';
-import { displayName } from '../core/character.js';
+import { displayName, fullName } from '../core/character.js';
 import {
   makeCamera, makeTerrain, render, renderMinimap, makeEffects, setRenderDt,
 } from './render.js';
@@ -179,7 +179,7 @@ function updateTooltip(mx, my) {
   let text = null;
   if (picked.kind === 'person') {
     const p = picked.ref;
-    text = displayName(p) + (p.activity ? ` — ${p.activity}` : '');
+    text = fullName(p) + (p.activity ? ` — ${p.activity}` : '');
   } else if (picked.kind === 'monster') text = picked.ref.name;
   else if (picked.kind === 'herd') text = 'a herd of deer';
   else if (picked.kind === 'settlement') text = `${picked.ref.name} (${picked.ref.members.size})`;

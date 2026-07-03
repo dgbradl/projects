@@ -1,7 +1,7 @@
 // Folk: the autonomous people of the world. Traits shape decisions,
 // needs drive behavior, relationships bind (and divide) them.
 
-import { personName } from './names.js';
+import { personName, surname } from './names.js';
 import { chronicle, remember } from './chronicle.js';
 import { DAYS_PER_YEAR, seasonOf, tileAt } from './world.js';
 
@@ -13,6 +13,7 @@ export function makePerson(sim, opts = {}) {
   const p = {
     id: sim.nextId++,
     name: opts.name || personName(rng),
+    surname: opts.surname !== undefined ? opts.surname : surname(rng),
     sex: opts.sex || (rng.chance(0.5) ? 'f' : 'm'),
     bornDay: opts.bornDay !== undefined ? opts.bornDay : sim.day,
     alive: true,
@@ -54,6 +55,10 @@ export function makePerson(sim, opts = {}) {
 
 export function displayName(p) {
   return p.epithet ? `${p.name} ${p.epithet}` : p.name;
+}
+
+export function fullName(p) {
+  return `${p.name}${p.surname ? ' ' + p.surname : ''}${p.epithet ? ', ' + p.epithet : ''}`;
 }
 
 // A name earned is a name kept: only the first epithet sticks.
