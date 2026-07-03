@@ -2,11 +2,13 @@
 
 const STORAGE_SHOTS = 'swingcoach.shots';
 const STORAGE_SETTINGS = 'swingcoach.settings';
+const STORAGE_PENDING = 'swingcoach.pending';
 
 const state = {
   shot: newShot(),
   shots: loadJSON(STORAGE_SHOTS, []),
-  settings: loadJSON(STORAGE_SETTINGS, { handedness: 'right', apiKey: '' }),
+  settings: loadJSON(STORAGE_SETTINGS, { handedness: 'right' }),
+  pending: loadJSON(STORAGE_PENDING, []),
 };
 
 function newShot(keepClub) {
@@ -31,6 +33,95 @@ function loadJSON(key, fallback) {
 
 function saveShots() { localStorage.setItem(STORAGE_SHOTS, JSON.stringify(state.shots)); }
 function saveSettings() { localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(state.settings)); }
+function savePending() { localStorage.setItem(STORAGE_PENDING, JSON.stringify(state.pending)); }
+
+/* -------------------------------------------------------------- API + sync
+ *
+ * Local-first: shots always save to localStorage immediately (so the app is
+ * instant and works offline on the course), and every change is queued and
+ * pushed to the server when there's a connection. On load / reconnect we pull
+ * the server's copy so history follows you across devices.
+ */
+
+async function api(action, payload = {}) {
+  const auth = getAuth(); // from auth.js
+  const res = await fetch('api.php', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(Object.assign({ action, token: auth && auth.token }, payload)),
+  });
+  let json = null;
+  try { json = await res.json(); } catch { /* non-JSON error page */ }
+  if (res.status === 401) {
+    // Session rejected server-side — back to the sign-in gate.
+    clearAuth();
+    location.reload();
+    throw new Error('Signed out');
+  }
+  if (!res.ok) throw new Error((json && json.error) || 'HTTP ' + res.status);
+  if (auth) {
+    // Mirror the server's sliding 30-day session renewal.
+    auth.expires = Date.now() + 30 * 24 * 60 * 60 * 1000;
+    if (json && typeof json.ai === 'boolean') auth.ai = json.ai;
+    localStorage.setItem(STORAGE_AUTH, JSON.stringify(auth));
+  }
+  return json;
+}
+
+function queueOp(op) {
+  state.pending.push(op);
+  savePending();
+  flushPending().then(() => {});
+}
+
+let flushing = false;
+async function flushPending() {
+  if (flushing || !getAuth() || !navigator.onLine) return;
+  flushing = true;
+  try {
+    while (state.pending.length) {
+      const op = state.pending[0];
+      if (op.op === 'upsert') await api('upsert', { shot: op.shot });
+      else await api('delete', { id: op.id });
+      state.pending.shift();
+      savePending();
+    }
+  } catch {
+    // Offline or server hiccup — ops stay queued and retry on reconnect.
+  } finally {
+    flushing = false;
+  }
+}
+
+async function syncPull() {
+  if (!getAuth() || !navigator.onLine) return;
+  try {
+    const res = await api('list');
+    if (!res || !Array.isArray(res.shots)) return;
+    // Server copy is the base; local not-yet-pushed ops overlay it.
+    let shots = res.shots;
+    for (const op of state.pending) {
+      if (op.op === 'upsert') {
+        shots = shots.filter(s => s.id !== op.shot.id);
+        shots.push(op.shot);
+      } else {
+        shots = shots.filter(s => s.id !== op.id);
+      }
+    }
+    shots.sort((a, b) => new Date(b.date) - new Date(a.date));
+    state.shots = shots;
+    saveShots();
+    renderHistory();
+    renderTrends();
+  } catch {
+    // Cached local copy remains the working set.
+  }
+}
+
+async function syncAll() {
+  await flushPending();
+  await syncPull();
+}
 
 function esc(s) {
   return String(s).replace(/[&<>"']/g, c => ({
@@ -56,6 +147,7 @@ function showTab(name) {
   document.getElementById('screen-title').textContent = TAB_TITLES[name];
   if (name === 'history') renderHistory();
   if (name === 'trends') renderTrends();
+  if (name === 'settings') renderAIStatus();
   window.scrollTo(0, 0);
 }
 
@@ -104,6 +196,7 @@ document.getElementById('analyze-btn').addEventListener('click', () => {
   state.shot.date = new Date().toISOString();
   state.shots.unshift(state.shot);
   saveShots();
+  queueOp({ op: 'upsert', shot: state.shot });
   showDiagnosis(state.shot);
   // Keep the club (you usually hit several with the same one), reset the rest.
   state.shot = newShot(state.shot.club);
@@ -137,7 +230,7 @@ function showDiagnosis(shot) {
       d.drills.map(dr => `<li><span class="drill-name">${esc(dr.name)}</span><p class="drill-how">${esc(dr.howTo)}</p></li>`).join('')
     }</ul></div>`);
   }
-  if (state.settings.apiKey) {
+  if ((getAuth() || {}).ai) {
     parts.push(`<div class="card" id="ai-card"><h3>AI coach</h3><button class="link-btn" id="ai-btn">✨ Get personalized AI advice</button><div id="ai-result"></div></div>`);
   }
 
@@ -160,50 +253,11 @@ async function askAI(shot) {
   btn.classList.add('hidden');
   result.innerHTML = '<p><span class="spinner"></span>Asking your AI coach…</p>';
 
-  const handednessLabel = state.settings.handedness === 'left' ? 'Left-handed' : 'Right-handed';
-  const description = [
-    `Golfer: ${handednessLabel}.`,
-    `Club: ${labelFor(CLUBS, shot.club)}.`,
-    `Contact: ${labelFor(CONTACTS, shot.contact)}.`,
-    `Start line: ${labelFor(STARTS, shot.startLine)} of target line.`,
-    `Curve: ${labelFor(CURVES, shot.curve)}.`,
-    `Trajectory: ${labelFor(TRAJECTORIES, shot.trajectory)}.`,
-    shot.note ? `Golfer's own description: ${shot.note}` : '',
-  ].filter(Boolean).join('\n');
-
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': state.settings.apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify({
-        model: 'claude-opus-4-8',
-        max_tokens: 1024,
-        system: 'You are a friendly, expert golf instructor. The golfer will describe one shot. ' +
-          'Give practical, encouraging advice about the most likely swing cause and ONE specific ' +
-          'thing to work on, with a drill. Be concise (under 200 words), use plain language, and ' +
-          'never blame the golfer.',
-        messages: [{ role: 'user', content: description }],
-      }),
-    });
-
-    const json = await res.json();
-    if (!res.ok) {
-      throw new Error((json && json.error && json.error.message) || ('HTTP ' + res.status));
-    }
-    if (json.stop_reason === 'refusal') {
-      throw new Error('The AI declined to answer this request.');
-    }
-    const text = (json.content || [])
-      .filter(b => b.type === 'text')
-      .map(b => b.text)
-      .join('\n');
+    // The server holds the Anthropic key and makes the call — see api.php.
+    const res = await api('ai', { shot, handedness: state.settings.handedness });
+    const text = (res && res.advice) || '';
     if (!text) throw new Error('Empty answer.');
-
     result.innerHTML = text.split(/\n{2,}/).map(p => `<p>${esc(p).replace(/\n/g, '<br>')}</p>`).join('');
   } catch (err) {
     btn.classList.remove('hidden');
@@ -236,6 +290,7 @@ function renderHistory() {
     item.querySelector('.delete-btn').addEventListener('click', () => {
       state.shots = state.shots.filter(s => s.id !== shot.id);
       saveShots();
+      queueOp({ op: 'delete', id: shot.id });
       renderHistory();
     });
     el.appendChild(item);
@@ -309,23 +364,30 @@ function renderTrends() {
 /* --------------------------------------------------------------- settings */
 
 const handednessSel = document.getElementById('handedness');
-const apiKeyInput = document.getElementById('api-key');
 handednessSel.value = state.settings.handedness;
-apiKeyInput.value = state.settings.apiKey;
 
 handednessSel.addEventListener('change', e => {
   state.settings.handedness = e.target.value;
   saveSettings();
 });
-apiKeyInput.addEventListener('input', e => {
-  state.settings.apiKey = e.target.value.trim();
-  saveSettings();
-});
+
+function renderAIStatus() {
+  const el = document.getElementById('ai-status');
+  if (!el) return;
+  el.textContent = (getAuth() || {}).ai
+    ? "Enabled — each diagnosis gets a 'Get personalized AI advice' button. The API key lives on the server."
+    : 'Not configured. Add an Anthropic API key to config.php on the server to enable the AI coach.';
+}
 
 /* ------------------------------------------------------------------- init */
 
 renderNewShotForm();
 showTab('new');
+
+// Called by auth.js after a fresh sign-in; also run now for stored sessions.
+window.onSignedIn = () => { syncAll(); };
+if (getAuth()) syncAll();
+window.addEventListener('online', () => { syncAll(); });
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => { /* offline support is best-effort */ });

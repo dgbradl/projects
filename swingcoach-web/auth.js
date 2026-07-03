@@ -1,60 +1,34 @@
-/* Google sign-in gate.
+/* Google sign-in gate, enforced server-side.
  *
- * This is CLIENT-SIDE access control: it keeps the app UI behind a Google
- * login for the allowlisted emails below. Because this is a static site, a
- * determined person could still fetch the raw files — see the README for
- * server-side enforcement options if you ever need that. All shot data lives
- * in each signed-in user's own browser either way.
+ * The Google credential is sent to api.php, which verifies it with Google
+ * (audience, verified email) and checks the allowlist in config.php — the
+ * allowlist lives ONLY on the server. On success the server issues an opaque
+ * session token with a sliding 30-day expiry; every data/AI request requires
+ * it, so the gate is real access control, not just a hidden UI.
  *
  * Setup (one-time): create an OAuth client ID in Google Cloud Console and
- * paste it below. Full steps in README.md.
+ * paste it below AND into config.php on the server. Full steps in README.md.
  */
 
 const AUTH_CONFIG = {
   // From console.cloud.google.com → APIs & Services → Credentials.
   // Looks like: 1234567890-abc123.apps.googleusercontent.com
   clientId: 'YOUR_CLIENT_ID.apps.googleusercontent.com',
-
-  allowedEmails: [
-    'dgbradl@gmail.com',
-    'jacksoncooperbradl@gmail.com',
-  ],
-
-  // How long a sign-in is remembered on this device. Renewed on every visit,
-  // so it only expires after this long *away* from the app.
-  sessionDays: 30,
 };
 
 const STORAGE_AUTH = 'swingcoach.auth';
 
-function authSession() {
+/* Session shape: {token, email, expires (ms), ai (bool)} — issued by api.php. */
+function getAuth() {
   try {
-    const raw = localStorage.getItem(STORAGE_AUTH);
-    if (!raw) return null;
-    const s = JSON.parse(raw);
-    if (!s.email || !s.expires || Date.now() > s.expires) return null;
-    if (!isAllowed(s.email)) return null; // allowlist may have changed
+    const s = JSON.parse(localStorage.getItem(STORAGE_AUTH) || 'null');
+    if (!s || !s.token || !s.expires || Date.now() > s.expires) return null;
     return s;
   } catch { return null; }
 }
 
-function isAllowed(email) {
-  return AUTH_CONFIG.allowedEmails.some(e => e.toLowerCase() === String(email).toLowerCase());
-}
-
-function saveAuthSession(email) {
-  localStorage.setItem(STORAGE_AUTH, JSON.stringify({
-    email,
-    expires: Date.now() + AUTH_CONFIG.sessionDays * 24 * 60 * 60 * 1000,
-  }));
-}
-
-function authSignOut() {
+function clearAuth() {
   localStorage.removeItem(STORAGE_AUTH);
-  if (window.google && google.accounts && google.accounts.id) {
-    google.accounts.id.disableAutoSelect();
-  }
-  location.reload();
 }
 
 function showAuthError(msg) {
@@ -63,33 +37,25 @@ function showAuthError(msg) {
   el.classList.remove('hidden');
 }
 
-/* Decode the payload of a Google ID token (JWT). No signature verification —
- * that would require Google's certs and adds nothing here, since client-side
- * checks are bypassable by design. The gate's job is the allowlist. */
-function decodeJwtPayload(token) {
-  const part = token.split('.')[1];
-  const b64 = part.replace(/-/g, '+').replace(/_/g, '/');
-  return JSON.parse(decodeURIComponent(escape(atob(b64))));
-}
-
-function handleCredential(response) {
-  let payload;
+async function handleCredential(response) {
+  showAuthError('Checking with the server…');
   try {
-    payload = decodeJwtPayload(response.credential);
-  } catch {
-    showAuthError('Could not read the sign-in response. Try again.');
-    return;
+    const res = await fetch('api.php', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'login', credential: response.credential }),
+    });
+    let json = null;
+    try { json = await res.json(); } catch { /* non-JSON error page */ }
+    if (!res.ok) {
+      throw new Error((json && json.error) || 'Sign-in failed (HTTP ' + res.status + ')');
+    }
+    localStorage.setItem(STORAGE_AUTH, JSON.stringify(json));
+    unlockApp(json.email);
+    if (typeof window.onSignedIn === 'function') window.onSignedIn();
+  } catch (err) {
+    showAuthError(err.message || String(err));
   }
-  if (!payload.email || payload.email_verified !== true) {
-    showAuthError('This Google account has no verified email.');
-    return;
-  }
-  if (!isAllowed(payload.email)) {
-    showAuthError(payload.email + ' is not on the allowed list for this app.');
-    return;
-  }
-  saveAuthSession(payload.email);
-  unlockApp(payload.email);
 }
 
 function unlockApp(email) {
@@ -129,14 +95,35 @@ function showGate() {
   document.head.appendChild(script);
 }
 
+function authSignOut() {
+  const auth = getAuth();
+  const finish = () => {
+    clearAuth();
+    if (window.google && google.accounts && google.accounts.id) {
+      google.accounts.id.disableAutoSelect();
+    }
+    location.reload();
+  };
+  if (auth && navigator.onLine) {
+    // Best-effort server-side invalidation; sign out locally regardless.
+    fetch('api.php', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'logout', token: auth.token }),
+    }).catch(() => {}).finally(finish);
+  } else {
+    finish();
+  }
+}
+
 /* ------------------------------------------------------------------- init */
 
 (function initAuth() {
-  const session = authSession();
+  const session = getAuth();
   if (session) {
-    // Sliding renewal: signing in once keeps working as long as the app is
-    // opened at least every AUTH_CONFIG.sessionDays.
-    saveAuthSession(session.email);
+    // Valid stored session: open straight into the app (works offline too).
+    // The server renews the session on every authorized call; app.js mirrors
+    // the sliding expiry locally.
     unlockApp(session.email);
   } else {
     showGate();

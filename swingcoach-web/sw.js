@@ -1,7 +1,7 @@
 /* SwingCoach service worker: cache-first app shell so the app works offline
  * on the course. Bump CACHE_VERSION when deploying changes. */
 
-const CACHE_VERSION = 'swingcoach-v3';
+const CACHE_VERSION = 'swingcoach-v4';
 const ASSETS = [
   './',
   './index.html',
@@ -31,8 +31,9 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
-  // Only handle same-origin GETs — never intercept the Anthropic API call.
+  // Only handle same-origin GETs, and never the API — data must not be cached.
   if (event.request.method !== 'GET' || url.origin !== self.location.origin) return;
+  if (url.pathname.endsWith('/api.php')) return;
 
   event.respondWith(
     caches.match(event.request).then(cached =>
