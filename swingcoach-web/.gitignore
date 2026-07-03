@@ -1,8 +1,0 @@
-# Server secrets — never commit (DB password, client ID, Anthropic key).
-config.php
-
-# Local dev database
-*.sqlite
-
-# OS cruft
-.DS_Store
