@@ -175,6 +175,12 @@ button:disabled { opacity: 0.4; cursor: default; }
   padding: 8px 14px;
 }
 #chronicle-head { display: flex; align-items: baseline; gap: 16px; }
+#chronicle-search {
+  margin-left: auto;
+  background: #14110d; border: 1px solid var(--edge); color: var(--ink);
+  font-family: var(--font); font-size: 12px; padding: 2px 8px; border-radius: 3px;
+  width: 190px;
+}
 #chronicle-head label { font-size: 11px; color: var(--ink-dim); cursor: pointer; }
 #chronicle-list {
   flex: 1;

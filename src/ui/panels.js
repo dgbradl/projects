@@ -387,8 +387,11 @@ function drawSparkline(sim) {
 export function makeChronicleFeed(sim, onLocate) {
   const list = document.getElementById('chronicle-list');
   const minorToggle = document.getElementById('chronicle-minor');
+  const search = document.getElementById('chronicle-search');
   const append = (e) => {
     if (e.importance === 0 && !minorToggle.checked) return;
+    const q = search.value.trim().toLowerCase();
+    if (q && !e.text.toLowerCase().includes(q)) return;
     const div = document.createElement('div');
     div.className = `chron-entry imp-${e.importance}` + (e.x !== undefined ? ' locatable' : '');
     div.innerHTML = `<span class="when">Y${e.year} d${e.dayOfYear}</span>${esc(e.text)}`;
@@ -398,7 +401,12 @@ export function makeChronicleFeed(sim, onLocate) {
     while (list.children.length > 250) list.removeChild(list.firstChild);
     if (atBottom) list.scrollTop = list.scrollHeight;
   };
-  for (const e of sim.chronicleLog) append(e);
-  list.scrollTop = list.scrollHeight;
+  const refill = () => {
+    list.innerHTML = '';
+    for (const e of sim.chronicleLog) append(e);
+    list.scrollTop = list.scrollHeight;
+  };
+  search.oninput = refill;
+  refill();
   return append;
 }
