@@ -124,6 +124,45 @@ function sessionSeries(sessions, focusPattern, maxSessions = 12) {
   });
 }
 
+/* ---------------------------------------------------------- ball flight
+ * The flight picker works in OBSERVED geometry — what the golfer saw:
+ *   s: start direction, -1 left / 0 straight / +1 right
+ *   c: curve, -2 big left / -1 small left / 0 none / +1 small right / +2 big right
+ * Golf vocabulary (slice/hook/fade/draw) is handedness-relative, so these
+ * two helpers translate between observed shape and shot fields.
+ */
+
+function observedToFields(s, c, handedness) {
+  const startLine = s < 0 ? 'left' : (s > 0 ? 'right' : 'straight');
+  let curve = 'straight';
+  if (c !== 0) {
+    const big = Math.abs(c) === 2;
+    // Curving right is a slice for a right-hander, a hook for a left-hander.
+    const sliceSide = handedness === 'left' ? -1 : 1;
+    if (Math.sign(c) === sliceSide) curve = big ? 'slice' : 'fade';
+    else curve = big ? 'hook' : 'draw';
+  }
+  return { startLine, curve };
+}
+
+function fieldsToObserved(startLine, curve, handedness) {
+  const s = startLine === 'left' ? -1 : (startLine === 'right' ? 1 : 0);
+  if (curve === 'straight') return { s, c: 0 };
+  const sliceSide = handedness === 'left' ? -1 : 1;
+  const big = curve === 'slice' || curve === 'hook';
+  const dir = (curve === 'slice' || curve === 'fade') ? sliceSide : -sliceSide;
+  return { s, c: dir * (big ? 2 : 1) };
+}
+
+/** SVG path for an observed flight shape inside a 320×216 viewBox:
+ * tee at bottom center, launch along the start line, bending with the curve. */
+function flightPathD(s, c) {
+  const x0 = 160, y0 = 196;
+  const cx = x0 + s * 38, cy = 108;
+  const ex = x0 + s * 70 + c * 35, ey = 34;
+  return `M ${x0} ${y0} Q ${cx} ${cy} ${ex} ${ey}`;
+}
+
 /* ------------------------------------------------------------- quick log
  * One-tap outcomes for on-course logging. Each maps to full shot fields so
  * quick-logged shots feed the same diagnosis engine, trends, and charts.

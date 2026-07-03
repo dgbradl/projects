@@ -384,15 +384,93 @@ button.primary {
 .plan-item.done strong { text-decoration: line-through; color: var(--muted); }
 .plan-item.done .drill-how { text-decoration: line-through; }
 
+/* ------------------------------------------------------ flight picker --- */
+
+.flight-wrap {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 10px 10px 4px;
+  box-shadow: var(--shadow-1);
+}
+
+#flight-picker { width: 100%; display: block; }
+
+.flight-readout {
+  text-align: center;
+  font-weight: 700;
+  color: var(--text);
+  margin: 2px 0 8px;
+}
+
+.fp {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.fp-sel { stroke: transparent; } /* the animated twin draws on top */
+
+.fp-sel-draw {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-dasharray: 260;
+  stroke-dashoffset: 260;
+  animation: fp-draw 0.8s cubic-bezier(0.3, 0, 0.3, 1) forwards;
+}
+
+@keyframes fp-draw { to { stroke-dashoffset: 0; } }
+
+.fp-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 17;
+  cursor: pointer;
+  pointer-events: stroke;
+}
+
+.fp-ball { fill: var(--accent); }
+.fp-tee { fill: var(--text); opacity: 0.7; }
+
+.fp-target {
+  stroke: var(--border);
+  stroke-width: 1.5;
+  stroke-dasharray: 2 6;
+  stroke-linecap: round;
+}
+
+.fp-flag line { stroke: var(--muted); stroke-width: 2; stroke-linecap: round; }
+.fp-flag path { fill: var(--danger); }
+
 /* ---------------------------------------------------------- quick log --- */
 
 .log-mode { margin-bottom: 20px; }
 
 .quick-grid button.quick-outcome {
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 700;
-  padding: 19px 6px;
+  padding: 12px 6px 13px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
 }
+
+.quick-outcome svg {
+  width: 34px;
+  height: 25px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.85;
+}
+
+.quick-outcome svg.mirror { transform: scaleX(-1); }
 
 /* -------------------------------------------------------------- toast --- */
 

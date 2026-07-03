@@ -279,10 +279,58 @@ function renderNewShotForm() {
   clubSel.value = state.shot.club;
 
   renderChoices('contact-grid', CONTACTS, 'contact');
-  renderChoices('start-seg', STARTS, 'startLine');
-  renderChoices('curve-grid', CURVES, 'curve');
+  renderFlightPicker();
   renderChoices('traj-seg', TRAJECTORIES, 'trajectory');
   document.getElementById('note').value = state.shot.note;
+}
+
+/* ------------------------------------------------------ flight picker ---
+ * All 15 flight shapes fan out from the tee; tapping one sets both the
+ * start line and the curve. Drawn in observed geometry (what you saw), so
+ * it reads the same for left- and right-handers.
+ */
+
+function renderFlightPicker() {
+  const svg = document.getElementById('flight-picker');
+  const selected = fieldsToObserved(state.shot.startLine, state.shot.curve, state.settings.handedness);
+
+  let paths = '';
+  let hits = '';
+  for (const s of [-1, 0, 1]) {
+    for (const c of [-2, -1, 0, 1, 2]) {
+      const d = flightPathD(s, c);
+      const isSel = s === selected.s && c === selected.c;
+      paths += `<path class="fp${isSel ? ' fp-sel' : ''}" d="${d}"/>`;
+      hits += `<path class="fp-hit" d="${d}" data-s="${s}" data-c="${c}"/>`;
+    }
+  }
+  const selD = flightPathD(selected.s, selected.c);
+
+  svg.innerHTML = `
+    <line class="fp-target" x1="160" y1="196" x2="160" y2="30"/>
+    <g class="fp-flag"><line x1="160" y1="30" x2="160" y2="10"/><path d="M160 10l12 4.5-12 4.5z"/></g>
+    ${paths}
+    <path class="fp-sel-draw" d="${selD}"/>
+    <circle class="fp-ball" r="4.5">
+      <animateMotion dur="0.8s" fill="freeze" keyPoints="0;1" keyTimes="0;1" calcMode="spline" keySplines="0.3 0 0.3 1" path="${selD}"/>
+    </circle>
+    <circle class="fp-tee" cx="160" cy="196" r="5"/>
+    ${hits}`;
+
+  svg.querySelectorAll('.fp-hit').forEach(hit => {
+    hit.addEventListener('click', () => {
+      const fields = observedToFields(Number(hit.dataset.s), Number(hit.dataset.c), state.settings.handedness);
+      state.shot.startLine = fields.startLine;
+      state.shot.curve = fields.curve;
+      buzz();
+      renderFlightPicker();
+    });
+  });
+
+  const readout = document.getElementById('flight-readout');
+  const startText = state.shot.startLine === 'straight' ? 'Starts at target' : 'Starts ' + state.shot.startLine;
+  const curveText = state.shot.curve === 'straight' ? 'no curve' : labelFor(CURVES, state.shot.curve).toLowerCase();
+  readout.textContent = `${startText} · ${curveText}`;
 }
 
 document.getElementById('club').addEventListener('change', e => {
@@ -328,15 +376,31 @@ function renderQuickForm() {
 
   const outGrid = document.getElementById('quick-outcome-grid');
   outGrid.innerHTML = '';
+  const mirrored = ['pull', 'push', 'slice', 'hook', 'shank']; // observed direction flips for lefties
   QUICK_OUTCOMES.forEach(outcome => {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'quick-outcome';
-    btn.textContent = outcome.label;
+    const mirror = state.settings.handedness === 'left' && mirrored.includes(outcome.id) ? ' class="mirror"' : '';
+    btn.innerHTML = `<svg viewBox="0 0 36 26" aria-hidden="true"${mirror}><path d="${QUICK_GLYPHS[outcome.id]}"/></svg><span>${esc(outcome.label)}</span>`;
     btn.addEventListener('click', () => quickLog(outcome));
     outGrid.appendChild(btn);
   });
 }
+
+/* Mini flight/strike glyphs for the quick grid — same visual language as the
+ * flight picker (tee at the bottom, target up). */
+const QUICK_GLYPHS = {
+  flush:  'M18 23 L18 4',
+  pull:   'M18 23 L9 5',
+  push:   'M18 23 L27 5',
+  slice:  'M18 23 Q17 11 29 5',
+  hook:   'M18 23 Q19 11 7 5',
+  fat:    'M6 21 h24 M18 21 v-9',
+  thin:   'M6 19 L30 13',
+  topped: 'M5 21 q4 -7 8 0 q4 -7 8 0 q4 -7 8 0',
+  shank:  'M18 23 L31 13',
+};
 
 /* Light haptic tick where supported (Android Chrome; harmless no-op on iOS). */
 function buzz() {
@@ -951,6 +1015,7 @@ handednessSel.value = state.settings.handedness;
 handednessSel.addEventListener('change', e => {
   state.settings.handedness = e.target.value;
   saveSettings();
+  renderFlightPicker(); // observed shapes mirror for left-handers
 });
 
 function renderAIStatus() {
