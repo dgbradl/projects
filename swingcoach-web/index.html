@@ -22,6 +22,25 @@
   <main id="main">
     <!-- New Shot -->
     <section id="tab-new" class="tab">
+      <div class="segmented log-mode" id="log-mode">
+        <button data-mode="detailed">Detailed</button>
+        <button data-mode="quick">Quick</button>
+      </div>
+
+      <!-- Quick log: two taps per shot, built for on-course pace -->
+      <div id="quick-form" class="hidden">
+        <div class="field">
+          <label>Club</label>
+          <div class="grid" id="quick-club-grid"></div>
+        </div>
+        <div class="field">
+          <label>What happened?</label>
+          <div class="grid quick-grid" id="quick-outcome-grid"></div>
+        </div>
+        <p class="hint">One tap logs the shot — undo from the popup. Quick shots feed the same trends and charts.</p>
+      </div>
+
+      <div id="detailed-form">
       <div class="field">
         <label for="club">Club</label>
         <select id="club"></select>
@@ -53,6 +72,12 @@
       </div>
 
       <button class="primary" id="analyze-btn">Analyze my shot</button>
+      </div><!-- /detailed-form -->
+    </section>
+
+    <!-- Rounds (digital scorecard) -->
+    <section id="tab-rounds" class="tab hidden">
+      <div id="rounds-content"></div>
     </section>
 
     <!-- History -->
@@ -113,8 +138,14 @@
     <div id="diagnosis-content" class="overlay-content"></div>
   </div>
 
+  <div id="toast" class="hidden">
+    <span id="toast-msg"></span>
+    <button class="link-btn" id="toast-undo">Undo</button>
+  </div>
+
   <nav id="tabbar">
-    <button data-tab="new" class="active"><span>⛳</span>New Shot</button>
+    <button data-tab="new" class="active"><span>⛳</span>Shots</button>
+    <button data-tab="rounds"><span>🗒️</span>Rounds</button>
     <button data-tab="history"><span>🕑</span>History</button>
     <button data-tab="trends"><span>🎯</span>Practice</button>
     <button data-tab="settings"><span>⚙️</span>Settings</button>

@@ -326,6 +326,108 @@ button.primary:active { filter: brightness(0.9); }
 .plan-item.done strong { text-decoration: line-through; color: var(--muted); }
 .plan-item.done .drill-how { text-decoration: line-through; }
 
+/* --- quick log --- */
+
+.log-mode { margin-bottom: 18px; }
+
+.quick-grid button.quick-outcome {
+  font-size: 1.02rem;
+  font-weight: 600;
+  padding: 18px 6px;
+}
+
+/* --- toast --- */
+
+#toast {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 12px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 14px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+  z-index: 15;
+  max-width: 528px;
+  margin: 0 auto;
+}
+
+/* --- scorecard --- */
+
+.round-row { cursor: pointer; padding: 8px 0; }
+
+.scorecard-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+.scorecard-head h3 { margin: 0; }
+.scorecard-total { text-align: right; }
+.big-score { font-size: 1.8rem; font-weight: 800; line-height: 1.1; }
+
+.hole-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+}
+.hole-row:last-child { border-bottom: none; }
+
+.hole-num {
+  width: 22px;
+  font-weight: 700;
+  color: var(--muted);
+  text-align: right;
+}
+
+.par-picker { display: flex; gap: 4px; }
+.par-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--muted);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.par-btn.selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 700;
+}
+
+.stroke-stepper {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+.step-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+.stroke-value {
+  min-width: 34px;
+  text-align: center;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
 /* --- tab bar --- */
 
 #tabbar {

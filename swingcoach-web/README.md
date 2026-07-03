@@ -6,7 +6,8 @@ Built on the **ball flight laws**: the ball starts roughly where the clubface po
 
 ## What's in it
 
-- **New Shot** — tap through what happened and get a diagnosis: what happened at impact, likely causes ranked, what to work on, and drills with instructions.
+- **Shot logging, two speeds** — Detailed mode walks through contact/start/curve/trajectory and returns a full diagnosis (impact physics, ranked causes, fixes, drills). Quick mode is two taps (club + outcome) with an undo toast, built for on-course pace; quick shots feed the same trends and charts.
+- **Rounds (digital scorecard)** — start a 9- or 18-hole round at a named course, tap in par and strokes per hole, and get live totals and to-par. Past rounds are listed by date and course with your best score per course. Works offline mid-round and syncs when you're back on signal.
 - **History with sessions** — shots are stored in MySQL keyed to your Google account, and grouped automatically into range sessions/rounds (shots more than 3 hours apart start a new session), each with a flush-rate summary.
 - **Fix tracking** — mark any diagnosed miss as your current focus and the app measures how often it shows up before vs. after ("Big slice: 45% → 20%"), synced across your devices. Past fixes keep their before/after record.
 - **Progress charts** — flush rate per session, with your tracked miss overlaid, drawn on a dependency-free canvas.

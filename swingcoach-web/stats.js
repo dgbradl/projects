@@ -124,6 +124,113 @@ function sessionSeries(sessions, focusPattern, maxSessions = 12) {
   });
 }
 
+/* ------------------------------------------------------------- quick log
+ * One-tap outcomes for on-course logging. Each maps to full shot fields so
+ * quick-logged shots feed the same diagnosis engine, trends, and charts.
+ * "Pull"/"Push" depend on handedness: a pull starts left for a righty and
+ * right for a lefty.
+ */
+
+const QUICK_OUTCOMES = [
+  { id: 'flush',  label: 'Flush ✓' },
+  { id: 'pull',   label: 'Pull' },
+  { id: 'push',   label: 'Push' },
+  { id: 'slice',  label: 'Slice' },
+  { id: 'hook',   label: 'Hook' },
+  { id: 'fat',    label: 'Fat' },
+  { id: 'thin',   label: 'Thin' },
+  { id: 'topped', label: 'Top' },
+  { id: 'shank',  label: 'Shank' },
+];
+
+/** Shot field overrides for a quick outcome. */
+function quickShotFields(outcomeId, handedness) {
+  const pullSide = handedness === 'left' ? 'right' : 'left';
+  const pushSide = handedness === 'left' ? 'left' : 'right';
+  const base = { contact: 'flush', startLine: 'straight', curve: 'straight', trajectory: 'normal' };
+  switch (outcomeId) {
+    case 'flush':  return base;
+    case 'pull':   return Object.assign(base, { startLine: pullSide });
+    case 'push':   return Object.assign(base, { startLine: pushSide });
+    case 'slice':  return Object.assign(base, { curve: 'slice' });
+    case 'hook':   return Object.assign(base, { curve: 'hook' });
+    case 'fat':    return Object.assign(base, { contact: 'fat' });
+    case 'thin':   return Object.assign(base, { contact: 'thin' });
+    case 'topped': return Object.assign(base, { contact: 'topped' });
+    case 'shank':  return Object.assign(base, { contact: 'shank' });
+    default:       return base;
+  }
+}
+
+/* ---------------------------------------------------------------- rounds
+ * A round is a digital scorecard: {id, date, course, holes: [{par, strokes}],
+ * finished}. Totals only count holes with strokes entered; the to-par number
+ * appears only when every played hole also has a par set.
+ */
+
+function newRound(course, holeCount) {
+  return {
+    id: crypto.randomUUID(),
+    date: new Date().toISOString(),
+    course: course.trim(),
+    holes: Array.from({ length: holeCount }, () => ({ par: null, strokes: null })),
+    finished: false,
+  };
+}
+
+function roundTotals(round) {
+  let holesPlayed = 0, strokes = 0, par = 0, allParsKnown = true;
+  for (const hole of round.holes) {
+    if (hole.strokes === null || hole.strokes === undefined) continue;
+    holesPlayed += 1;
+    strokes += hole.strokes;
+    if (hole.par === null || hole.par === undefined) allParsKnown = false;
+    else par += hole.par;
+  }
+  return {
+    holesPlayed,
+    strokes,
+    par: allParsKnown && holesPlayed ? par : null,
+    toPar: allParsKnown && holesPlayed ? strokes - par : null,
+  };
+}
+
+function formatToPar(n) {
+  if (n === null || n === undefined) return '';
+  if (n === 0) return 'E';
+  return n > 0 ? '+' + n : String(n);
+}
+
+/** Unique course names from past rounds, most recent first. */
+function knownCourses(rounds) {
+  const seen = new Set();
+  const names = [];
+  for (const round of [...rounds].sort((a, b) => new Date(b.date) - new Date(a.date))) {
+    const key = round.course.toLowerCase();
+    if (round.course && !seen.has(key)) {
+      seen.add(key);
+      names.push(round.course);
+    }
+  }
+  return names;
+}
+
+/** Best (lowest) finished-round score per course: [{course, best, rounds}] */
+function courseBests(rounds) {
+  const byCourse = new Map();
+  for (const round of rounds) {
+    if (!round.finished) continue;
+    const totals = roundTotals(round);
+    if (!totals.holesPlayed) continue;
+    const key = round.course.toLowerCase();
+    const cur = byCourse.get(key) || { course: round.course, best: Infinity, rounds: 0 };
+    cur.rounds += 1;
+    if (totals.strokes < cur.best) cur.best = totals.strokes;
+    byCourse.set(key, cur);
+  }
+  return [...byCourse.values()].sort((a, b) => b.rounds - a.rounds);
+}
+
 /* ---------------------------------------------------------- practice plan */
 
 const TRACKED_FINISHER = {

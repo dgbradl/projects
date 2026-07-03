@@ -5,6 +5,8 @@ const STORAGE_SETTINGS = 'swingcoach.settings';
 const STORAGE_PENDING = 'swingcoach.pending';
 const STORAGE_PROFILE = 'swingcoach.profile';
 const STORAGE_PLAN = 'swingcoach.plan';
+const STORAGE_ROUNDS = 'swingcoach.rounds';
+const STORAGE_DIRTY_ROUNDS = 'swingcoach.dirtyRounds';
 
 const state = {
   shot: newShot(),
@@ -13,6 +15,9 @@ const state = {
   pending: loadJSON(STORAGE_PENDING, []),
   profile: loadJSON(STORAGE_PROFILE, { focuses: [] }),
   plan: loadJSON(STORAGE_PLAN, null),
+  rounds: loadJSON(STORAGE_ROUNDS, []),
+  dirtyRounds: loadJSON(STORAGE_DIRTY_ROUNDS, []),
+  editingRoundId: null,
 };
 
 function newShot(keepClub) {
@@ -40,6 +45,21 @@ function saveSettings() { localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(
 function savePending() { localStorage.setItem(STORAGE_PENDING, JSON.stringify(state.pending)); }
 function saveProfile() { localStorage.setItem(STORAGE_PROFILE, JSON.stringify(state.profile)); }
 function savePlan() { localStorage.setItem(STORAGE_PLAN, JSON.stringify(state.plan)); }
+function saveRounds() { localStorage.setItem(STORAGE_ROUNDS, JSON.stringify(state.rounds)); }
+function saveDirtyRounds() { localStorage.setItem(STORAGE_DIRTY_ROUNDS, JSON.stringify(state.dirtyRounds)); }
+
+/* Scorecard edits fire on every tap, so rounds sync via a persisted dirty-set
+ * with a short debounce instead of one queue op per tap. The dirty-set
+ * survives reloads, so an interrupted session still syncs on next open. */
+let roundSyncTimer = null;
+function markRoundDirty(id) {
+  if (!state.dirtyRounds.includes(id)) {
+    state.dirtyRounds.push(id);
+    saveDirtyRounds();
+  }
+  clearTimeout(roundSyncTimer);
+  roundSyncTimer = setTimeout(() => { flushPending(); }, 1200);
+}
 
 /* ------------------------------------------------------------ fix tracking */
 
@@ -128,9 +148,17 @@ async function flushPending() {
       const op = state.pending[0];
       if (op.op === 'upsert') await api('upsert', { shot: op.shot });
       else if (op.op === 'profile') await api('profile', { profile: op.profile });
+      else if (op.op === 'roundDelete') await api('roundDelete', { id: op.id });
       else await api('delete', { id: op.id });
       state.pending.shift();
       savePending();
+    }
+    while (state.dirtyRounds.length) {
+      const id = state.dirtyRounds[0];
+      const round = state.rounds.find(r => r.id === id);
+      if (round) await api('roundUpsert', { round });
+      state.dirtyRounds.shift();
+      saveDirtyRounds();
     }
   } catch {
     // Offline or server hiccup — ops stay queued and retry on reconnect.
@@ -163,6 +191,24 @@ async function syncPull() {
     shots.sort((a, b) => new Date(b.date) - new Date(a.date));
     state.shots = shots;
     saveShots();
+    // Rounds: server base, but locally-dirty rounds and queued deletes win.
+    if (Array.isArray(res.rounds)) {
+      let rounds = res.rounds;
+      for (const id of state.dirtyRounds) {
+        const local = state.rounds.find(r => r.id === id);
+        if (local) {
+          rounds = rounds.filter(r => r.id !== id);
+          rounds.push(local);
+        }
+      }
+      for (const op of state.pending) {
+        if (op.op === 'roundDelete') rounds = rounds.filter(r => r.id !== op.id);
+      }
+      rounds.sort((a, b) => new Date(b.date) - new Date(a.date));
+      state.rounds = rounds;
+      saveRounds();
+      renderRounds();
+    }
     renderHistory();
     renderTrends();
   } catch {
@@ -184,7 +230,8 @@ function esc(s) {
 /* ------------------------------------------------------------------ tabs */
 
 const TAB_TITLES = {
-  new: 'Describe your shot',
+  new: 'Log a shot',
+  rounds: 'Rounds',
   history: 'Shot history',
   trends: 'Practice',
   settings: 'Settings',
@@ -197,6 +244,7 @@ function showTab(name) {
     btn.classList.toggle('active', btn.dataset.tab === name);
   });
   document.getElementById('screen-title').textContent = TAB_TITLES[name];
+  if (name === 'rounds') renderRounds();
   if (name === 'history') renderHistory();
   if (name === 'trends') renderTrends();
   if (name === 'settings') renderAIStatus();
@@ -239,7 +287,89 @@ function renderNewShotForm() {
 
 document.getElementById('club').addEventListener('change', e => {
   state.shot.club = e.target.value;
+  renderQuickForm(); // keep the quick-mode club chips in step
 });
+
+/* -------------------------------------------------------------- quick log */
+
+function applyLogMode() {
+  const quick = state.settings.logMode === 'quick';
+  document.getElementById('quick-form').classList.toggle('hidden', !quick);
+  document.getElementById('detailed-form').classList.toggle('hidden', quick);
+  document.querySelectorAll('#log-mode button').forEach(btn => {
+    btn.classList.toggle('selected', (btn.dataset.mode === 'quick') === quick);
+  });
+  if (quick) renderQuickForm();
+}
+
+document.querySelectorAll('#log-mode button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    state.settings.logMode = btn.dataset.mode;
+    saveSettings();
+    applyLogMode();
+  });
+});
+
+function renderQuickForm() {
+  const clubGrid = document.getElementById('quick-club-grid');
+  clubGrid.innerHTML = '';
+  CLUBS.forEach(club => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = club.label;
+    btn.classList.toggle('selected', state.shot.club === club.id);
+    btn.addEventListener('click', () => {
+      state.shot.club = club.id;
+      document.getElementById('club').value = club.id;
+      renderQuickForm();
+    });
+    clubGrid.appendChild(btn);
+  });
+
+  const outGrid = document.getElementById('quick-outcome-grid');
+  outGrid.innerHTML = '';
+  QUICK_OUTCOMES.forEach(outcome => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'quick-outcome';
+    btn.textContent = outcome.label;
+    btn.addEventListener('click', () => quickLog(outcome));
+    outGrid.appendChild(btn);
+  });
+}
+
+function quickLog(outcome) {
+  const shot = Object.assign(
+    newShot(state.shot.club),
+    quickShotFields(outcome.id, state.settings.handedness),
+    { date: new Date().toISOString() }
+  );
+  state.shots.unshift(shot);
+  saveShots();
+  queueOp({ op: 'upsert', shot });
+  showToast(`Logged: ${labelFor(CLUBS, shot.club)} — ${outcome.label.replace(' ✓', '')}`, () => {
+    state.shots = state.shots.filter(s => s.id !== shot.id);
+    saveShots();
+    queueOp({ op: 'delete', id: shot.id });
+  });
+}
+
+/* Undo toast */
+let toastTimer = null;
+function showToast(msg, undoFn) {
+  const toast = document.getElementById('toast');
+  document.getElementById('toast-msg').textContent = msg;
+  const undoBtn = document.getElementById('toast-undo');
+  const fresh = undoBtn.cloneNode(true); // drop any previous listener
+  undoBtn.replaceWith(fresh);
+  fresh.addEventListener('click', () => {
+    undoFn();
+    toast.classList.add('hidden');
+  });
+  toast.classList.remove('hidden');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.add('hidden'), 4000);
+}
 document.getElementById('note').addEventListener('input', e => {
   state.shot.note = e.target.value;
 });
@@ -333,6 +463,173 @@ async function askAI(shot) {
     btn.classList.remove('hidden');
     result.innerHTML = `<p class="ai-error">${esc(err.message || String(err))}</p>`;
   }
+}
+
+/* ----------------------------------------------------------------- rounds */
+
+function renderRounds() {
+  const el = document.getElementById('rounds-content');
+  const editing = state.editingRoundId ? state.rounds.find(r => r.id === state.editingRoundId) : null;
+  if (editing) {
+    renderScorecard(el, editing);
+    return;
+  }
+
+  const parts = [];
+  const unfinished = state.rounds.filter(r => !r.finished);
+  const finished = state.rounds.filter(r => r.finished);
+
+  if (unfinished.length) {
+    parts.push(`<div class="card"><h3>In progress</h3>${unfinished.map(round => {
+      const t = roundTotals(round);
+      const day = new Date(round.date).toLocaleDateString([], { month: 'short', day: 'numeric' });
+      return `<div class="stat-row round-row" data-round="${round.id}">
+        <span><strong>${esc(round.course || 'Unnamed course')}</strong> · ${esc(day)} · thru ${t.holesPlayed}</span>
+        <span class="count">${t.strokes || ''} ${t.toPar !== null ? '(' + formatToPar(t.toPar) + ')' : ''}</span>
+      </div>`;
+    }).join('')}</div>`);
+  }
+
+  parts.push(`<div class="card"><h3>New round</h3>
+    <div class="field">
+      <input type="text" id="course-name" list="course-list" placeholder="Course name" autocomplete="off">
+      <datalist id="course-list">${knownCourses(state.rounds).map(c => `<option value="${esc(c)}">`).join('')}</datalist>
+    </div>
+    <div class="segmented">
+      <button id="start-9">Start 9 holes</button>
+      <button id="start-18">Start 18 holes</button>
+    </div></div>`);
+
+  if (finished.length) {
+    parts.push(`<div class="card"><h3>Past rounds</h3>${finished.map(round => {
+      const t = roundTotals(round);
+      const day = new Date(round.date).toLocaleDateString([], { year: '2-digit', month: 'short', day: 'numeric' });
+      return `<div class="stat-row round-row" data-round="${round.id}">
+        <span><strong>${esc(round.course || 'Unnamed course')}</strong> · ${esc(day)}</span>
+        <span class="count">${t.strokes}${t.toPar !== null ? ' (' + formatToPar(t.toPar) + ')' : ''}</span>
+      </div>`;
+    }).join('')}</div>`);
+
+    const bests = courseBests(state.rounds);
+    if (bests.length) {
+      parts.push(`<div class="card"><h3>Best by course</h3>${bests.map(b =>
+        `<div class="stat-row"><span>${esc(b.course)} <span class="hint">(${b.rounds} round${b.rounds === 1 ? '' : 's'})</span></span><span class="count">${b.best}</span></div>`
+      ).join('')}</div>`);
+    }
+  }
+
+  if (!state.rounds.length) {
+    parts.push('<p class="hint" style="text-align:center">Start a round and tap in scores hole by hole — it works with no signal and syncs later.</p>');
+  }
+
+  el.innerHTML = parts.join('');
+
+  const startRound = holes => {
+    const course = document.getElementById('course-name').value.trim() || 'Unnamed course';
+    const round = newRound(course, holes);
+    state.rounds.unshift(round);
+    saveRounds();
+    markRoundDirty(round.id);
+    state.editingRoundId = round.id;
+    renderRounds();
+  };
+  document.getElementById('start-9').addEventListener('click', () => startRound(9));
+  document.getElementById('start-18').addEventListener('click', () => startRound(18));
+
+  el.querySelectorAll('.round-row').forEach(row => {
+    row.addEventListener('click', () => {
+      state.editingRoundId = row.dataset.round;
+      renderRounds();
+    });
+  });
+}
+
+function renderScorecard(el, round) {
+  const t = roundTotals(round);
+  const day = new Date(round.date).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+
+  const holeRows = round.holes.map((hole, i) => `
+    <div class="hole-row" data-hole="${i}">
+      <span class="hole-num">${i + 1}</span>
+      <div class="par-picker">${[3, 4, 5].map(p =>
+        `<button class="par-btn${hole.par === p ? ' selected' : ''}" data-par="${p}">${p}</button>`
+      ).join('')}</div>
+      <div class="stroke-stepper">
+        <button class="step-btn" data-step="-1">−</button>
+        <span class="stroke-value${hole.strokes !== null && hole.par !== null ? (hole.strokes < hole.par ? ' good' : (hole.strokes > hole.par ? ' bad' : '')) : ''}">${hole.strokes === null ? '·' : hole.strokes}</span>
+        <button class="step-btn" data-step="1">+</button>
+      </div>
+    </div>`).join('');
+
+  el.innerHTML = `
+    <div class="card">
+      <div class="scorecard-head">
+        <div>
+          <h3>${esc(round.course || 'Unnamed course')}</h3>
+          <p class="hint">${esc(day)} · ${round.holes.length} holes</p>
+        </div>
+        <div class="scorecard-total">
+          <div class="big-score">${t.strokes || 0}</div>
+          <div class="hint">thru ${t.holesPlayed}${t.toPar !== null ? ' · ' + formatToPar(t.toPar) : ''}</div>
+        </div>
+      </div>
+      <p class="hint">Set par once per hole (tap 3/4/5), then +/− your strokes.</p>
+    </div>
+    <div class="card">${holeRows}</div>
+    <div class="card">
+      <button class="link-btn" id="round-back">← All rounds</button>
+      <button class="link-btn" id="round-finish">${round.finished ? 'Reopen round' : '✓ Finish round'}</button>
+      <button class="link-btn bad" id="round-delete">Delete round</button>
+    </div>`;
+
+  el.querySelectorAll('.hole-row').forEach(row => {
+    const hole = round.holes[Number(row.dataset.hole)];
+    row.querySelectorAll('.par-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        hole.par = Number(btn.dataset.par);
+        roundChanged(round);
+      });
+    });
+    row.querySelectorAll('.step-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const step = Number(btn.dataset.step);
+        if (hole.strokes === null) {
+          hole.strokes = step > 0 ? (hole.par || 4) : null;
+        } else {
+          const next = hole.strokes + step;
+          hole.strokes = next < 1 ? null : Math.min(next, 20);
+        }
+        roundChanged(round);
+      });
+    });
+  });
+
+  document.getElementById('round-back').addEventListener('click', () => {
+    state.editingRoundId = null;
+    renderRounds();
+  });
+  document.getElementById('round-finish').addEventListener('click', () => {
+    round.finished = !round.finished;
+    roundChanged(round);
+    if (round.finished) state.editingRoundId = null;
+    renderRounds();
+  });
+  document.getElementById('round-delete').addEventListener('click', () => {
+    if (!confirm('Delete this round? This can\'t be undone.')) return;
+    state.rounds = state.rounds.filter(r => r.id !== round.id);
+    state.dirtyRounds = state.dirtyRounds.filter(id => id !== round.id);
+    saveRounds();
+    saveDirtyRounds();
+    queueOp({ op: 'roundDelete', id: round.id });
+    state.editingRoundId = null;
+    renderRounds();
+  });
+}
+
+function roundChanged(round) {
+  saveRounds();
+  markRoundDirty(round.id);
+  renderRounds();
 }
 
 /* ---------------------------------------------------------------- history */
@@ -627,6 +924,7 @@ function renderAIStatus() {
 /* ------------------------------------------------------------------- init */
 
 renderNewShotForm();
+applyLogMode();
 showTab('new');
 
 // Called by auth.js after a fresh sign-in; also run now for stored sessions.

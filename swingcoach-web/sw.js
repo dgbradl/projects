@@ -1,7 +1,7 @@
 /* SwingCoach service worker: cache-first app shell so the app works offline
  * on the course. Bump CACHE_VERSION when deploying changes. */
 
-const CACHE_VERSION = 'swingcoach-v5';
+const CACHE_VERSION = 'swingcoach-v6';
 const ASSETS = [
   './',
   './index.html',

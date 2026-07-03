@@ -107,6 +107,12 @@ function db(): PDO
         email VARCHAR(255) NOT NULL PRIMARY KEY,
         data TEXT NOT NULL
     )');
+    $pdo->exec('CREATE TABLE IF NOT EXISTS rounds (
+        id CHAR(36) NOT NULL PRIMARY KEY,
+        email VARCHAR(255) NOT NULL,
+        round_date DATETIME NOT NULL,
+        data TEXT NOT NULL
+    )');
     return $pdo;
 }
 
@@ -186,6 +192,45 @@ function clean_shot(mixed $shot): array
     return $clean;
 }
 
+/** Validate an incoming round (scorecard) and return the canonical form. */
+function clean_round(mixed $round): array
+{
+    if (!is_array($round)) {
+        fail(400, 'Missing round');
+    }
+    $id = $round['id'] ?? '';
+    if (!is_string($id) || !preg_match('/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/', $id)) {
+        fail(400, 'Bad round id');
+    }
+    $holes = $round['holes'] ?? null;
+    if (!is_array($holes) || !in_array(count($holes), [9, 18], true)) {
+        fail(400, 'A round must have 9 or 18 holes');
+    }
+    $cleanHoles = [];
+    foreach (array_values($holes) as $hole) {
+        if (!is_array($hole)) {
+            fail(400, 'Bad hole');
+        }
+        $par = $hole['par'] ?? null;
+        $strokes = $hole['strokes'] ?? null;
+        if ($par !== null && (!is_int($par) || $par < 3 || $par > 6)) {
+            fail(400, 'Par must be 3–6');
+        }
+        if ($strokes !== null && (!is_int($strokes) || $strokes < 1 || $strokes > 20)) {
+            fail(400, 'Strokes must be 1–20');
+        }
+        $cleanHoles[] = ['par' => $par, 'strokes' => $strokes];
+    }
+    $ts = strtotime((string) ($round['date'] ?? ''));
+    return [
+        'id' => strtolower($id),
+        'date' => gmdate('c', $ts ?: time()),
+        'course' => mb_substr(trim((string) ($round['course'] ?? '')), 0, 100),
+        'holes' => $cleanHoles,
+        'finished' => (bool) ($round['finished'] ?? false),
+    ];
+}
+
 /* ------------------------------------------------------------------ main */
 
 $body = json_decode((string) file_get_contents('php://input'), true);
@@ -251,11 +296,46 @@ switch ($action) {
         $profileRaw = $st->fetchColumn();
         $profile = is_string($profileRaw) ? json_decode($profileRaw, true) : null;
 
+        $st = $pdo->prepare('SELECT data FROM rounds WHERE email = ? ORDER BY round_date DESC LIMIT 200');
+        $st->execute([$email]);
+        $rounds = array_map(fn($row) => json_decode($row['data'], true), $st->fetchAll());
+
         echo json_encode([
             'shots' => $shots,
+            'rounds' => $rounds,
             'profile' => is_array($profile) ? $profile : null,
             'ai' => ANTHROPIC_API_KEY !== '',
         ]);
+        break;
+    }
+
+    case 'roundUpsert': {
+        $email = require_session($pdo, $body);
+        $round = clean_round($body['round'] ?? null);
+
+        $st = $pdo->prepare('SELECT email FROM rounds WHERE id = ?');
+        $st->execute([$round['id']]);
+        $owner = $st->fetchColumn();
+        if (is_string($owner) && $owner !== '' && $owner !== $email) {
+            fail(403, 'That round belongs to a different account');
+        }
+
+        $pdo->prepare('REPLACE INTO rounds (id, email, round_date, data) VALUES (?, ?, ?, ?)')
+            ->execute([
+                $round['id'],
+                $email,
+                gmdate('Y-m-d H:i:s', strtotime($round['date'])),
+                json_encode($round),
+            ]);
+        echo json_encode(['ok' => true]);
+        break;
+    }
+
+    case 'roundDelete': {
+        $email = require_session($pdo, $body);
+        $id = strtolower((string) ($body['id'] ?? ''));
+        $pdo->prepare('DELETE FROM rounds WHERE id = ? AND email = ?')->execute([$id, $email]);
+        echo json_encode(['ok' => true]);
         break;
     }
 
