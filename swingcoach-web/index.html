@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>SwingCoach</title>
+  <meta name="description" content="Describe your golf shot, get a swing diagnosis.">
+  <meta name="theme-color" content="#1c8f4a">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="SwingCoach">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <header>
+    <h1 id="screen-title">Describe your shot</h1>
+  </header>
+
+  <main id="main">
+    <!-- New Shot -->
+    <section id="tab-new" class="tab">
+      <div class="field">
+        <label for="club">Club</label>
+        <select id="club"></select>
+      </div>
+
+      <div class="field">
+        <label>Contact — how did the strike feel?</label>
+        <div class="grid" id="contact-grid"></div>
+      </div>
+
+      <div class="field">
+        <label>Where did it start?</label>
+        <div class="segmented" id="start-seg"></div>
+      </div>
+
+      <div class="field">
+        <label>How did it curve?</label>
+        <div class="grid" id="curve-grid"></div>
+      </div>
+
+      <div class="field">
+        <label>Trajectory</label>
+        <div class="segmented" id="traj-seg"></div>
+      </div>
+
+      <div class="field">
+        <label for="note">Anything else? (optional)</label>
+        <textarea id="note" rows="2" placeholder="e.g. felt like I swung too hard…"></textarea>
+      </div>
+
+      <button class="primary" id="analyze-btn">Analyze my shot</button>
+    </section>
+
+    <!-- History -->
+    <section id="tab-history" class="tab hidden">
+      <div id="history-list"></div>
+    </section>
+
+    <!-- Trends -->
+    <section id="tab-trends" class="tab hidden">
+      <div id="trends-content"></div>
+    </section>
+
+    <!-- Settings -->
+    <section id="tab-settings" class="tab hidden">
+      <div class="field">
+        <label for="handedness">I play</label>
+        <select id="handedness">
+          <option value="right">Right-handed</option>
+          <option value="left">Left-handed</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="api-key">Anthropic API key (optional)</label>
+        <input type="password" id="api-key" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="sk-ant-…">
+        <p class="hint">Optional. Paste an API key from console.anthropic.com to add a personalized AI coach to each diagnosis. The built-in analysis works fully offline without it. The key is stored only in this browser.</p>
+      </div>
+
+      <div class="card">
+        <h3>About</h3>
+        <p class="hint">Describe what your ball did and get a diagnosis of the likely swing fault, based on the ball flight laws: the ball starts roughly where the clubface points, and curves away from the swing path. Shots are saved in this browser only.</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- Diagnosis overlay -->
+  <div id="diagnosis-overlay" class="overlay hidden">
+    <div class="overlay-bar">
+      <h2>Diagnosis</h2>
+      <button id="diagnosis-done" class="link-btn">Done</button>
+    </div>
+    <div id="diagnosis-content" class="overlay-content"></div>
+  </div>
+
+  <nav id="tabbar">
+    <button data-tab="new" class="active"><span>⛳</span>New Shot</button>
+    <button data-tab="history"><span>🕑</span>History</button>
+    <button data-tab="trends"><span>📊</span>Trends</button>
+    <button data-tab="settings"><span>⚙️</span>Settings</button>
+  </nav>
+
+  <script src="engine.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
