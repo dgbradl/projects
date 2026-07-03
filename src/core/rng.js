@@ -10,6 +10,8 @@ export function makeRng(seed) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
   return {
+    getState: () => a >>> 0,                       // for save/load
+    setState: (s) => { a = s >>> 0; },
     float: next,                                   // [0, 1)
     range: (lo, hi) => lo + next() * (hi - lo),    // [lo, hi)
     int: (lo, hi) => lo + Math.floor(next() * (hi - lo + 1)), // [lo, hi] inclusive

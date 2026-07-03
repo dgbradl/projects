@@ -1,6 +1,7 @@
 // Bootstrap: game loop, input, and the wiring between sim and UI.
 
 import { createSim, tick } from '../core/sim.js';
+import { serialize, deserialize } from '../core/save.js';
 import { POWERS, castPower } from '../core/god.js';
 import { dist } from '../core/world.js';
 import { displayName } from '../core/character.js';
@@ -35,9 +36,27 @@ const EFFECT_COLORS = {
   prophecy: '#e6d5ff', schism: '#c99aff', dedication: '#e6e0ff',
 };
 
-function newWorld() {
-  const seed = Math.floor(Math.random() * 2 ** 31);
-  sim = createSim(seed);
+const SAVE_KEY = 'vale-of-embers-save';
+
+function saveWorld() {
+  if (!sim || sim.extinct) return;
+  try { localStorage.setItem(SAVE_KEY, serialize(sim)); } catch { /* storage full or blocked */ }
+}
+
+function loadWorld() {
+  try {
+    const json = localStorage.getItem(SAVE_KEY);
+    if (!json) return null;
+    return deserialize(json);
+  } catch {
+    return null;
+  }
+}
+
+function newWorld(resume = false) {
+  const saved = resume ? loadWorld() : null;
+  if (!resume) localStorage.removeItem(SAVE_KEY);
+  sim = saved ?? createSim(Math.floor(Math.random() * 2 ** 31));
   cam = makeCamera(canvas, sim.world.w, sim.world.h);
   terrain = makeTerrain(sim.world);
   effects = makeEffects();
@@ -266,9 +285,16 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
-newWorld();
+newWorld(true);   // resume the last world if one was saved
 resize();
 requestAnimationFrame(frame);
+
+// The world is remembered even when you look away.
+setInterval(saveWorld, 30000);
+window.addEventListener('pagehide', saveWorld);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') saveWorld();
+});
 
 // A window into the world, for the curious and for tests.
 window.vale = {

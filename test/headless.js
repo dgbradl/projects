@@ -4,6 +4,7 @@
 import { createSim, tick, stateHash } from '../src/core/sim.js';
 import { DAYS_PER_YEAR, yearOf } from '../src/core/world.js';
 import { castPower } from '../src/core/god.js';
+import { serialize, deserialize } from '../src/core/save.js';
 
 const seed = Number(process.argv[2] ?? 12345);
 const years = Number(process.argv[3] ?? 25);
@@ -77,6 +78,20 @@ if (!sim.extinct) {
   }
   check('betrayed doctrine led to schism into a cult of dread',
     [...rsim.religions.values()].some(r => r.doctrine === 'wrath' && r.schismOf !== null));
+}
+
+// Save/load: a resumed world must continue exactly as the original would.
+{
+  const original = createSim(555);
+  for (let d = 0; d < 3 * DAYS_PER_YEAR; d++) tick(original);
+  const snapshot = serialize(original);
+  const resumed = deserialize(snapshot);
+  check('save/load: state hash matches at load', stateHash(original) === stateHash(resumed));
+  for (let d = 0; d < 2 * DAYS_PER_YEAR; d++) { tick(original); tick(resumed); }
+  check('save/load: resumed world evolves identically for 2 more years',
+    stateHash(original) === stateHash(resumed));
+  check('save/load: chronicle continues in the resumed world',
+    resumed.chronicleLog.length > 0);
 }
 
 // Determinism: identical seeds must produce identical histories.
