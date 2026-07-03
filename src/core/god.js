@@ -21,6 +21,10 @@ export const POWERS = {
     name: 'Healing Light', cost: 15, target: 'person', icon: '✚',
     desc: 'Mend the body and lift the spirit of one soul.',
   },
+  dream: {
+    name: 'Soothing Dream', cost: 10, target: 'person', icon: '☾',
+    desc: 'Visit one soul in sleep: despair lifts, and their bitterest grudge loosens its grip.',
+  },
   inspire: {
     name: 'Inspiration', cost: 15, target: 'person', icon: '☀',
     desc: 'Fill one soul with courage and purpose for a season.',
@@ -120,6 +124,29 @@ export function castPower(sim, key, target) {
       witness(sim, p.x, p.y, 6, 1, 0, `the healing of ${p.name}`);
       chronicle(sim, 1, `${p.name} was healed by divine grace`, { x: p.x, y: p.y, kind: 'miracle', who: [p.id] });
       result = `${p.name} is made whole.`;
+      break;
+    }
+    case 'dream': {
+      const p = target.person;
+      if (!p?.alive) return null;
+      p.mood = Math.min(1, p.mood + 0.35);
+      p.needs.energy = 1;
+      // The oldest hatred loosens — not into love, but into something bearable.
+      let worstId = null, worstAff = -20;
+      for (const [id, r] of p.rel) {
+        if (r.aff < worstAff && sim.folk.get(id)?.alive) { worstAff = r.aff; worstId = id; }
+      }
+      if (worstId !== null) {
+        const enemy = sim.folk.get(worstId);
+        p.rel.get(worstId).aff = Math.min(-5, worstAff + 55);
+        remember(p, sim, `dreamed of ${enemy.name}, and woke with the hate gone quiet`, 0.1);
+        result = `${p.name} dreams, and forgives a little.`;
+      } else {
+        remember(p, sim, 'slept a night without any weight at all', 0.1);
+        result = `${p.name} sleeps in peace.`;
+      }
+      p.traits.faith = Math.min(1, p.traits.faith + 0.08);
+      chronicle(sim, 0, `${p.name} woke gentled by a dream`, { x: p.x, y: p.y, kind: 'miracle', who: [p.id] });
       break;
     }
     case 'inspire': {

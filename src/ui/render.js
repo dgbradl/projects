@@ -206,6 +206,14 @@ export function makeEffects() {
             color: [255, 244, 200], glow: true,
           }));
           break;
+        case 'dream':
+          api.spawn(22, () => ({
+            x: x + (R() - 0.5) * 3, y: y + (R() - 0.5) * 2,
+            vx: (R() - 0.5) * 0.3, vy: -0.3 - R() * 0.4, g: -0.05,
+            life: 1.8 + R(), max: 2.8, size: 1.5 + R() * 1.5,
+            color: R() > 0.5 ? [180, 200, 255] : [230, 225, 255], glow: true,
+          }));
+          break;
         case 'inspire':
           list.push({ type: 'shaft', x, y, t: 1 });
           api.spawn(30, (i) => ({
