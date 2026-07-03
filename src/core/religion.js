@@ -64,6 +64,8 @@ export function foundReligion(sim, prophet, doctrine, schismOf = null) {
     bornDay: sim.day,
     schismOf,
     faded: false,
+    scripture: [],
+    lastVerseDay: -999,
   };
   sim.religions.set(r.id, r);
   prophet.religion = r.id;
@@ -76,6 +78,13 @@ export function foundReligion(sim, prophet, doctrine, schismOf = null) {
     { x: prophet.x, y: prophet.y, kind: schismOf ? 'schism' : 'prophecy', who: [prophet.id] });
   remember(prophet, sim, `heard the god and proclaimed ${r.name}`, 0.4);
 
+  const opening = {
+    mercy: `In the beginning ${prophet.name} saw the god's kindness, and was not afraid.`,
+    wrath: `In the beginning ${prophet.name} saw the sky burn, and knew the god must be appeased.`,
+    silence: `In the beginning ${prophet.name} listened for the god, and heard nothing, and understood.`,
+  };
+  addVerse(sim, r, opening[doctrine]);
+
   // The first congregation: kin, friends and neighbors moved by the word.
   for (const o of sim.folk.values()) {
     if (!o.alive || o.id === prophet.id || dist(o.x, o.y, prophet.x, prophet.y) > 14) continue;
@@ -85,6 +94,32 @@ export function foundReligion(sim, prophet, doctrine, schismOf = null) {
     }
   }
   return r;
+}
+
+export function addVerse(sim, r, text) {
+  if (!r.scripture) { r.scripture = []; r.lastVerseDay = -999; }
+  r.scripture.push({ day: sim.day, text });
+  if (r.scripture.length > 14) r.scripture.splice(1, 1); // the opening verse is never lost
+  r.lastVerseDay = sim.day;
+}
+
+// A witnessed divine deed enters the holy books of any faith whose
+// believers stood close enough to see it.
+export function recordDeed(sim, x, y, radius, tone, desc) {
+  const year = Math.floor(sim.day / DAYS_PER_YEAR) + 1;
+  for (const r of sim.religions.values()) {
+    if (r.faded || sim.day - (r.lastVerseDay ?? -999) < 30) continue;
+    if (r.scripture?.some(v => v.text.includes(desc))) continue; // already canon
+    let sawIt = 0;
+    for (const p of sim.folk.values()) {
+      if (p.alive && p.religion === r.id && dist(p.x, p.y, x, y) <= radius) sawIt++;
+    }
+    if (sawIt < 2) continue;
+    const verse = tone === 'mercy'
+      ? `Remember ${desc}, in the ${year}th year. The god provides for those who look up.`
+      : `Fear ${desc}, in the ${year}th year. Walk carefully, for the god is watching.`;
+    addVerse(sim, r, verse);
+  }
 }
 
 // How the folk currently read their god, from the deeds they have witnessed.

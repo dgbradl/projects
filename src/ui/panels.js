@@ -69,6 +69,10 @@ export function renderInspector(sim, selection, onSelectEntity) {
     const m = selection.ref;
     title.textContent = m.name;
     body.innerHTML = monsterHtml(sim, m);
+  } else if (selection.kind === 'religion') {
+    const r = selection.ref;
+    title.textContent = r.name;
+    body.innerHTML = religionHtml(sim, r);
   } else if (selection.kind === 'tile') {
     const t = tileAt(sim.world, selection.x, selection.y);
     title.textContent = 'The Land';
@@ -85,6 +89,37 @@ export function renderInspector(sim, selection, onSelectEntity) {
       const s = sim.settlements.get(Number(a.dataset.settlement));
       if (s) onSelectEntity({ kind: 'settlement', ref: s });
     }));
+  body.querySelectorAll('a[data-religion]').forEach((a) =>
+    a.addEventListener('click', () => {
+      const r = sim.religions.get(Number(a.dataset.religion));
+      if (r) onSelectEntity({ kind: 'religion', ref: r });
+    }));
+}
+
+function religionHtml(sim, r) {
+  const prophet = sim.folk.get(r.prophetId);
+  const followers = [...sim.folk.values()].filter(p => p.alive && p.religion === r.id)
+    .sort((a, b) => b.traits.faith - a.traits.faith);
+  const parent = r.schismOf !== null && r.schismOf !== undefined ? sim.religions.get(r.schismOf) : null;
+  let html = `<div class="sub creed">${r.symbol} ${esc(DOCTRINES[r.doctrine].word)}` +
+    `${r.faded ? ' — <b>faded from the world</b>' : ''}</div>` +
+    `<div class="sub">proclaimed in year ${yearOf(r.bornDay)}` +
+    (prophet ? ` by <a data-person="${prophet.id}">${esc(displayName(prophet))}</a>${prophet.alive ? '' : ' †'}` : '') +
+    (parent ? `, in schism from ${esc(parent.name)}` : '') + `</div>` +
+    `<div class="sub">${followers.length} faithful</div>`;
+  if (r.scripture?.length) {
+    html += '<h3>Scripture</h3>';
+    r.scripture.forEach((v, i) => {
+      html += `<div class="memory">${i + 1}. ${esc(v.text)}</div>`;
+    });
+  }
+  if (followers.length) {
+    html += '<h3>Most devout</h3>';
+    for (const f of followers.slice(0, 6)) {
+      html += `<div><a data-person="${f.id}">${esc(displayName(f))}</a></div>`;
+    }
+  }
+  return html;
 }
 
 function bar(v, bad = false) {
@@ -262,7 +297,7 @@ function worldSummary(sim) {
     html += '<h3>Faiths</h3>';
     for (const { r, n } of faiths) {
       const prophet = sim.folk.get(r.prophetId);
-      html += `<div>${r.symbol} ${esc(r.name)} <span class="sub">— ${n} faithful` +
+      html += `<div>${r.symbol} <a data-religion="${r.id}">${esc(r.name)}</a> <span class="sub">— ${n} faithful` +
         (prophet ? `, ${prophet.alive ? 'led' : 'founded'} by ${prophet ? `<a data-person="${prophet.id}">${esc(displayName(prophet))}</a>` : ''}` : '') +
         `</span></div>`;
     }

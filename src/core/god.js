@@ -5,6 +5,7 @@ import { chronicle, remember } from './chronicle.js';
 import { tileAt, dist, BIOME } from './world.js';
 import { adjustSettlementRelation, kill, infect } from './character.js';
 import { spawnMonster } from './monsters.js';
+import { recordDeed } from './religion.js';
 import { folkNear } from './social.js';
 
 export const POWERS = {
@@ -52,7 +53,7 @@ export const POWERS = {
 
 // Witnesses interpret what they see. Miracles kindle faith; wrath kindles fear
 // (which is its own kind of faith), but the god who smites too freely is hated.
-function witness(sim, x, y, radius, awe, dread) {
+function witness(sim, x, y, radius, awe, dread, desc = null) {
   let count = 0;
   for (const p of sim.folk.values()) {
     if (!p.alive || dist(p.x, p.y, x, y) > radius) continue;
@@ -68,6 +69,7 @@ function witness(sim, x, y, radius, awe, dread) {
     sim.godDeeds.mercy += awe * Math.min(count, 6) * 0.5;
     sim.godDeeds.wrath += dread * Math.min(count, 6) * 0.5;
     sim.lastDeedDay = sim.day;
+    if (desc) recordDeed(sim, x, y, radius, awe >= dread ? 'mercy' : 'wrath', desc);
   }
   return count;
 }
@@ -89,7 +91,7 @@ export function castPower(sim, key, target) {
         const t = tileAt(sim.world, x + dx, y + dy);
         if (t) { t.bounty = Math.min(1, t.bounty + 0.8); t.blight = 0; t.food = Math.min(t.maxFood * 2, t.food + 4); }
       }
-      witness(sim, x, y, 10, 1, 0);
+      witness(sim, x, y, 10, 1, 0, 'the sudden ripening of the fields');
       chronicle(sim, 1, 'The land was blessed with sudden abundance', { x, y, kind: 'miracle' });
       result = 'The land ripens.';
       break;
@@ -103,7 +105,7 @@ export function castPower(sim, key, target) {
         chronicle(sim, 0, 'A gentle rain fell across the land', { kind: 'miracle' });
       }
       for (const s of sim.settlements.values()) {
-        if (s.members.size) witness(sim, s.x, s.y, 6, 0.5, 0);
+        if (s.members.size) witness(sim, s.x, s.y, 6, 0.5, 0, 'the sent rain');
       }
       result = 'Rain falls.';
       break;
@@ -115,7 +117,7 @@ export function castPower(sim, key, target) {
       p.mood += 0.4;
       p.traits.faith = Math.min(1, p.traits.faith + 0.25);
       remember(p, sim, 'was healed by a light from beyond', 0.3);
-      witness(sim, p.x, p.y, 6, 1, 0);
+      witness(sim, p.x, p.y, 6, 1, 0, `the healing of ${p.name}`);
       chronicle(sim, 1, `${p.name} was healed by divine grace`, { x: p.x, y: p.y, kind: 'miracle', who: [p.id] });
       result = `${p.name} is made whole.`;
       break;
@@ -151,7 +153,7 @@ export function castPower(sim, key, target) {
         const t = tileAt(sim.world, x + dx, y + dy);
         if (t) { t.blight = Math.min(1, t.blight + 0.8); t.bounty = 0; t.food *= 0.2; }
       }
-      witness(sim, x, y, 10, 0, 1);
+      witness(sim, x, y, 10, 0, 1, 'the souring of the land');
       chronicle(sim, 1, 'The land sickened under an unseen curse', { x, y, kind: 'wrath' });
       result = 'The soil sours.';
       break;
@@ -169,7 +171,7 @@ export function castPower(sim, key, target) {
           if (m.hp <= 0) {
             sim.monsters.delete(m.id);
             chronicle(sim, 2, `${m.name} was destroyed by a bolt from the heavens`, { x, y, kind: 'miracle' });
-            witness(sim, x, y, 12, 1.5, 0.3);
+            witness(sim, x, y, 12, 1.5, 0.3, `the bolt that destroyed ${m.name}`);
             result = `${m.name} is ash.`;
           }
         }
@@ -178,7 +180,7 @@ export function castPower(sim, key, target) {
       if (t) { t.food *= 0.5; t.wood *= 0.5; }
       if (struck.length) {
         chronicle(sim, 2, `Lightning from a clear sky slew ${struck.map(p => p.name).join(', ')}`, { x, y, kind: 'wrath', who: struck.map(p => p.id) });
-        witness(sim, x, y, 12, 0, 1.5);
+        witness(sim, x, y, 12, 0, 1.5, 'the fire that fell from a clear sky');
         result = result || 'The bolt finds its mark.';
       }
       if (!result) { witness(sim, x, y, 12, 0.3, 0.6); result = 'Thunder rolls. The folk look up.'; }
@@ -206,7 +208,7 @@ export function castPower(sim, key, target) {
           if (sim.rng.chance(0.05)) kill(sim, p, 'the earthquake');
         }
       }
-      witness(sim, x, y, 16, 0, 1.5);
+      witness(sim, x, y, 16, 0, 1.5, 'the day the earth was thrown down');
       result = 'The earth convulses.';
       break;
     }
