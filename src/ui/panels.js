@@ -55,6 +55,7 @@ export function renderInspector(sim, selection, onSelectEntity) {
     const p = selection.ref;
     title.textContent = fullName(p) + (p.alive ? '' : ' †');
     body.innerHTML = personHtml(sim, p);
+    drawRelWeb(sim, p);
   } else if (selection.kind === 'herd') {
     const h = selection.ref;
     title.textContent = 'Deer';
@@ -129,6 +130,49 @@ function religionHtml(sim, r) {
   return html;
 }
 
+// The web: this person at the center, their loves and hatreds radiating out.
+function drawRelWeb(sim, p) {
+  const c = document.getElementById('rel-web');
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  const cx = c.width / 2, cy = c.height / 2;
+  const rels = [];
+  for (const [id, r] of p.rel) {
+    const o = sim.folk.get(id);
+    if (!o?.alive || (Math.abs(r.aff) < 25 && !r.kin)) continue;
+    rels.push({ o, r });
+  }
+  rels.sort((a, b) => Math.abs(b.r.aff) - Math.abs(a.r.aff));
+  const shown = rels.slice(0, 8);
+  ctx.clearRect(0, 0, c.width, c.height);
+  ctx.font = '10px Georgia';
+  ctx.textAlign = 'center';
+  shown.forEach(({ o, r }, i) => {
+    const a = (i / shown.length) * Math.PI * 2 - Math.PI / 2;
+    const R = 62;
+    const x = cx + Math.cos(a) * R * 1.35, y = cy + Math.sin(a) * R;
+    const love = r.kin === 'spouse' || r.aff > 60;
+    const color = r.aff >= 0 ? (love ? '#c88ca3' : '#7a9b4e') : '#b5432f';
+    ctx.strokeStyle = color;
+    ctx.globalAlpha = 0.35 + Math.min(1, Math.abs(r.aff) / 100) * 0.65;
+    ctx.lineWidth = 1 + Math.min(1, Math.abs(r.aff) / 100) * 2.2;
+    if (r.aff < 0) ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = color;
+    ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#d8cbb4';
+    ctx.fillText(o.name, x, y + (Math.sin(a) > 0.3 ? 14 : -7));
+  });
+  // The person themself.
+  ctx.fillStyle = '#f0d78c';
+  ctx.beginPath(); ctx.arc(cx, cy, 4.5, 0, Math.PI * 2); ctx.fill();
+}
+
 function bar(v, bad = false) {
   const pct = Math.round(Math.max(0, Math.min(1, v)) * 100);
   return `<div class="bar${bad ? ' bad' : ''}"><i style="width:${pct}%"></i></div>`;
@@ -197,6 +241,9 @@ function personHtml(sim, p) {
     rels.push({ o, r });
   }
   rels.sort((a, b) => Math.abs(b.r.aff) - Math.abs(a.r.aff));
+  if (rels.length >= 2) {
+    html += `<h3>Web of bonds</h3><canvas id="rel-web" width="252" height="170"></canvas>`;
+  }
   if (rels.length) {
     html += '<h3>Bonds</h3>';
     for (const { o, r } of rels.slice(0, 8)) {
