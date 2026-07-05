@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Dark Beneath</title>
+</head>
+<body>
+  <div id="app">
+    <header id="topbar">
+      <div id="game-title">THE DARK BENEATH</div>
+      <div id="status-bar">
+        <span id="st-location"></span>
+        <span id="st-torch"></span>
+        <span id="st-gold"></span>
+        <span id="st-day"></span>
+      </div>
+      <div id="topbar-btns">
+        <button id="btn-save" class="tb-btn" title="Save game">Save</button>
+        <button id="btn-menu" class="tb-btn" title="Menu">Menu</button>
+      </div>
+    </header>
+    <div id="main">
+      <div id="mapwrap">
+        <canvas id="map"></canvas>
+        <div id="map-banner" class="hidden"></div>
+      </div>
+      <aside id="side">
+        <div id="party"></div>
+        <div id="log-wrap">
+          <div id="log-title">◆ GAME MASTER ◆</div>
+          <div id="log"></div>
+        </div>
+        <div id="actions"></div>
+      </aside>
+    </div>
+  </div>
+  <div id="modal-overlay" class="hidden"><div id="modal"></div></div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
