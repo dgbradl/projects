@@ -13,7 +13,12 @@ page.on('pageerror', e => errors.push('PAGEERROR: ' + e.message));
 page.on('console', m => { if (m.type() === 'error') errors.push('CONSOLE: ' + m.text()); });
 
 await page.goto('http://localhost:4173/');
-await page.click('#m-new');
+// title screen → chargen → quick start → begin
+await page.click('#t-new');
+await page.waitForTimeout(300);
+await page.click('#cg-quick');
+await page.waitForTimeout(300);
+await page.click('#cg-begin');
 await page.waitForTimeout(400);
 
 // town → overworld → dungeon

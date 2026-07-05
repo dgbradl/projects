@@ -1,6 +1,7 @@
 // The GM narration log + dice roll cards. DOM-only, no game imports.
 import type { RollResult } from './rng';
 import { fmtMod } from './rng';
+import { sfx } from './sound';
 
 let logEl: HTMLElement | null = null;
 
@@ -43,6 +44,7 @@ export function logRoll(opts: {
   success?: boolean;
 }) {
   const { who, what, roll, vs, vsLabel, outcome, success } = opts;
+  sfx('dice');
   const card = document.createElement('div');
   card.className = 'roll-card' + (roll.crit ? ' roll-crit' : roll.fumble ? ' roll-fumble' : '');
 

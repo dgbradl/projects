@@ -19,13 +19,13 @@ export function setState(s: GameState) {
   G = s;
 }
 
-export function newGame(): GameState {
+export function newGame(party?: GameState['party']): GameState {
   const seed = (Math.random() * 0xffffffff) >>> 0;
   seedRng(seed);
   const s: GameState = {
     mode: 'town',
     seed,
-    party: generateParty(),
+    party: party ?? generateParty(),
     graveyard: [],
     gold: 30,
     torches: 5,

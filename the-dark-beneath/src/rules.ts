@@ -4,6 +4,7 @@ import { STATS } from './types';
 import { d20, pick, randInt, roll, d } from './rng';
 import { ITEMS, NAMES, ANCESTRIES, CLASS_SPELLS, SPELLS } from './data';
 import { log, logRoll } from './log';
+import { sfx } from './sound';
 
 export function mod(score: number): number {
   return Math.floor((score - 10) / 2);
@@ -71,37 +72,46 @@ export function check(c: Character, stat: Stat, dc: number, what: string, adv?: 
 
 // ---------- character generation ----------
 
-function roll3d6(): number {
-  return d(6) + d(6) + d(6);
-}
-
 let charCounter = 0;
 
-export function generateCharacter(cls?: ClassName, level = 1): Character {
-  const ancestry = pick(ANCESTRIES);
-  const name = pick(NAMES[ancestry.name]);
+export function rollStatBlock(): Record<Stat, number> {
   const stats: Record<Stat, number> = { STR: 0, DEX: 0, CON: 0, INT: 0, WIS: 0, CHA: 0 };
-  for (const s of STATS) stats[s] = roll3d6();
+  for (const s of STATS) stats[s] = d(6) + d(6) + d(6);
+  return stats;
+}
 
-  const chosen: ClassName = cls ?? bestClass(stats);
-  // nudge the prime stat so pregens feel like their class
-  const prime: Stat = chosen === 'Fighter' ? 'STR' : chosen === 'Thief' ? 'DEX' : chosen === 'Priest' ? 'WIS' : 'INT';
-  if (stats[prime] < 13) stats[prime] = 13 + randInt(0, 2);
-  if (ancestry.name === 'Human') stats[prime] += 1;
+export function primeStat(cls: ClassName): Stat {
+  return cls === 'Fighter' ? 'STR' : cls === 'Thief' ? 'DEX' : cls === 'Priest' ? 'WIS' : 'INT';
+}
 
-  const hd = chosen === 'Fighter' ? 8 : chosen === 'Priest' ? 6 : 4;
-  let maxHp = Math.max(1, d(hd) + mod(stats.CON)) + (ancestry.name === 'Dwarf' ? 2 : 0);
+export interface BuildOpts {
+  name: string;
+  ancestry: Character['ancestry'];
+  cls: ClassName;
+  stats: Record<Stat, number>;
+  spellChoice?: string;   // priest: bless/turn_undead · wizard: burning_hands/sleep
+  nudge?: boolean;        // NPC generation: guarantee a respectable prime stat
+}
+
+export function makeCharacter(o: BuildOpts): Character {
+  const stats = { ...o.stats };
+  const prime = primeStat(o.cls);
+  if (o.nudge && stats[prime] < 13) stats[prime] = 13 + randInt(0, 2);
+  if (o.ancestry === 'Human') stats[prime] += 1;
+
+  const hd = o.cls === 'Fighter' ? 8 : o.cls === 'Priest' ? 6 : 4;
+  const maxHp = Math.max(1, d(hd) + mod(stats.CON)) + (o.ancestry === 'Dwarf' ? 2 : 0);
 
   const c: Character = {
     id: `c${Date.now().toString(36)}${charCounter++}`,
-    name, ancestry: ancestry.name, cls: chosen, level: 1, xp: 0,
+    name: o.name, ancestry: o.ancestry, cls: o.cls, level: 1, xp: 0,
     stats, hp: maxHp, maxHp,
     spells: {}, gear: [], alive: true,
   };
 
   // starting kit
   give(c, 'torch'); give(c, 'ration');
-  switch (chosen) {
+  switch (o.cls) {
     case 'Fighter':
       c.weapon = { ...ITEMS[pick(['longsword', 'greataxe', 'spear'])] };
       c.armor = { ...ITEMS['chainmail'] };
@@ -117,21 +127,28 @@ export function generateCharacter(cls?: ClassName, level = 1): Character {
       c.armor = { ...ITEMS['leather'] };
       c.shield = { ...ITEMS['shield'] };
       c.spells['cure_wounds'] = true;
-      c.spells[pick(['bless', 'turn_undead'])] = true;
+      c.spells[o.spellChoice ?? pick(['bless', 'turn_undead'])] = true;
       break;
     case 'Wizard':
       c.weapon = { ...ITEMS[pick(['staff', 'dagger'])] };
       c.spells['magic_missile'] = true;
-      c.spells[pick(['burning_hands', 'sleep'])] = true;
+      c.spells[o.spellChoice ?? pick(['burning_hands', 'sleep'])] = true;
       give(c, 'scroll_mm');
       break;
   }
+  return c;
+}
 
+export function generateCharacter(cls?: ClassName, level = 1): Character {
+  const stats = rollStatBlock();
+  const ancestry = pick(ANCESTRIES).name;
+  const chosen: ClassName = cls ?? bestClass(stats);
+  const c = makeCharacter({ name: pick(NAMES[ancestry]), ancestry, cls: chosen, stats, nudge: true });
   for (let l = 1; l < level; l++) levelUp(c, true);
   return c;
 }
 
-function bestClass(stats: Record<Stat, number>): ClassName {
+export function bestClass(stats: Record<Stat, number>): ClassName {
   const options: [ClassName, number][] = [
     ['Fighter', stats.STR], ['Thief', stats.DEX], ['Priest', stats.WIS], ['Wizard', stats.INT],
   ];
@@ -187,7 +204,10 @@ export function levelUp(c: Character, silent = false) {
       if (!silent) log(`${c.name} learns ${SPELLS[learned].name}!`, 'good');
     }
   }
-  if (!silent) log(`⬆ ${c.name} reaches level ${c.level}! (+${gain} HP)`, 'good');
+  if (!silent) {
+    log(`⬆ ${c.name} reaches level ${c.level}! (+${gain} HP)`, 'good');
+    sfx('levelup');
+  }
 }
 
 // ---------- healing / rest ----------

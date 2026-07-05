@@ -1,11 +1,14 @@
 import './style.css';
 import { G, hooks } from './state';
 import { initLog } from './log';
-import { initRender, renderFrame, setHover, clearHover, pickDungeonTile, pickCombatTile, pickOverworldNode } from './render';
-import { initUI, refresh, showTitle, pendingSpell, clearPending, castNow } from './ui';
+import { initRender, initTitleRender, renderFrame, renderTitle, setHover, clearHover, pickDungeonTile, pickCombatTile, pickOverworldNode } from './render';
+import { initUI, refresh, showTitle, showMenu, pendingSpell, clearPending, castNow } from './ui';
+import { modalOpen, closeModal, titleVisible } from './modal';
+import { initAudio, setAmbience, sfx } from './sound';
 import * as dungeon from './dungeon';
 import * as combat from './combat';
 import * as overworld from './overworld';
+import * as chargen from './chargen';
 import { WORLD } from './data';
 
 const canvas = document.getElementById('map') as HTMLCanvasElement;
@@ -13,13 +16,21 @@ const canvas = document.getElementById('map') as HTMLCanvasElement;
 initLog();
 initUI();
 initRender(canvas);
+initTitleRender(document.getElementById('title-canvas') as HTMLCanvasElement);
 hooks.refresh = refresh;
 
 showTitle();
+setAmbience('fire');
 
 // debug/cheat handle (also handy for automated playtesting)
 import * as state from './state';
-(window as any).__dbg = { state, combat, dungeon, overworld, get G() { return G; } };
+(window as any).__dbg = { state, combat, dungeon, overworld, chargen, get G() { return G; } };
+
+// audio must be unlocked by a user gesture; button clicks get a soft tick
+window.addEventListener('pointerdown', () => initAudio(), { capture: true });
+document.addEventListener('click', e => {
+  if ((e.target as HTMLElement).closest?.('button')) sfx('click');
+}, { capture: true });
 
 // ---------------------------------------------------------------- game loop
 
@@ -27,9 +38,15 @@ let lastT = 0;
 function loop(t: number) {
   const dt = Math.min(100, t - lastT);
   lastT = t;
-  if (G?.mode === 'combat') combat.combatTick(dt);
-  walkTick(dt);
-  renderFrame(t);
+  if (titleVisible()) {
+    renderTitle(t);
+    setAmbience('fire');
+  } else {
+    if (G?.mode === 'combat') combat.combatTick(dt);
+    walkTick(dt);
+    renderFrame(t);
+    if (G) setAmbience(G.mode === 'dungeon' || G.mode === 'combat' ? 'deep' : 'surface');
+  }
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
@@ -150,8 +167,14 @@ canvas.addEventListener('click', e => {
 });
 
 window.addEventListener('keydown', e => {
-  if (!G) return;
-  if (e.key === 'Escape') { clearPending(); refresh(); return; }
+  if (e.key === 'Escape') {
+    if (modalOpen()) { closeModal(); if (G) { clearPending(); refresh(); } return; }
+    if (titleVisible()) return;
+    if (pendingSpell) { clearPending(); refresh(); return; }
+    if (G) showMenu();
+    return;
+  }
+  if (!G || titleVisible() || modalOpen()) return;
   if (G.mode !== 'dungeon') return;
   const dirs: Record<string, [number, number]> = {
     ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0],

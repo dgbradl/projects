@@ -7,6 +7,7 @@ where light is a resource and death is permanent.
 
 | | |
 |---|---|
+| ![Title](docs/screenshots/title.png) | ![Character creation](docs/screenshots/chargen.png) |
 | ![Town](docs/screenshots/town.png) | ![Overworld](docs/screenshots/overworld.png) |
 | ![Dungeon](docs/screenshots/dungeon.png) | ![Combat](docs/screenshots/combat.png) |
 
@@ -24,7 +25,9 @@ procedurally.
 
 ## The game
 
-You run a **company of four** (Fighter, Thief, Priest, Wizard) out of the town
+Roll your own **company of four** — 3d6 down the line (reroll as your
+conscience allows), pick ancestry, class, name, and starting spell for each
+companion, or Quick Start and let fate fill the roster. You run them out of the town
 of **Emberwick**, taking bounties from the notice board into the Ember Marches:
 a hand-built overworld of authored dungeons — the Sunken Crypt, the Redtooth
 Warrens, the Weeping Mine, the Spire of Vel Zaruk — plus procedurally generated
@@ -60,6 +63,12 @@ region, not to your level. North is worse.
   level.
 - Fog of war with real line-of-sight torchlight, flickering glow, and a
   parchment-and-lantern-light VTT interface.
+- Animated title screen (campfire, embers, the Spire on the horizon) and an
+  in-game menu on Esc: save, options, help, return to title.
+- **Procedural sound**, no audio files: every effect is synthesized live with
+  WebAudio — dice rattles, steel, coin, spell shimmer, door creaks, the
+  mourning bell — plus ambient wind, fire crackle, and cave drips per scene.
+  Volume/mute in Options.
 - Save anytime (localStorage); autosaves at the inn and on new games.
 
 ## Code layout
@@ -72,6 +81,9 @@ src/
   rules.ts      checks, character math, chargen, advancement
   state.ts      global game state, save/load, UI-decoupling hooks
   log.ts        GM narration log + dice roll cards
+  sound.ts      procedural WebAudio synth: SFX + ambience
+  modal.ts      shared modal / title-screen DOM chrome
+  chargen.ts    character creation flow (stats, ancestry, class, name, spell)
   dungeon.ts    map building (authored + procgen), fog/light, exploration
   combat.ts     battle grid, initiative, spells, morale, dying/death
   overworld.ts  travel + random encounters

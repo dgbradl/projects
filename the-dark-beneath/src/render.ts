@@ -43,6 +43,138 @@ export function initRender(cv: HTMLCanvasElement) {
 export function setHover(mx: number, my: number) { hover = { x: mx, y: my }; }
 export function clearHover() { hover = null; }
 
+// ---------------------------------------------------------------- title screen
+
+let tCanvas: HTMLCanvasElement | null = null;
+let tCtx: CanvasRenderingContext2D | null = null;
+let tW = 0, tH = 0;
+
+interface EmberP { x: number; y: number; vx: number; vy: number; life: number; max: number; r: number; }
+const embers: EmberP[] = [];
+
+export function initTitleRender(cv: HTMLCanvasElement) {
+  tCanvas = cv;
+  tCtx = cv.getContext('2d')!;
+  const resize = () => {
+    const d = window.devicePixelRatio || 1;
+    tW = cv.clientWidth; tH = cv.clientHeight;
+    cv.width = Math.max(1, Math.round(tW * d));
+    cv.height = Math.max(1, Math.round(tH * d));
+    tCtx!.setTransform(d, 0, 0, d, 0, 0);
+  };
+  new ResizeObserver(resize).observe(cv);
+  resize();
+}
+
+export function renderTitle(t: number) {
+  const c = tCtx;
+  if (!c || !tCanvas) return;
+  const d = window.devicePixelRatio || 1;
+  c.setTransform(d, 0, 0, d, 0, 0);
+
+  // night gradient
+  const sky = c.createLinearGradient(0, 0, 0, tH);
+  sky.addColorStop(0, '#05030a');
+  sky.addColorStop(0.65, '#0b0605');
+  sky.addColorStop(1, '#1a0e06');
+  c.fillStyle = sky;
+  c.fillRect(0, 0, tW, tH);
+
+  // stars, sparse and cold
+  for (let i = 0; i < 70; i++) {
+    const x = hash(i, 91) * tW, y = hash(i, 17) * tH * 0.55;
+    c.fillStyle = `rgba(200,210,255,${0.10 + 0.35 * hash(i, 5) * (0.6 + 0.4 * Math.sin(t * 0.0015 + i * 2))})`;
+    c.fillRect(x, y, 1.5, 1.5);
+  }
+
+  // distant black ridgeline
+  c.fillStyle = '#060302';
+  c.beginPath();
+  c.moveTo(0, tH * 0.72);
+  for (let x = 0; x <= tW; x += 40) {
+    c.lineTo(x, tH * (0.72 - 0.05 * hash(Math.floor(x / 40), 3)));
+  }
+  c.lineTo(tW, tH);
+  c.lineTo(0, tH);
+  c.closePath();
+  c.fill();
+  // the Spire, a needle against the sky
+  const sx = tW * 0.82;
+  c.beginPath();
+  c.moveTo(sx - 14, tH * 0.72);
+  c.lineTo(sx - 3, tH * 0.34);
+  c.lineTo(sx + 3, tH * 0.34);
+  c.lineTo(sx + 14, tH * 0.72);
+  c.closePath();
+  c.fill();
+
+  const f = flicker(t);
+  const fx = tW / 2, fy = tH * 0.88;
+
+  // fire glow on the ground
+  const gl = c.createRadialGradient(fx, fy, 0, fx, fy, tH * 0.45 * f);
+  gl.addColorStop(0, 'rgba(255,160,70,0.5)');
+  gl.addColorStop(0.4, 'rgba(220,100,30,0.16)');
+  gl.addColorStop(1, 'rgba(0,0,0,0)');
+  c.fillStyle = gl;
+  c.fillRect(0, 0, tW, tH);
+
+  // logs
+  c.save();
+  c.translate(fx, fy + 12);
+  c.fillStyle = '#241408';
+  for (const a of [-0.35, 0.3, 0.05]) {
+    c.save();
+    c.rotate(a);
+    c.fillRect(-42, -5, 84, 10);
+    c.restore();
+  }
+  c.restore();
+
+  // layered flame
+  for (let l = 0; l < 3; l++) {
+    const wob = Math.sin(t * (0.006 + l * 0.003) + l * 2) * (7 - l * 2);
+    const hgt = (68 - l * 18) * (0.85 + 0.3 * Math.sin(t * 0.011 + l * 1.7));
+    const wid = 26 - l * 7;
+    c.beginPath();
+    c.moveTo(fx - wid, fy + 8);
+    c.quadraticCurveTo(fx - wid * 0.6 + wob, fy - hgt * 0.55, fx + wob * 1.4, fy - hgt);
+    c.quadraticCurveTo(fx + wid * 0.6 + wob, fy - hgt * 0.55, fx + wid, fy + 8);
+    c.closePath();
+    c.fillStyle = l === 0 ? 'rgba(200,70,20,0.85)' : l === 1 ? 'rgba(255,140,40,0.9)' : 'rgba(255,220,140,0.95)';
+    c.fill();
+  }
+
+  // embers rising
+  if (embers.length < 60 && Math.random() < 0.5) {
+    embers.push({
+      x: fx + (Math.random() - 0.5) * 30, y: fy - 20,
+      vx: (Math.random() - 0.5) * 0.35, vy: -0.6 - Math.random() * 0.9,
+      life: 0, max: 140 + Math.random() * 160, r: 1 + Math.random() * 2,
+    });
+  }
+  for (let i = embers.length - 1; i >= 0; i--) {
+    const e = embers[i];
+    e.life++;
+    e.x += e.vx + Math.sin((t * 0.004 + e.life * 0.05)) * 0.35;
+    e.y += e.vy;
+    e.vy *= 0.998;
+    if (e.life > e.max || e.y < -10) { embers.splice(i, 1); continue; }
+    const a = Math.max(0, 1 - e.life / e.max);
+    c.fillStyle = `rgba(255,${140 + Math.floor(80 * a)},60,${0.7 * a})`;
+    c.beginPath();
+    c.arc(e.x, e.y, e.r * (0.5 + a * 0.5), 0, Math.PI * 2);
+    c.fill();
+  }
+
+  // vignette
+  const vg = c.createRadialGradient(tW / 2, tH / 2, Math.min(tW, tH) * 0.3, tW / 2, tH / 2, Math.max(tW, tH) * 0.75);
+  vg.addColorStop(0, 'rgba(0,0,0,0)');
+  vg.addColorStop(1, 'rgba(0,0,0,0.65)');
+  c.fillStyle = vg;
+  c.fillRect(0, 0, tW, tH);
+}
+
 // deterministic per-tile noise
 function hash(x: number, y: number): number {
   let h = (x * 374761393 + y * 668265263) | 0;

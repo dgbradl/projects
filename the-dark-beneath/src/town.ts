@@ -3,6 +3,7 @@ import { G, hooks, saveGame } from './state';
 import { ITEMS } from './data';
 import { fullRest, generateCharacter, gearSlots, slotsUsed } from './rules';
 import { log, logDivider } from './log';
+import { sfx } from './sound';
 import { pick } from './rng';
 
 export const PRICES = { rest: 8, templeHeal: 15, templeBless: 25, hire: 25 };
@@ -13,6 +14,7 @@ export function restAtInn(): boolean {
   G.day++;
   fullRest(G.party);
   refreshRecruits();
+  sfx('heal');
   log('Hot stew, a real fire, straw beds. You sleep like the honest dead and wake whole. (Party fully restored, spells recovered.)', 'good');
   saveGame();
   hooks.refresh();
@@ -23,6 +25,7 @@ export function templeHeal(): boolean {
   if (G.gold < PRICES.templeHeal) { log('The acolyte smiles apologetically at your empty purse.', 'bad'); return false; }
   G.gold -= PRICES.templeHeal;
   for (const p of G.party) if (p.alive) { p.hp = p.maxHp; p.dyingRounds = undefined; }
+  sfx('heal');
   log('Incense, cool hands, murmured prayers. Your wounds close. (Party healed to full.)', 'good');
   hooks.refresh();
   return true;
@@ -32,6 +35,7 @@ export function templeBless(): boolean {
   if (G.gold < PRICES.templeBless) { log('Blessings, alas, are not free. The roof does not fix itself.', 'bad'); return false; }
   G.gold -= PRICES.templeBless;
   for (const p of G.party) if (p.alive) p.blessed = true;
+  sfx('heal');
   log('The old priest anoints each brow with oil. You carry the light with you. (+1 to attacks until after your next fight.)', 'good');
   hooks.refresh();
   return true;
@@ -62,7 +66,7 @@ export function buyItem(itemId: string, charId?: string): boolean {
   const item = ITEMS[itemId];
   if (!item || G.gold < item.cost) { log('Not enough gold.', 'bad'); return false; }
 
-  if (item.kind === 'torch') { G.gold -= item.cost; G.torches++; log('You buy a torch.', 'loot'); hooks.refresh(); return true; }
+  if (item.kind === 'torch') { G.gold -= item.cost; G.torches++; sfx('loot'); log('You buy a torch.', 'loot'); hooks.refresh(); return true; }
   if (item.id === 'ration') { G.gold -= item.cost; G.rations += 3; log('You buy three days of rations.', 'loot'); hooks.refresh(); return true; }
 
   const c = G.party.find(p => p.id === charId) ?? G.party[0];
@@ -95,6 +99,7 @@ export function sellGear(charId: string, gearIdx: number): boolean {
   const price = item.kind === 'treasure' ? (item.value ?? 0) : Math.floor(item.cost / 2);
   c.gear.splice(gearIdx, 1);
   G.gold += price;
+  sfx('loot');
   log(`Sold ${item.name} for ${price} gp.${item.kind === 'treasure' ? ' The merchant\'s eyes gleam.' : ''}`, 'loot');
   hooks.refresh();
   return true;
@@ -108,6 +113,7 @@ export function collectBounties() {
       q.paid = true;
       G.gold += q.reward;
       any = true;
+      sfx('loot');
       logDivider('BOUNTY PAID');
       log(`"${q.title}" — complete! The town pays ${q.reward} gp, and ${pick(['a round of drinks appears from nowhere', 'someone starts a song about you; it needs work', 'children follow you down the street', 'the mayor shakes every hand twice'])}.`, 'good');
     }

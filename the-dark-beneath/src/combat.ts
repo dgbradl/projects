@@ -5,6 +5,7 @@ import { d, d20, pick, rand, randInt, roll } from './rng';
 import { armorClass, attackMod, damageBonus, damageDice, statMod, grantXp, heal, mod } from './rules';
 import { MONSTERS, SPELLS, LOOT, ITEMS } from './data';
 import { log, logDivider, logRoll } from './log';
+import { sfx } from './sound';
 
 export const ARENA_W = 13;
 export const ARENA_H = 9;
@@ -67,6 +68,7 @@ export function startCombat(monsters: MonsterInst[], opts: { theme: string; surp
   };
   G.mode = 'combat';
 
+  sfx('drum');
   if (opts.surprise === 'party') log('You have the drop on them — a free round!', 'good');
   if (opts.surprise === 'monsters') log('Ambush! They were waiting for you.', 'bad');
   log(`Roll for initiative! (round 1)`, 'info');
@@ -216,6 +218,7 @@ export function pcAttack(c: Combatant, target: Combatant): boolean {
     if (r.crit) dmg *= 2;
     if (flanked) dmg += roll('1d4').total;
     mon.hp -= dmg;
+    sfx(r.crit ? 'crit' : 'hit');
     logRoll({
       who: pc.name, what: `${w?.name ?? 'Fists'} vs ${mon.def.name}`, roll: r, vs: mon.def.ac, vsLabel: 'AC',
       outcome: `${dmg} damage${flanked ? ' (backstab!)' : ''}${mon.hp <= 0 ? ` — the ${mon.def.name} falls!` : ''}`,
@@ -224,6 +227,7 @@ export function pcAttack(c: Combatant, target: Combatant): boolean {
     if (mon.hp <= 0) onMonsterDeath(target);
     else groupMoraleCheck();
   } else {
+    sfx('miss');
     logRoll({ who: pc.name, what: `${w?.name ?? 'Fists'} vs ${mon.def.name}`, roll: r, vs: mon.def.ac, vsLabel: 'AC', outcome: 'Miss', success: false });
   }
   c.acted = true;
@@ -232,6 +236,7 @@ export function pcAttack(c: Combatant, target: Combatant): boolean {
 }
 
 function onMonsterDeath(target: Combatant) {
+  sfx('die');
   const mon = target.mon!;
   const flag = BOSS_FLAGS[mon.def.id];
   if (flag && !G.flags[flag]) {
@@ -295,6 +300,7 @@ export function pcUsePotion(c: Combatant, itemIdx: number): boolean {
   if (!item || item.kind !== 'potion') return false;
   const amt = roll(item.heals ?? '2d4').total;
   heal(pc, amt);
+  sfx('heal');
   pc.dyingRounds = undefined;
   pc.gear.splice(itemIdx, 1);
   log(`${pc.name} gulps down the ${item.name}: +${amt} HP.`, 'good');
@@ -317,6 +323,7 @@ export function pcCast(c: Combatant, spellId: string, target?: Combatant, fromSc
   logRoll({ who: pc.name, what: `cast ${sp.name}`, roll: r, vs: dc, outcome: ok ? 'The magic takes hold!' : (r.fumble ? 'Backfire!' : 'The spell fizzles...'), success: ok });
 
   if (!ok) {
+    sfx('fizzle');
     if (!fromScroll) pc.spells[spellId] = false;
     if (r.fumble) {
       const dmg = roll('1d4').total;
@@ -329,6 +336,7 @@ export function pcCast(c: Combatant, spellId: string, target?: Combatant, fromSc
     return true;
   }
 
+  sfx('spell');
   applySpell(c, sp.id, target);
   c.acted = true;
   afterPCAction(c);
@@ -444,6 +452,7 @@ export function endTurn() {
 export function partyFlee() {
   const cb = G.combat;
   if (!cb) return;
+  sfx('whoosh');
   log('You break and run for it!', 'bad');
   for (const c of livingPCs()) {
     const near = activeMonsters().find(m => adjacent(m, c));
@@ -525,9 +534,11 @@ function monsterAttack(c: Combatant, target: Combatant) {
     let dmg = roll(mon.def.dmg).total;
     if (r.crit) dmg *= 2;
     pc.hp -= dmg;
+    sfx('monhit');
     logRoll({ who: mon.def.name, what: `attacks ${pc.name}`, roll: r, vs: ac, vsLabel: 'AC', outcome: `${dmg} damage`, success: true });
     if (pc.hp <= 0) downPC(target);
   } else {
+    sfx('miss');
     logRoll({ who: mon.def.name, what: `attacks ${pc.name}`, roll: r, vs: ac, vsLabel: 'AC', outcome: 'Miss', success: false });
   }
 }
@@ -540,6 +551,7 @@ function downPC(c: Combatant) {
   if (pc.dyingRounds !== undefined) return;
   const timer = Math.max(1, d(4) + mod(pc.stats.CON));
   pc.dyingRounds = timer;
+  sfx('down');
   log(`${pc.name} goes down! Dying — ${timer} round(s) before the dark claims them.`, 'bad');
   checkCombatEnd();
 }
@@ -551,6 +563,7 @@ function killPC(pc: Character, epitaph: string) {
   pc.epitaph = epitaph;
   G.graveyard.push(pc);
   G.party = G.party.filter(p => p !== pc);
+  sfx('bell');
   log(`☠ ${pc.name} is dead. ${pick(['The torch passes to another.', 'Their name goes in the book of the town chapel.', 'The dark takes its due.'])}`, 'bad');
 }
 
@@ -598,6 +611,7 @@ function finishCombat(victory: boolean) {
     if (slain.length) {
       const gold = Math.max(1, Math.floor(roll(LOOT[tier].gold).total / 2));
       G.gold += gold;
+      sfx('loot');
       log(`You search the bodies: ${gold} gp.`, 'loot');
     }
     if (boss) {

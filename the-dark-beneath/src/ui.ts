@@ -1,10 +1,13 @@
 // DOM UI: status bar, party cards, contextual action buttons, modals.
 import type { Character, Combatant } from './types';
-import { G, newGame, saveGame, loadGame, hasSave, hooks } from './state';
+import { G, saveGame, loadGame, hasSave, hooks } from './state';
 import { WORLD, SPELLS, ITEMS, SHOP_STOCK } from './data';
 import { armorClass, attackMod, damageDice, damageBonus, gearSlots, slotsUsed, mod, xpToLevel } from './rules';
 import { CLASS_COLORS } from './render';
 import { log, logDivider } from './log';
+import { openModal, closeModal, showTitleScreen } from './modal';
+import { openChargen } from './chargen';
+import { audioConfig, setVolume, setMuted, sfx } from './sound';
 import * as combat from './combat';
 import * as dungeon from './dungeon';
 import * as town from './town';
@@ -148,7 +151,7 @@ function renderActions() {
     }
     case 'combat': renderCombatActions(wrap); break;
     case 'gameover': {
-      wrap.appendChild(btn('Begin a New Company', () => startNewGame(), 'primary'));
+      wrap.appendChild(btn('Begin a New Company', () => openChargen(), 'primary'));
       break;
     }
   }
@@ -252,48 +255,70 @@ function showAllyPicker(cur: Combatant, spellId: string, scrollIdx?: number) {
 
 // ---------------------------------------------------------------- modals
 
-function openModal(html: string) {
-  $('modal').innerHTML = html;
-  $('modal-overlay').classList.remove('hidden');
-}
+export { closeModal };
 
-export function closeModal() {
-  $('modal-overlay').classList.add('hidden');
-}
-
+/** Wire up and show the full-screen title. Safe to call repeatedly. */
 export function showTitle() {
-  openModal(`
-    <div class="title-splash">
-      <div class="flame">🔥</div>
-      <h1>THE DARK BENEATH</h1>
-      <p class="subtitle">an old-school sandbox of torchlight & consequence</p>
-      <p class="title-quote">"Keep your torch lit, your blade close, and your will written.<br>The Ember Marches keep what they kill."</p>
-      <button class="modal-btn" id="m-new" style="font-size:17px;padding:8px 26px">⚔ New Company</button>
-      ${hasSave() ? '<button class="modal-btn" id="m-continue" style="font-size:17px;padding:8px 26px">🕯 Continue</button>' : ''}
-      <p style="margin-top:18px;font-size:12.5px;color:#6a512f">A party of four against the dark · d20 rolls in the open · death is forever (recruits are not)</p>
-    </div>
-  `);
-  $('m-new').onclick = () => startNewGame();
-  const cont = document.getElementById('m-continue');
-  if (cont) cont.onclick = () => {
+  showTitleScreen(true);
+  const cont = $('t-continue') as HTMLButtonElement;
+  cont.disabled = !hasSave();
+  $('t-new').onclick = () => {
+    showTitleScreen(false);
+    openChargen();
+  };
+  cont.onclick = () => {
     if (loadGame()) {
+      showTitleScreen(false);
       closeModal();
       logDivider('THE TALE RESUMES');
       log('The chronicler finds your page and reads back the last line...', 'system');
       hooks.refresh();
     }
   };
+  $('t-help').onclick = () => showHelp();
+  $('t-options').onclick = () => showOptions();
 }
 
-export function startNewGame() {
-  newGame();
-  closeModal();
-  logDivider('THE DARK BENEATH');
-  log('Four strangers answer Emberwick\'s call for torchbearers. The pay is bad, the odds are worse, and the town chapel keeps a fresh page in its book of names.', 'gm');
-  log('Your company gathers at lantern-hour: ' + G.party.map(p => `${p.name} the ${p.ancestry} ${p.cls}`).join(', ') + '.', 'info');
-  log('Visit the Notice Board for work. Buy torches. Buy more torches than that.', 'system');
-  saveGame();
-  hooks.refresh();
+export function showHelp() {
+  openModal(`
+    <button class="modal-btn modal-close" id="m-close">\u2715 Close</button>
+    <h1>How to Play</h1>
+    <p><b>The vibe:</b> you are four fragile people with one torch, and the world does not scale to you. North is worse. Run from what you can't kill.</p>
+    <p><b>Exploring:</b> arrow keys / WASD or click to move. Each step burns torch turns. When the torch dies, you are nearly blind and the dark gets bold. <b>Search</b> reveals secret doors and traps. <b>Camp</b> heals a little, but costs rations and time.</p>
+    <p><b>Combat:</b> initiative order, one move + one action each turn. Click enemies to attack, use spell buttons, drag the dying away from death. Fleeing is honorable. Mostly.</p>
+    <p><b>Death:</b> at 0 HP you're dying \u2014 a few rounds to be stabilized or healed, then gone. Dead is dead: bury them at the temple and hire someone braver at the tavern.</p>
+    <p><b>Advancement:</b> XP comes from monsters, chests, and bounties. Spend gold in town; spend lives sparingly.</p>
+    <p><b>Keys:</b> Esc opens the menu. Arrow keys / WASD move in dungeons.</p>
+  `);
+  $('m-close').onclick = closeModal;
+}
+
+export function showOptions() {
+  const cfg = audioConfig();
+  openModal(`
+    <button class="modal-btn modal-close" id="m-close">\u2715 Close</button>
+    <h1>Options</h1>
+    <h2>Sound</h2>
+    <div class="opt-row">
+      <span>Volume</span>
+      <input type="range" id="opt-vol" min="0" max="100" value="${Math.round(cfg.vol * 100)}">
+      <span id="opt-vol-val">${Math.round(cfg.vol * 100)}%</span>
+    </div>
+    <div class="opt-row">
+      <label><input type="checkbox" id="opt-mute" ${cfg.muted ? 'checked' : ''}> Mute all sound</label>
+    </div>
+    <p style="font-size:12.5px;color:#6a512f">Every sound is synthesized live \u2014 dice, steel, coin, and the wind under the world.</p>
+  `);
+  $('m-close').onclick = closeModal;
+  ($('opt-vol') as HTMLInputElement).oninput = e => {
+    const v = parseInt((e.target as HTMLInputElement).value) / 100;
+    setVolume(v);
+    $('opt-vol-val').textContent = `${Math.round(v * 100)}%`;
+    sfx('loot'); // preview
+  };
+  ($('opt-mute') as HTMLInputElement).onchange = e => {
+    setMuted((e.target as HTMLInputElement).checked);
+  };
 }
 
 function showGameOver() {
@@ -306,7 +331,7 @@ function showGameOver() {
     <p style="margin-top:14px">The notice board will find new hands. It always does.</p>
     <button class="modal-btn" id="m-new">⚔ A New Company Forms</button>
   `);
-  $('m-new').onclick = () => startNewGame();
+  $('m-new').onclick = () => { closeModal(); openChargen(); };
 }
 
 export function showSheet(p: Character) {
@@ -456,20 +481,27 @@ function showBoard() {
   $('m-close').onclick = closeModal;
 }
 
-function showMenu() {
+export function showMenu() {
   openModal(`
-    <button class="modal-btn modal-close" id="m-close">✕ Close</button>
+    <button class="modal-btn modal-close" id="m-close">\u2715 Close</button>
     <h1>Menu</h1>
+    <p class="subtitle">Day ${G?.day ?? '\u2014'} \u00b7 the chronicler waits, quill up.</p>
+    <button class="modal-btn" id="m-resume">Resume</button>
     <button class="modal-btn" id="m-save">Save Game</button>
+    <button class="modal-btn" id="m-options">Options</button>
+    <button class="modal-btn" id="m-help">How to Play</button>
+    <button class="modal-btn" id="m-title">Save & Return to Title</button>
     <button class="modal-btn" id="m-newgame">Abandon & Start New</button>
-    <h2>How to Play</h2>
-    <p><b>The vibe:</b> you are four fragile people with one torch, and the world does not scale to you. North is worse. Run from what you can't kill.</p>
-    <p><b>Exploring:</b> arrow keys / WASD or click to move. Each step burns torch turns. When the torch dies, you are nearly blind and the dark gets bold. <b>Search</b> reveals secret doors and traps. <b>Camp</b> heals a little, but costs rations and time.</p>
-    <p><b>Combat:</b> initiative order, one move + one action each turn. Click enemies to attack, use spell buttons, drag the dying away from death. Fleeing is honorable. Mostly.</p>
-    <p><b>Death:</b> at 0 HP you're dying — a few rounds to be stabilized or healed, then gone. Dead is dead: bury them at the temple and hire someone braver at the tavern.</p>
-    <p><b>Advancement:</b> XP comes from monsters, chests, and bounties. Spend gold in town; spend lives sparingly.</p>
   `);
   $('m-close').onclick = closeModal;
+  $('m-resume').onclick = closeModal;
   $('m-save').onclick = () => { if (G && saveGame()) { log('Game saved.', 'system'); closeModal(); } };
-  $('m-newgame').onclick = () => startNewGame();
+  $('m-options').onclick = () => showOptions();
+  $('m-help').onclick = () => showHelp();
+  $('m-title').onclick = () => {
+    if (G) saveGame();
+    closeModal();
+    showTitle();
+  };
+  $('m-newgame').onclick = () => { closeModal(); openChargen(); };
 }

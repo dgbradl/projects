@@ -6,6 +6,7 @@ import { G, hooks, nextUid } from './state';
 import { d, pick, rand, randInt, roll } from './rng';
 import { check, DC, heal, gearSlots, slotsUsed, grantXp } from './rules';
 import { log, logDivider } from './log';
+import { sfx } from './sound';
 import { startCombat, spawnMonsters } from './combat';
 
 export const TORCH_TURNS = 60;
@@ -170,6 +171,7 @@ export function lightTorchIfNeeded() {
     G.torches--;
     G.torchLit = true;
     G.torchLeft = TORCH_TURNS;
+    sfx('torch');
     log('You strike flint. A torch flares to life, pushing the dark back a few precious feet.', 'info');
   }
 }
@@ -286,10 +288,10 @@ export function step(dx: number, dy: number): boolean {
       return false;
     case 'secret':
       if (!t.found) return false;
-      if (!t.open) { t.open = true; log('The secret door swings inward on silent hinges.', 'info'); afterTurn(); return true; }
+      if (!t.open) { t.open = true; sfx('door'); log('The secret door swings inward on silent hinges.', 'info'); afterTurn(); return true; }
       break;
     case 'door':
-      if (!t.open) { t.open = true; log('The door creaks open.', 'gm'); afterTurn(); return true; }
+      if (!t.open) { t.open = true; sfx('door'); log('The door creaks open.', 'gm'); afterTurn(); return true; }
       break;
     case 'locked':
       if (!t.open) { attemptLock(t); afterTurn(); return true; }
@@ -302,6 +304,7 @@ export function step(dx: number, dy: number): boolean {
   }
 
   dn.px = nx; dn.py = ny;
+  sfx('step');
 
   // arrival effects
   if (t.t === 'trap' && !t.found && !t.looted) springTrap(t);
@@ -349,9 +352,11 @@ function springTrap(t: Tile) {
   const dn = G.dungeon!;
   const dmg = roll(dn.tier >= 2 ? '2d6' : '1d6').total;
   if (check(v, 'DEX', DC.normal, 'dodge the trap')) {
+    sfx('whoosh');
     log(`${v.name} leaps aside as ${pick(['darts hiss from the wall', 'the floor drops away', 'a scything blade sweeps past'])}!`, 'good');
   } else {
     v.hp -= dmg;
+    sfx('hit');
     log(`A trap! ${v.name} takes ${dmg} damage.`, 'bad');
     checkDeath(v, 'killed by a trap');
   }
@@ -385,6 +390,7 @@ function openChest(t: Tile) {
       else if (carrier) { carrier.gear.push({ ...item }); found.push(item.name); }
     }
   }
+  sfx('loot');
   log(`You pry open the chest: ${found.join(', ')}.`, 'loot');
   grantXp(G.party, dn.tier * 3);
 }
@@ -393,6 +399,7 @@ function touchAltar(t: Tile) {
   t.looted = true;
   const priest = G.party.find(p => p.alive && p.cls === 'Priest');
   if (priest) {
+    sfx('heal');
     log(`${priest.name} scrapes the grave-soil from the altar and speaks the old rites. Warm light washes over you.`, 'good');
     for (const p of G.party) if (p.alive) { heal(p, roll('1d6').total + 2); p.blessed = true; }
     log('The party is healed and blessed (+1 to attacks until you next leave a fight).', 'good');
@@ -522,6 +529,7 @@ export function checkDeath(c: Character, epitaph: string) {
     c.epitaph = epitaph;
     G.graveyard.push(c);
     G.party = G.party.filter(p => p !== c);
+    sfx('bell');
     log(`☠ ${c.name} is dead. ${pick(['The dark takes its due.', 'Light a candle in Emberwick.', 'They will not see the sun again.'])}`, 'bad');
     if (!G.party.some(p => p.alive)) {
       G.mode = 'gameover';
