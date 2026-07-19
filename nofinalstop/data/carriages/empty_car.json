@@ -1,0 +1,195 @@
+{
+  "id": "empty_car",
+  "name": "The Empty Car",
+  "index": 8,
+  "transitional": true,
+  "arrival": [
+    {
+      "text": "Nothing. The carriage is completely, geometrically empty — no seats, no luggage racks, no lamps, no fittings, not even the screw-holes where fittings were removed. Bare boards, bare walls, windows of plain glass showing plain dark. It is the first carriage that is not trying to be anything, and after everything behind you, the emptiness feels louder than the dining car's orchestra. The far door is visible at the far end. It looks a reasonable distance away. You are already certain it is lying."
+    }
+  ],
+  "on_enter": [
+    {
+      "type": "journal",
+      "text": "An entirely empty car. No fittings, no screw-holes. The far door appears close. Appears."
+    }
+  ],
+  "nodes": [
+    {
+      "id": "the_crossing",
+      "name": "The long walk",
+      "low_composure_name": "The distance itself",
+      "description": [
+        {
+          "text": "There is nothing here but distance. Underfoot, the boards are unworn — no feet have polished a path down this car's middle, ever — and yet the crossing feels rehearsed, as if the emptiness has handled many walkers and knows exactly what it likes to do with them."
+        }
+      ],
+      "actions": [
+        {
+          "id": "cross_together",
+          "label": "Cross it together, talking, keeping close",
+          "time": 8,
+          "tags": [
+            "alone",
+            "darkness",
+            "mind"
+          ],
+          "check": {
+            "attr": "will",
+            "dc": "normal"
+          },
+          "on_success": [
+            {
+              "type": "text",
+              "text": "You link arms — actually link arms, unashamed — and cross as one animal, and you TALK: names, recipes, verses, the multiplication table, anything with a human shape to it. The emptiness leans on you the whole way, a pressure like deep water, patiently testing for a gap in the talk, a walker who falls silent, a hand that lets go. It finds none. The far door arrives on the fortieth step, sulking, exactly where it had always pretended to be."
+            },
+            {
+              "type": "composure",
+              "who": "party",
+              "delta": 1
+            },
+            {
+              "type": "relationship",
+              "a": "active",
+              "b": "others",
+              "trust": 1,
+              "silent": true
+            },
+            {
+              "type": "flag",
+              "set": "crossed_empty"
+            }
+          ],
+          "on_fail": [
+            {
+              "type": "text",
+              "text": "Somewhere past the middle, the talk runs dry — one beat of silence, that is all it takes — and the car takes its opening. The walls recede without moving. The door stays the same size while getting farther away. Each of you becomes privately certain the others' linked arms are farther off than arms can be, that the voices beside you are recordings, that you have always been crossing this car and always will be. When the far door finally bangs open under someone's fist, you spill through white-faced and gasping, and the crossing has taken far longer than any forty steps."
+            },
+            {
+              "type": "composure",
+              "who": "party",
+              "delta": -1
+            },
+            {
+              "type": "condition",
+              "who": "shakiest",
+              "add": "shaken"
+            },
+            {
+              "type": "time",
+              "minutes": 6
+            },
+            {
+              "type": "flag",
+              "set": "crossed_empty"
+            }
+          ],
+          "once": false
+        },
+        {
+          "id": "rest_in_emptiness",
+          "label": "Rest here — nothing lives in an empty room",
+          "time": 12,
+          "cost": {
+            "water": 1
+          },
+          "tags": [
+            "care",
+            "alone"
+          ],
+          "effects": [
+            {
+              "type": "text",
+              "text": "It is, you reason, the only carriage with nothing in it to fear — and the reasoning holds. You sit against the bare wall in a tight circle, share water, close your eyes in shifts. The emptiness, denied its preferred game, settles for watching. Rest, real rest, in a place with no feast and no beds and no comfort at all: it says something about the train that this is where you finally get it."
+            },
+            {
+              "type": "heal",
+              "who": "party",
+              "amount": 1
+            },
+            {
+              "type": "composure",
+              "who": "party",
+              "delta": 1
+            },
+            {
+              "type": "condition",
+              "who": "party",
+              "remove": "exhausted"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "floor_writing",
+      "name": "Writing on the boards, mid-car",
+      "hidden": true,
+      "description": [
+        {
+          "text": "At the car's exact center — discovered underfoot during the crossing — words have been scratched into the boards with something harder than a knife, by someone lying down, in letters sized to be read by a person on their knees."
+        }
+      ],
+      "actions": [
+        {
+          "id": "read_floor",
+          "label": "Kneel and read the scratched words",
+          "time": 3,
+          "tags": [
+            "investigation"
+          ],
+          "effects": [
+            {
+              "type": "text",
+              "text": "You kneel where some earlier passenger lay, and read what they bought with the time it takes to scratch board with a belt buckle: 'IT ONLY STOPS FOR SOMEONE WHO MEANS TO LEAVE. Not wants. MEANS. I have been trying to mean it for years. The wanting keeps getting in the way. If you can mean it, mean it at the engine, and get off this train, and unscratch my name from the manifest. — G.' The same G, you are certain, who tested the blood-punched ticket."
+            },
+            {
+              "type": "rule",
+              "id": "stops_for_leavers"
+            },
+            {
+              "type": "evidence",
+              "id": "g_testimony",
+              "category": "testimony",
+              "title": "G's scratched instructions",
+              "text": "A passenger 'G' scratched into the empty car's floor: the train stops only for someone who MEANS to leave — wanting is not meaning. G tested the blood-ticket rule, and never managed to mean it."
+            },
+            {
+              "type": "journal",
+              "text": "G again. G experiments, G documents, G has never gotten off. We are following G's homework."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "escalations": [
+    {
+      "at_time": 14,
+      "text": "The light — sourceless, since there are no lamps — dims by one polite degree, and the far door recedes by ten unapologetic feet. The emptiness has decided you are staying for tea. Mid-car, something on the floorboards catches what light remains: scratches. Writing.",
+      "effects": [
+        {
+          "type": "reveal_node",
+          "id": "floor_writing"
+        },
+        {
+          "type": "time",
+          "minutes": 4
+        }
+      ]
+    }
+  ],
+  "exits": [
+    {
+      "id": "to_conductors",
+      "to": "conductors_car",
+      "label": "The far door — POSTED: CONDUCTOR",
+      "requires": {
+        "flag": "crossed_empty"
+      },
+      "locked_text": "The far door is a long, strange walk away. The crossing itself is the obstacle — best made together, and deliberately.",
+      "time": 3,
+      "travel_text": "The far door bears a small brass plate, the first fitting in the whole carriage: CONDUCTOR. Beneath it, on a paper form ruled for the purpose, a tally of strokes in groups of five — hundreds of groups, thousands of strokes — and a pencil on a string. The heading of the form reads: PARTIES REACHING THIS DOOR. The most recent stroke is fresh. Yours. It was there before you arrived."
+    }
+  ]
+}

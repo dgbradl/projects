@@ -1,0 +1,157 @@
+{
+  "id": "mail_car",
+  "name": "The Mail Car",
+  "index": 2,
+  "transitional": true,
+  "arrival": [
+    {"text": "A narrow sorting car, ceiling-hung with canvas mail sacks that sway out of rhythm with the train. Pigeonholes line both walls floor to roof, each stuffed with letters. A sorting desk holds a cold cup of tea and a date-stamp. The sorting clerk is at his post — has been for some time. He is entirely dust. His uniform holds his shape at the stool, one grey hand still resting on an unfranked envelope."}
+  ],
+  "on_enter": [
+    {"type": "journal", "text": "Mail car. The clerk is dust at his post. The mail is still being delivered — inward."}
+  ],
+  "nodes": [
+    {
+      "id": "dust_clerk",
+      "name": "The clerk of dust",
+      "low_composure_name": "The man still working",
+      "description": [
+        {"if": {"profession": "undertaker"},
+         "text": "Professional habit takes over: you assess the deceased. And frown. Dust holds no posture — yet he sits. No desiccation sequence you know produces this: total reduction, perfect cohesion, mid-task. This man was not left to decay. He was concluded — instantly, at his stool, between one envelope and the next. However long ago it happened, his tea is still faintly warm."},
+        {"text": "Up close the clerk is grey powder in the shape of diligence — spectacles resting on a face of dust, a pencil behind an ear of dust. The envelope beneath his hand is addressed in fresh ink. His tea, impossibly, is still faintly warm."}
+      ],
+      "actions": [
+        {
+          "id": "examine_clerk",
+          "label": "Examine the clerk and his last letter",
+          "time": 4,
+          "tags": ["corpse", "death", "investigation"],
+          "check": {"attr": "reason", "skill": "investigation", "dc": "normal"},
+          "on_success": [
+            {"type": "text",
+             "text": "You slide the envelope from beneath the dust of his hand without disturbing him. It is addressed to the Conductor. Inside, a single line in a clerk's copperplate: 'Sir — I respectfully request to be relieved. I have remembered my name.' The date-stamp beside him is set to no date you recognize; the year wheel goes up far, far too high."},
+            {"type": "evidence", "id": "clerks_request", "category": "physical",
+             "title": "The clerk's last letter",
+             "text": "The mail clerk was reduced to dust mid-shift, just after writing to the Conductor: 'I respectfully request to be relieved. I have remembered my name.'"},
+            {"type": "journal", "text": "Remembering your own name appears to be significant aboard. Possibly fatal. Possibly the opposite."}
+          ],
+          "on_fail": [
+            {"type": "text",
+             "text": "As you lean in, the train sways and the clerk exhales — collapses into a soft grey drift across the desk, the stool, your boots. The shape of a working man, gone like a blown dandelion. You find nothing, and you will be brushing him from your coat for hours."},
+            {"type": "composure", "who": "actor", "delta": -1}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mail_sacks",
+      "name": "The hanging mail sacks",
+      "description": [
+        {"text": "Dozens of canvas sacks hang from the roof rail, each stenciled with the wheel-of-too-many-spokes and one word: INBOUND. There is no OUTBOUND rack. On this train, it seems, the mail only arrives."}
+      ],
+      "actions": [
+        {
+          "id": "search_sacks",
+          "label": "Go through the mail sacks",
+          "time": 5,
+          "tags": ["search", "scavenge"],
+          "check": {"attr": "awareness", "skill": "scavenging", "dc": "easy"},
+          "on_success": [
+            {"type": "text",
+             "text": "Among the thousands of envelopes you find a bundle tied in black ribbon — every letter addressed to one of you, by name, in different hands. Condolence letters. All of them are condolence letters, dated after dates that mean nothing to you yet. There are also, practically speaking, a parcel of tinned rations and a sender's flask of brandy."},
+            {"type": "item", "add": "mail_sack_letters"},
+            {"type": "resource", "id": "food", "delta": 1},
+            {"type": "evidence", "id": "condolence_letters", "category": "physical",
+             "title": "Condolence letters addressed to the party",
+             "text": "The inbound mail includes bundled condolence letters for each party member — mourning them — dated after dates that have not yet happened. Or have they?"}
+          ],
+          "on_fail": [
+            {"type": "text",
+             "text": "Envelopes, endless envelopes, all inbound, none for you — until you find one for you. You put it back unopened. Everyone pretends not to have seen your name through the little window."},
+            {"type": "composure", "who": "actor", "delta": -1}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sorting_desk",
+      "name": "The sorting desk and staff notices",
+      "description": [
+        {"text": "Above the desk, staff circulars are pasted in overlapping decades. One is bordered in black and headed: NOTICE TO SORTING STAFF — IRREGULAR FRANKING."}
+      ],
+      "actions": [
+        {
+          "id": "read_notices",
+          "label": "Read the staff notices",
+          "time": 4,
+          "tags": ["investigation"],
+          "effects": [
+            {"type": "text",
+             "text": "The black-bordered circular reads: 'Staff are reminded that a ticket punched with blood permits passage through locked doors. Staff are reminded that this is not a benefit. Staff are reminded not to test this. The Company does not replace what the doors keep.' Beneath it, someone has pencilled: 'it works. — G.'"},
+            {"type": "rule", "id": "blood_ticket"},
+            {"type": "journal", "text": "Staff circular: a ticket punched with blood opens locked doors. Someone tested it. It works."}
+          ]
+        },
+        {
+          "id": "take_unmarked_ticket",
+          "label": "Search the pigeonholes for blank tickets",
+          "time": 4,
+          "tags": ["search"],
+          "visible_if": {"not_item": ["unmarked_ticket", "blood_punched_ticket"]},
+          "check": {"attr": "awareness", "skill": "scavenging", "dc": "easy"},
+          "on_success": [
+            {"type": "text",
+             "text": "In the highest pigeonhole, filed under no letter of any alphabet, a single unmarked ticket: heavy cream stock, destination TERMINUS, never punched. It is noticeably heavier than paper should be."},
+            {"type": "item", "add": "unmarked_ticket"}
+          ],
+          "on_fail": [
+            {"type": "text",
+             "text": "Nothing but dead letters. As you withdraw your arm, the pigeonholes exhale together — a papery sigh from three hundred small dark mouths."},
+            {"type": "composure", "who": "actor", "delta": -1}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "franking_station",
+      "name": "The franking machine",
+      "low_composure_name": "The little guillotine",
+      "description": [
+        {"text": "Bolted to the desk's end: a cast-iron franking press with a ticket-slot and a lever, its jaws stained a color that honest postage never was. A small brass plaque: FOR IRREGULAR FRANKING. STAFF USE ONLY."}
+      ],
+      "actions": [
+        {
+          "id": "punch_with_blood",
+          "label": "Punch a ticket with your own blood",
+          "time": 3,
+          "tags": ["endure"],
+          "requires": {"item": "unmarked_ticket", "rule_known": "blood_ticket"},
+          "requires_text": "You would need an unpunched ticket — and a reason to believe this grisly machine does anything at all.",
+          "consumes_item": "unmarked_ticket",
+          "effects": [
+            {"type": "text",
+             "text": "You lay the ticket in the slot, set your palm above the jaws the way the stains suggest, and pull the lever. The pain is small and exact. The press chimes like a till. The ticket that drops into the tray bears a neat oval punched through card and — you understand now — through something less replaceable. The hole does not bleed. You do."},
+            {"type": "harm", "who": "actor", "amount": 1},
+            {"type": "item", "add": "blood_punched_ticket"},
+            {"type": "journal", "text": "Franked a ticket in blood. The locked doors of this train now owe me an answer."}
+          ]
+        }
+      ]
+    }
+  ],
+  "escalations": [
+    {
+      "at_time": 18,
+      "text": "All at once, softly, the mail begins to whisper — thousands of letters reading themselves aloud in their senders' voices, condolences and confessions and last instructions, a paper congregation murmuring evensong. The sacks sway harder, though the train runs smooth.",
+      "effects": [{"type": "composure", "who": "party", "delta": -1}]
+    }
+  ],
+  "exits": [
+    {
+      "id": "to_dining",
+      "to": "dining_car",
+      "label": "Forward door — toward music and warm light",
+      "time": 3,
+      "travel_text": "Through the door's glass you can already see it: white linen, candle flames standing perfectly still despite the train's sway, and figures in evening dress raising glasses. Somewhere ahead, a small orchestra is playing something you almost know. The smell arrives as you open the door — roast meat, sugar, wine — and every empty stomach among you casts its vote."
+    }
+  ]
+}

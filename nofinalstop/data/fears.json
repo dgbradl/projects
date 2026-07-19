@@ -1,0 +1,15 @@
+[
+  {"id": "darkness", "name": "The Dark", "tags": ["darkness", "blackout"]},
+  {"id": "enclosed", "name": "Enclosed Spaces", "tags": ["enclosed", "crawl"]},
+  {"id": "water", "name": "Open Water", "tags": ["water"]},
+  {"id": "fire", "name": "Fire", "tags": ["fire"]},
+  {"id": "children", "name": "Children", "tags": ["children"]},
+  {"id": "crowds", "name": "Crowds", "tags": ["crowds"]},
+  {"id": "watched", "name": "Being Watched", "tags": ["watched", "eyes"]},
+  {"id": "mirrors", "name": "Mirrors", "tags": ["mirrors", "reflection"]},
+  {"id": "death", "name": "Death", "tags": ["death", "corpse"]},
+  {"id": "abandonment", "name": "Abandonment", "tags": ["alone", "abandon"]},
+  {"id": "losing_control", "name": "Losing Control", "tags": ["control", "possession"]},
+  {"id": "becoming_parent", "name": "Becoming Like a Parent", "tags": ["memory", "family"]},
+  {"id": "exposed_fraud", "name": "Being Exposed as a Fraud", "tags": ["testimony", "judgment"]}
+]

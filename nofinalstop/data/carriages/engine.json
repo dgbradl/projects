@@ -1,0 +1,211 @@
+{
+  "id": "engine",
+  "name": "The Engine",
+  "index": 10,
+  "arrival": [
+    {"if": {"mystery": "sleeper_below"},
+     "text": "Heat, and pressure, and sound below sound. The engine room is a cathedral of iron — but the boiler is wrong: it swells and subsides, slow as a tide, and the pipes that leave it are not plumbed like steam-lines. They are plumbed like veins. Every gauge on the great panel measures depth of sleep. Every valve is labeled in the handwriting of many different servants across many different ages, and all the labels are instructions for the same task: KEEP IT UNDER. Beyond the machinery, at the front where a firebox should roar, stands a sealed bulkhead of black iron, and through it — felt in the teeth, in the sternum, in the oldest part of the brain — comes the rhythm you have chased the whole length of the train: an in-breath. An out-breath. Long as a tide. Something the size of the night is asleep behind that door, and the whole impossible train is the sound it makes, dreaming."},
+    {"text": "Heat, and pressure, and sound below sound. The engine room is a cathedral of iron — pistons the size of pillars, a boiler like a fallen bell tower — and none of it is burning coal. The furnace doors stand open on a firebox full of cold, folded darkness, and still the pressure gauges climb, fed by something further forward. Beyond the machinery, where the engine's heart should be, stands a sealed bulkhead of black iron, and from behind it comes a sound that is not mechanical at all: a long, low, endlessly patient note, like a held breath, like a laden vessel remembering every harbor that ever refused it. The air tastes of grief and hot metal. Whatever drives this train is behind that door, and it has been waiting — you feel this distinctly, in the soles of your feet — for someone to finally arrive with the correct paperwork."}
+  ],
+  "return_text": "The engine room receives you again. The rhythm behind the bulkhead has not changed. It was never waiting impatiently. It has never once been impatient.",
+  "on_enter": [
+    {"type": "journal", "text": "The engine. The third authorization is tendered at the threshold. Everything aboard has led here."},
+    {"type": "text", "style": "alert",
+     "text": "A voice — the grille's many-voiced voice — speaks from everywhere in the iron: 'TWO AUTHORIZATIONS RECORDED. THE THIRD IS TENDERED AT THE THRESHOLD. THE THRESHOLD IS AHEAD. THE COMPANY COMMENDS YOUR PUNCTUALITY.'"}
+  ],
+  "nodes": [
+    {
+      "id": "the_threshold",
+      "name": "The threshold — the black iron bulkhead",
+      "low_composure_name": "The last door there is",
+      "description": [
+        {"text": "The bulkhead is neither hot nor cold. It is the exact temperature of skin — of a particular skin, each of you privately certain whose. Set into it at chest height: a small sliding hatch, a speaking-grille, and a shelf. An offering shelf. The shelf is worn into a smooth hollow by the weight of everything it has held, and it is empty, and the grille says, without being asked: 'THE THIRD AUTHORIZATION. A VOLUNTARY SACRIFICE, TENDERED. NOT TAKEN. THE DISTINCTION IS THE ENTIRE MACHINERY OF THIS DOOR.'"}
+      ],
+      "actions": [
+        {
+          "id": "already_dead_reveal",
+          "label": "Tender a life already given — the one who died before boarding",
+          "time": 5,
+          "tags": ["death", "testimony"],
+          "requires": {"any_party": true, "secret": "died_before_boarding"},
+          "requires_text": "This door would accept a life already given — but only from someone who has one to declare.",
+          "effects": [
+            {"type": "text",
+             "text": "One of you steps to the grille — the one who has carried it the whole way, the cold water, the hospital ceiling, the rope, the memory that ends and then continues. And they declare it. Aloud. To the door, and therefore to the party, and therefore at last to themselves: 'I died before I boarded. My life was already given. I tender it.' The silence behind the bulkhead becomes attentive. Ledger-sounds, page-sounds, the dry arithmetic of an ancient accounting — and then the grille, almost gently: 'THE SACRIFICE IS FOUND TO PREDATE THE JOURNEY. THE COMPANY HONORS PAID FARES. AUTHORIZATION THREE: RECORDED.' The bulkhead's seals begin to open. The one who died stands very straight, being looked at, being finally known, and finds — the last surprise the train has for them — that being known feels like the opposite of dying."},
+            {"type": "flag", "set": "sacrifice_given"},
+            {"type": "composure", "who": "party", "delta": 1},
+            {"type": "evidence", "id": "fare_predates", "category": "identity",
+             "title": "A fare paid before boarding",
+             "text": "The engine accepted a party member's pre-boarding death as the voluntary sacrifice: 'The Company honors paid fares.'"},
+            {"type": "journal", "text": "The threshold accepted a death that had already happened. The Company honors paid fares. Our friend stood very straight."}
+          ]
+        },
+        {
+          "id": "volunteer_sacrifice",
+          "label": "Call for a volunteer — a life, tendered at the shelf",
+          "time": 6,
+          "tags": ["death", "mercy"],
+          "effects": [
+            {"type": "choose_character",
+             "prompt": "The door requires a life, freely tendered. Who steps forward? (This is death — real, final, and voluntary. Or step back, and find another way.)",
+             "optional": true,
+             "skip_effects": [
+               {"type": "text",
+                "text": "No one steps forward. The grille does not mock, does not press. 'THE THRESHOLD KEEPS NO SCHEDULE,' it says. 'THE THRESHOLD HAS NEVER ONCE BEEN IMPATIENT.' Which is, all of you feel, the most frightening sentence the train has said yet."}
+             ],
+             "effects": [
+               {"type": "text",
+                "text": "They step forward before the arguments can form ranks — that is how volunteering works; it outruns the committee of the heart — and they lay their hand on the offering shelf, in the hollow worn by every hand before theirs. What happens is not violent. That mercy, at least, the door extends. It is a settling: the weight of them, the warmth of them, the particular way the air arranged itself around them, gathered and accepted, the way a station at last accepts a long-delayed train. They have time to look back once. Whatever they mean by the look, each of you receives it as addressed personally, and always will. Then the shelf is empty, and the seals are opening, and the grille says — quietly, and, you would all swear, with something terribly like gratitude: 'AUTHORIZATION THREE: RECORDED. THE COMPANY IS IN YOUR DEBT. THE COMPANY IS ALWAYS IN THIS PARTICULAR DEBT.'"},
+               {"type": "kill", "who": "chosen", "fate": "tendered themselves at the engine's threshold"},
+               {"type": "flag", "set": "sacrifice_given"},
+               {"type": "journal", "text": "The threshold took what was tendered. The Company declared itself in our debt. The shelf's hollow is one hand deeper."}
+             ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "the_heart",
+      "name": "Beyond the bulkhead — the engine's heart",
+      "visible_if": {"flag": "sacrifice_given"},
+      "description": [
+        {"if": {"mystery": "sleeper_below"},
+         "text": "The bulkhead stands open. Beyond it there is no firebox. There is a face. Vast beyond the room that somehow contains it, ancient beyond the concept it is anchored to — asleep. The eyelids alone are landscapes. Chains of a metal you have no name for cross it like meridians, and each link is stamped with the wheel-of-too-many-spokes, and each is warm, sweating faintly with the effort of holding. The train, all of it — carriages, Conductor, feast, chapel, child, Blackout — hangs from this sleep the way a dream hangs from a sleeper. The controls are here too: a brake lever polished by desperate hands, the chain-capstans, and the small, terrible, unlabeled release. It was never a question of machinery. It was always a question of what you believe should be done with a sleeping nightmare that dreams the world you are standing in."},
+        {"text": "The bulkhead stands open. Beyond it there is no firebox. There is a heart — or what a heart would be if grief were a muscle: a vast, laboring, faithful engine of flesh and iron grown into one another past distinguishing, veined with brass, valved with bone, beating out the rhythm the wheels have carried the whole length of the train. Around it, on every surface, in every material, in a hundred hands across a thousand years, is written the manifest — names, names, names — and the heart labors through them like a prayer it cannot stop reciting. It knows you are here. A valve turns toward you like an eye. It is not afraid of you. It is afraid — you understand this suddenly, completely — that you have come to tell it what it already knows: that there is nowhere left to deliver what it carries."}
+      ],
+      "actions": [
+        {
+          "id": "stop_the_train",
+          "label": "Stop the train — haul the great brake, and mean it",
+          "time": 6,
+          "tags": ["leadership", "endure"],
+          "effects": [
+            {"type": "text",
+             "text": "The brake lever is polished bright by the hands of everyone who almost meant it. You gather at the lever, all of you together, and you think — deliberately, each of you, eyes open — of what you are leaving and what you are going back to: the debts, the graves, the unfinished arguments, the ordinary mornings. You choose them. All of them. You MEAN it. And the train, which only stops for someone who genuinely intends to leave, feels the intention arrive like a signal changing at last — and stops."},
+            {"type": "ending", "id": "the_last_stop"}
+          ]
+        },
+        {
+          "id": "take_the_controls",
+          "label": "Take the controls — accept the uniform and the timetable",
+          "time": 6,
+          "tags": ["leadership", "train_folk"],
+          "requires": {"any": [{"flag": "offered_uniform"}, {"any_party": true, "scar": "marked_by_conductor"}]},
+          "requires_text": "The train accepts no unqualified hand. It must have offered — or marked — its candidate.",
+          "effects": [
+            {"type": "text",
+             "text": "One of you reaches out — the offered one, the marked one — and lays a hand on the controls, and the train RECOGNIZES the hand. Down eleven carriages the lights steady. The Blackout, mid-swallow, pauses like a hound hearing its name. A new timetable begins composing itself, courteously, around a new will."},
+            {"type": "ending", "id": "new_conductor"}
+          ]
+        },
+        {
+          "id": "reseal_the_lock",
+          "label": "Deepen the seals — sing the lullaby the chapel was brewing",
+          "time": 8,
+          "tags": ["occult"],
+          "requires": {"mystery": "sleeper_below",
+                       "resource_min": {"ritual_materials": 2},
+                       "any": [{"evidence": "theatre_records"}, {"evidence": "prisoners_testimony"}, {"evidence": "gentlemans_hint"}, {"evidence": "prayer_works"}]},
+          "requires_text": "Deepening the sleep would take ritual materials in quantity, and real understanding — from the chapel, the hospital's records, or the lounge — of HOW the train tends its sleeper.",
+          "cost": {"ritual_materials": 2},
+          "effects": [
+            {"type": "text",
+             "text": "You understand the machine now — chapel, ward, feast, all of it: the train is a lullaby with rolling stock. So you sing it properly, just once, from the source: candles at the meridian-chains, the old words from every tradition at once, fear folded politely into peace and poured down into the vast sleeping attention. The eyelids, those landscapes, settle by a degree no instrument could measure and every instrument in the room records. The sleep deepens past dreaming — past the NEED to dream carriages and trials and parties of frightened passengers."},
+            {"type": "ending", "id": "containment"}
+          ]
+        },
+        {
+          "id": "ease_the_heart",
+          "label": "Show it the manifest is complete — let the heart rest",
+          "time": 8,
+          "tags": ["care", "mercy", "testimony"],
+          "requires": {"mystery": "ferry_of_the_dead",
+                       "any": [{"evidence": "theatre_records"}, {"evidence": "prisoners_testimony"}, {"evidence": "gentlemans_hint"}, {"evidence": "condolence_letters"}, {"evidence": "route_is_a_loop"}]},
+          "requires_text": "To convince the heart, you would need proof of what the journey truly is — evidence gathered from the train's own records, letters, or routes.",
+          "effects": [
+            {"type": "text",
+             "text": "You approach the laboring heart with your evidence held out like lanterns — the obituaries, the post-mortem admissions, the route that circles a terminus inked out of existence — and you do the kindest, hardest thing that can be done for the faithful: you tell it the truth in its own language. The route is a circle. The terminus is gone. The manifest — you show it — is COMPLETE: every name accounted for, every passenger carried, every duty done. Nothing was ever failed. There is simply, finally, nothing left to deliver. The heart reads. The heart believes you."},
+            {"type": "ending", "id": "mercy"}
+          ]
+        },
+        {
+          "id": "break_the_lock",
+          "label": "Break the chains — wake what sleeps",
+          "time": 6,
+          "tags": ["occult", "control"],
+          "requires": {"mystery": "sleeper_below"},
+          "pre_text": "The chains sweat. The links strain. Every servant of the train, every carriage, every rule exists to keep this sleep unbroken — and here is the release, small and unlabeled, under your hand. You could know, at last, what everyone aboard has spent eternity refusing to know.",
+          "effects": [
+            {"type": "ending", "id": "release"}
+          ]
+        },
+        {
+          "id": "open_rear_engine",
+          "label": "Open the engine to the Blackout — let the dark finish its work",
+          "time": 5,
+          "tags": ["darkness", "blackout"],
+          "effects": [
+            {"type": "ending", "id": "the_blackout"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "gauge_panel",
+      "name": "The great gauge panel",
+      "description": [
+        {"if": {"mystery": "sleeper_below"},
+         "text": "Gauges measuring depth of sleep, density of dream, 'ambient intake' — the fear harvest, you understand now — and one dial, oldest of all, its brass worn to silver, labeled in the first servant's hand: TIME REMAINING. Its needle is not at zero. It is close."},
+        {"text": "Gauges measuring pressure that no boiler produces: MANIFEST (the needle deep in a black arc labeled FULL), DISTANCE TO TERMINUS (the needle hard against a pin at the dial's broken edge), and one small dial, lovingly polished, labeled SERVICE PUNCTUALITY. That needle stands exactly on time. It has never moved. You would bet your lives it has never once moved."}
+      ],
+      "actions": [
+        {
+          "id": "read_gauges",
+          "label": "Read every gauge and understand the machine",
+          "time": 5,
+          "tags": ["investigation", "mechanical"],
+          "check": {"attr": "reason", "skill": "railway_operations", "dc": "normal"},
+          "on_success": [
+            {"type": "text",
+             "text": [
+               {"if": {"mystery": "sleeper_below"},
+                "text": "The panel yields its systems to a patient eye. The train is a closed circuit: carriages harvest fear, the chapel refines it, the pipes carry it forward, the sleep consumes it — and the Blackout is the exhaust: spent nightmare, pooling behind the train, following its own fuel line home. Every horror aboard is a component. Including, the panel's arithmetic implies, arriving parties. ESPECIALLY arriving parties."},
+               {"text": "The panel yields its systems to a patient eye. The train is a closed circuit of duty: the manifest is FULL, the terminus is GONE, and the engine resolves the contradiction the only way a faithful machine can — by never arriving, forever. The Blackout, the panel's oldest annotation notes, is simply 'the service being withdrawn behind us' — the route being decommissioned mile by mile, carriage by carriage, at the exact pace of the train's refusal to finish."}
+             ]},
+            {"type": "evidence", "id": "engine_systems", "category": "physical",
+             "title": "How the engine actually works",
+             "text": [
+               {"if": {"mystery": "sleeper_below"},
+                "text": "The train is a closed circuit: carriages harvest fear, the chapel refines it, the sleeper consumes it, and the Blackout is the exhaust — spent nightmare following its fuel line home."},
+               {"text": "The manifest is full, the terminus is gone, and the engine resolves the contradiction by never arriving. The Blackout is the service being withdrawn behind the train, at the exact pace of its refusal to finish."}
+             ]},
+            {"type": "composure", "who": "party", "delta": 1},
+            {"type": "journal", "text": "Read the engine's gauges. The whole train finally diagrams. I wish it didn't."}
+          ],
+          "on_fail": [
+            {"type": "text",
+             "text": "The gauges are labeled in the accumulated shorthand of a thousand years of servants, and they defeat you — all but one, which you wish had defeated you too. It is labeled NEXT PARTY, and it is a countdown, and it is counting."},
+            {"type": "composure", "who": "actor", "delta": -1}
+          ]
+        }
+      ]
+    }
+  ],
+  "escalations": [
+    {
+      "at_time": 25,
+      "text": "The rhythm behind the bulkhead changes — barely, a grace note, a sleeper shifting or a heart skipping — and every gauge on the panel swings once, hard, toward its red arc, and settles. The engine has noticed you specifically. The sensation is exactly like being read.",
+      "effects": [
+        {"type": "condition", "who": "steadiest", "add": "seen_by_engine"},
+        {"type": "composure", "who": "party", "delta": -1}
+      ]
+    },
+    {
+      "at_time": 45,
+      "text": "Behind you — felt through eleven carriages of iron, unmistakable — the Blackout stops being patient. The dark is coming up the train's length now like water up a sinking ship's corridors. Whatever you came to the engine to do, the time in which to do it has begun visibly ending.",
+      "effects": [{"type": "blackout", "minutes": 15}]
+    }
+  ],
+  "exits": []
+}

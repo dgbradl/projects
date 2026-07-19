@@ -1,0 +1,162 @@
+[
+  {
+    "id": "detective",
+    "name": "Detective",
+    "desc": "Sees what people try to hide. Trusts almost no one, including the client.",
+    "skills": {"investigation": 2, "psychology": 1, "firearms": 1},
+    "attr_bonus": {"awareness": 1},
+    "item": "service_revolver"
+  },
+  {
+    "id": "physician",
+    "name": "Physician",
+    "desc": "Has closed more bodies than doors. Knows exactly how people come apart.",
+    "skills": {"medicine": 2, "investigation": 1, "psychology": 1},
+    "attr_bonus": {"reason": 1},
+    "item": "medical_bag"
+  },
+  {
+    "id": "nurse",
+    "name": "Nurse",
+    "desc": "Did the work the physicians took credit for, in worse light and for less pay.",
+    "skills": {"medicine": 2, "persuasion": 1, "scavenging": 1},
+    "attr_bonus": {"awareness": 1},
+    "item": "field_dressing_kit"
+  },
+  {
+    "id": "mechanic",
+    "name": "Mechanic",
+    "desc": "If it moves, they can stop it. If it has stopped, they can usually make it move.",
+    "skills": {"mechanics": 2, "scavenging": 1, "melee": 1},
+    "attr_bonus": {"body": 1},
+    "item": "toolbox"
+  },
+  {
+    "id": "soldier",
+    "name": "Soldier",
+    "desc": "Survived a war nobody speaks well of. Keeps their back to walls.",
+    "skills": {"firearms": 2, "melee": 1, "survival": 1},
+    "attr_bonus": {"body": 1},
+    "item": "service_revolver"
+  },
+  {
+    "id": "priest",
+    "name": "Priest",
+    "desc": "Carries a faith with cracks in it, and a voice that can still steady a room.",
+    "skills": {"occult": 1, "persuasion": 2, "psychology": 1},
+    "attr_bonus": {"will": 1},
+    "item": "prayer_book"
+  },
+  {
+    "id": "professor",
+    "name": "Professor",
+    "desc": "An authority on something that suddenly matters far more than anyone expected.",
+    "skills": {"history": 2, "occult": 1, "investigation": 1},
+    "attr_bonus": {"reason": 1},
+    "item": "annotated_monograph"
+  },
+  {
+    "id": "journalist",
+    "name": "Journalist",
+    "desc": "Paid to notice inconsistencies. Constitutionally unable to stop asking.",
+    "skills": {"investigation": 2, "persuasion": 1, "deception": 1},
+    "attr_bonus": {"presence": 1},
+    "item": "press_notebook"
+  },
+  {
+    "id": "entertainer",
+    "name": "Entertainer",
+    "desc": "Can hold a hostile crowd for one more song. Has done so, recently.",
+    "skills": {"performance": 2, "deception": 1, "psychology": 1},
+    "attr_bonus": {"presence": 1},
+    "item": "musical_instrument"
+  },
+  {
+    "id": "criminal",
+    "name": "Criminal",
+    "desc": "Locks, pockets, and second-storey windows. Retired, allegedly.",
+    "skills": {"lockpicking": 2, "stealth": 2, "deception": 1},
+    "attr_bonus": {"agility": 1},
+    "item": "lockpicks"
+  },
+  {
+    "id": "medium",
+    "name": "Medium",
+    "desc": "Half the séances were theatre. It is the other half that keeps them awake.",
+    "skills": {"occult": 2, "performance": 1, "psychology": 1},
+    "attr_bonus": {"will": 1},
+    "item": "spirit_board_planchette"
+  },
+  {
+    "id": "railway_worker",
+    "name": "Railway Worker",
+    "desc": "Thirty years of couplings, signals, and timetables. This train obeys none of them.",
+    "skills": {"railway_operations": 2, "mechanics": 1, "survival": 1},
+    "attr_bonus": {"body": 1},
+    "item": "railway_key"
+  },
+  {
+    "id": "socialite",
+    "name": "Socialite",
+    "desc": "Knows which fork to use and which names open which doors.",
+    "skills": {"persuasion": 2, "deception": 1, "history": 1},
+    "attr_bonus": {"presence": 1},
+    "item": "calling_cards"
+  },
+  {
+    "id": "factory_worker",
+    "name": "Factory Worker",
+    "desc": "Twelve-hour shifts breed endurance, and a good ear for a machine about to fail.",
+    "skills": {"mechanics": 1, "melee": 1, "survival": 1, "scavenging": 1},
+    "attr_bonus": {"body": 1},
+    "item": "iron_spanner"
+  },
+  {
+    "id": "hunter",
+    "name": "Hunter",
+    "desc": "Reads tracks, wind, and silence. Knows when something is reading them back.",
+    "skills": {"survival": 2, "firearms": 1, "stealth": 1},
+    "attr_bonus": {"awareness": 1},
+    "item": "hunting_knife"
+  },
+  {
+    "id": "lawyer",
+    "name": "Lawyer",
+    "desc": "Finds the loophole. Every contract has one, including, perhaps, a ticket.",
+    "skills": {"persuasion": 1, "investigation": 1, "deception": 1, "history": 1},
+    "attr_bonus": {"reason": 1},
+    "item": "locked_briefcase"
+  },
+  {
+    "id": "undertaker",
+    "name": "Undertaker",
+    "desc": "Dresses the dead for their last journey. Recognizes their condition on sight.",
+    "skills": {"medicine": 1, "occult": 1, "investigation": 1, "history": 1},
+    "attr_bonus": {"will": 1},
+    "item": "measuring_cord"
+  },
+  {
+    "id": "cook",
+    "name": "Cook",
+    "desc": "Fed a hundred mouths a day from nothing. Knows meat when they see it.",
+    "skills": {"scavenging": 2, "melee": 1, "survival": 1},
+    "attr_bonus": {"awareness": 1},
+    "item": "kitchen_knife"
+  },
+  {
+    "id": "schoolteacher",
+    "name": "Schoolteacher",
+    "desc": "Can silence a room with a look and has buried more curiosity than most people ever feel.",
+    "skills": {"history": 1, "psychology": 1, "leadership": 1, "investigation": 1},
+    "attr_bonus": {"will": 1},
+    "item": "brass_hand_bell"
+  },
+  {
+    "id": "drifter",
+    "name": "Drifter",
+    "desc": "Has ridden trains without tickets before. Never one like this.",
+    "skills": {"survival": 2, "stealth": 1, "scavenging": 1},
+    "attr_bonus": {"agility": 1},
+    "item": "bindle_and_bedroll"
+  }
+]

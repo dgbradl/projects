@@ -1,0 +1,16 @@
+[
+  {
+    "id": "sleeper_below",
+    "name": "The Sleeping Prisoner",
+    "summary": "The engine is a prison. Something vast sleeps inside it, and the train exists to keep it moving, because it can only wake when the train is still.",
+    "truth_text": "The engine is not a machine. It is a lock. Inside it something enormous sleeps, dreaming the carriages and their trials, and every fear harvested from every passenger is poured into that sleep to deepen it. The train can never stop, because stillness is the alarm clock. The Conductor is not the jailer. The Conductor is the previous volunteer.",
+    "endings": ["containment", "release", "the_blackout", "new_conductor", "the_last_stop"]
+  },
+  {
+    "id": "ferry_of_the_dead",
+    "name": "The Ferry",
+    "summary": "Every passenger died before boarding. The train carries the dead — but it has stopped delivering them, and now simply collects.",
+    "truth_text": "There is no destination because the destination was decommissioned. The train was built to carry the dead onward, and it did, faithfully, for longer than nations last. But TERMINUS closed, or was lost, or refused further deliveries — and the train kept to its timetable anyway. Every passenger died before boarding, including you. The engine is not fleeing and not imprisoning. It is grieving, and it cannot bring itself to stop with a full manifest and nowhere to unload.",
+    "endings": ["mercy", "the_blackout", "new_conductor", "the_last_stop"]
+  }
+]

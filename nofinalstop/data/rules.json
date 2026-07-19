@@ -1,0 +1,14 @@
+[
+  {"id": "tunnel_doors", "text": "Never open a connecting door while the train is inside a tunnel."},
+  {"id": "true_name", "text": "Never give the Conductor your true name."},
+  {"id": "dead_forward", "text": "The dead may travel forward, but never backward."},
+  {"id": "dining_once", "text": "No passenger may enter the dining car twice."},
+  {"id": "stops_for_leavers", "text": "The train only stops for someone who genuinely intends to leave."},
+  {"id": "abandoned_belongs", "text": "Anything abandoned belongs to the train."},
+  {"id": "no_reflection_sleep", "text": "A passenger without a reflection must not be allowed to sleep."},
+  {"id": "bell_three_times", "text": "When the bell rings three times, someone has been replaced."},
+  {"id": "count_windows", "text": "Never count the windows in a sleeper carriage."},
+  {"id": "forgotten_unheard", "text": "The engine cannot hear a person who has been completely forgotten."},
+  {"id": "blood_ticket", "text": "A ticket punched with blood permits passage through locked doors."},
+  {"id": "final_station", "text": "Anyone who sees the final station must not describe it aloud."}
+]

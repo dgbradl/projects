@@ -1,0 +1,236 @@
+{
+  "id": "hospital_car",
+  "name": "The Hospital Car",
+  "index": 6,
+  "arrival": [
+    {"if": {"profession": ["physician", "nurse"]},
+     "text": "It is a good ward. That is what unsettles you first — proper ventilation, correct bed spacing, charts squared at every footboard, instruments autoclaved and racked. Whoever runs this ward trained where you trained, or trained whoever trained you. Then you read the nearest chart. The patient's surname is yours. The admission date is next week. And the injuries listed — fracture, laceration, shock — are described in the past tense, as things already treated, waiting only for you to arrive and have them."},
+    {"if": {"composure_max": 3},
+     "text": "White, white, white, and every bed holds someone pretending to be asleep the way you pretend, and every face is a face from your own party lying still under red-stained gauze. The doctors move from bed to bed on silent feet, and their shadows do not bend at the beds — the shadows keep walking, straight through, toward you."},
+    {"text": "White light, white tile, two long rows of iron-framed beds. Patients lie still beneath tucked blankets, heads bandaged or faces gauzed — and where faces show, the breath goes out of you all at once: they are YOUR faces. Every patient in this ward is one of you, asleep, hurt, tended. Doctors in long aprons move between beds with unhurried purpose. One approaches, consulting a chart. 'Ah,' he says, warmly. 'The admissions. You're early — your injuries haven't happened yet. No matter. We find it's far tidier to treat them in advance.'"}
+  ],
+  "return_text": "The ward accepts your return without surprise. Several charts have been updated in red ink since you left. You do not read them.",
+  "on_enter": [
+    {"type": "journal", "text": "Hospital car. Every patient wears one of our faces. The doctors are treating injuries we have not yet suffered."}
+  ],
+  "nodes": [
+    {
+      "id": "ward_rows",
+      "name": "The rows of patients",
+      "low_composure_name": "The rehearsal",
+      "description": [
+        {"if": {"profession": ["physician", "nurse"]},
+         "text": "You walk the rows clinically, because clinically is the only way you can walk them. The doubles are perfect — down to old scars, down to the crooked healing of bones you each broke as children. Their charts are flawless work: injuries catalogued, treatments prescribed, outcomes recorded. Every admission date is in the future. Every outcome line but one reads DISCHARGED FORWARD. You do not let the others see which chart says otherwise."},
+        {"text": "Bed by bed: your own faces, asleep. One double wears bandages over its eyes. One has an arm splinted that its original, standing beside you, flexes involuntarily. They breathe in unison — with each other, and, you slowly realize, with you. At the foot of each bed hangs a chart, and each chart bears one of your names and an admission date that has not arrived yet."}
+      ],
+      "actions": [
+        {
+          "id": "read_charts",
+          "label": "Read the charts through to the end",
+          "time": 5,
+          "tags": ["investigation", "death", "watched"],
+          "check": {"attr": "reason", "skill": "investigation", "dc": "normal"},
+          "on_success": [
+            {"type": "text",
+             "text": "The charts are prophecy in medical shorthand. Each lists injuries 'treated in advance' — wounds you have not taken, dated to carriages you have not reached. Cross-referencing, you find the system: what is treated here, in advance, is subtracted from what will happen there. The doubles are not copies of you. They are ledger entries. Someone is paying your bills before you incur them, and the ward's one iron rule is written at the bottom of every chart: ALL ACCOUNTS SETTLE AT DISCHARGE."},
+            {"type": "evidence", "id": "advance_treatment", "category": "physical",
+             "title": "Injuries treated in advance",
+             "text": "The ward's charts list the party's future injuries as already treated — each treatment subtracted from a coming event. Every chart warns: ALL ACCOUNTS SETTLE AT DISCHARGE."},
+            {"type": "journal", "text": "The hospital treats the future. The bill arrives at discharge. Whose discharge was not specified."}
+          ],
+          "on_fail": [
+            {"type": "text",
+             "text": "You lift the chart at the foot of your own double's bed, and the entries rearrange themselves as you read — dates shuffling, injuries trading places — until the page settles on a single line, freshly inked, in beautiful copperplate: PATIENT IS READING THE CHART. You put it back."},
+            {"type": "composure", "who": "actor", "delta": -2}
+          ]
+        },
+        {
+          "id": "wake_own_double",
+          "label": "Try to wake your own double",
+          "time": 6,
+          "tags": ["watched", "death", "mind"],
+          "check": {"attr": "will", "dc": "hard"},
+          "on_success": [
+            {"type": "text",
+             "text": "You take your own hand — there is no other way to say it — and your double's eyes open. It looks at you without surprise, the way you look in mirrors. 'They can't hear us,' it says, in your voice, quickly. 'Listen. I'm the version they admitted. I remember everything you've forgotten — that's what they took from me to build the file.' Its grip tightens. 'You want the name. The real one. The one from before.' And it pulls you down and whispers — and the name goes through you like cold water, because it is true, and it is yours, and you had lost it without ever noticing the loss."},
+            {"type": "evidence", "id": "remembered_name", "category": "identity",
+             "title": "A remembered true name",
+             "text": "A party member's hospital double — built, it claims, from their confiscated memories — whispered back their true name. A remembered name is one of the engine's three authorizations."},
+            {"type": "composure", "who": "actor", "delta": -1},
+            {"type": "journal", "text": "My double in the ward knew my true name. It gave it back. It kept the rest."}
+          ],
+          "on_fail": [
+            {"type": "text",
+             "text": "You touch its shoulder and its eyes open — and they are not your eyes at all; they are ward-white from lid to lid, and it smiles with your mouth and says, in a doctor's voice, 'The patient is resting.' Around the ward, every doctor has stopped, mid-motion, and turned to look at you. The moment stretches. Then work resumes, and the double is asleep again, and your hands will not stop shaking."},
+            {"type": "composure", "who": "actor", "delta": -2}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "head_doctor",
+      "name": "The head surgeon",
+      "low_composure_name": "The one who holds the pen",
+      "description": [
+        {"text": "Tall, silver-spectacled, apron immaculate, with the serene authority of a man who has never lost a patient — or never recorded losing one. His name-tag, like the maître d's, is polished blank. 'You are welcome to observe our work,' he says. 'You are, after all, its subject.'"}
+      ],
+      "actions": [
+        {
+          "id": "offer_procedure",
+          "label": "Hear his offer of a preventative procedure",
+          "time": 7,
+          "tags": ["care", "endure"],
+          "effects": [
+            {"type": "text",
+             "text": "'The train ahead of you is not gentle,' he says, drawing back a screen. Behind it, an empty operating table, already draped, already lit. 'We can fortify one of you against it. Comprehensively. The procedure removes the — inefficiencies. The bleeding. The vulnerability to toxins. The body's sentimental attachments to its old injuries.' He polishes his spectacles. 'The cost is carried by the account. You have read the charts. The account settles at discharge.'"},
+            {"type": "choose_character",
+             "prompt": "Who, if anyone, submits to the preventative procedure? (It heals everything — and changes them permanently.)",
+             "optional": true,
+             "skip_effects": [
+               {"type": "text",
+                "text": "You decline, collectively. The surgeon nods without offense and makes a small note. 'The table,' he says, 'does not hold grudges. It holds appointments.'"}
+             ],
+             "effects": [
+               {"type": "text",
+                "text": "The procedure takes forty minutes by the ward clock, which does not move. There is no pain — that is the first wrong thing — and afterward, sitting up, the patient feels magnificent: wounds closed, bones set, poisons gone, fatigue wiped away like chalk. It is only at the basin, washing, that they notice the second wrong thing. The cut on their thumb from the baggage car does not bleed. Nothing, now, will make them bleed. The surgeon watches them discover it with quiet professional pride. 'Fortified,' he says. 'The ward will bill the account.'"},
+               {"type": "heal", "who": "chosen", "amount": 10},
+               {"type": "condition", "who": "chosen", "remove": "bleeding"},
+               {"type": "condition", "who": "chosen", "remove": "poisoned"},
+               {"type": "condition", "who": "chosen", "remove": "bruised"},
+               {"type": "condition", "who": "chosen", "remove": "broken_limb"},
+               {"type": "condition", "who": "chosen", "remove": "infected"},
+               {"type": "condition", "who": "chosen", "remove": "exhausted"},
+               {"type": "scar", "who": "chosen", "add": "bloodless"},
+               {"type": "flag", "set": "procedure_taken"},
+               {"type": "journal", "text": "One of us took the preventative procedure. They are fortified now. They do not bleed. Medicine has become a stranger to them."}
+             ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "supply_cabinet",
+      "name": "The pharmacy cabinet",
+      "description": [
+        {"text": "A locked glass-front cabinet: morphine, sulfa powders, bandages, sutures — and a shelf of unlabeled vials in a rack marked FOR PASSENGERS OF UNUSUAL CONDITION."}
+      ],
+      "actions": [
+        {
+          "id": "steal_supplies",
+          "label": "Steal medical supplies",
+          "time": 5,
+          "tags": ["stealth"],
+          "check": {"attr": "agility", "skill": "stealth", "dc": "normal"},
+          "on_success": [
+            {"type": "text",
+             "text": "The cabinet's lock is decorative — this ward has never needed to fear theft, which tells you something about what happens to thieves. You fill a satchel methodically: morphine, sulfa, dressings, and one vial from the unusual-conditions rack, because knowledge is knowledge."},
+            {"type": "resource", "id": "medicine", "delta": 3},
+            {"type": "item", "add": "sedative_vial"}
+          ],
+          "on_partial": [
+            {"type": "text",
+             "text": "You get the cabinet open and half-empty it before an orderly rounds the screen — white-uniformed, white-faced, faceless. It does not shout. It simply takes hold of your wrist with a grip like a closing valve and removes you, item by item, from the cabinet's vicinity. You keep what was already pocketed."},
+            {"type": "resource", "id": "medicine", "delta": 1},
+            {"type": "harm", "who": "actor", "amount": 1}
+          ],
+          "on_fail": [
+            {"type": "text",
+             "text": "Your hand is inside the cabinet when the ward's lights blink — once — and every doctor and orderly in the car is suddenly standing still, facing you, in a silence like held instruments. You withdraw your hand. Work resumes. Your nerve does not."},
+            {"type": "composure", "who": "actor", "delta": -2}
+          ]
+        },
+        {
+          "id": "ward_treatment",
+          "label": "Use the ward to treat your own wounded properly",
+          "time": 8,
+          "tags": ["care"],
+          "cost": {"medicine": 1},
+          "requires": {"any_party": true, "skill_min": {"medicine": 1}},
+          "requires_text": "Using a ward this strange safely needs someone with real medical training.",
+          "check": {"attr": "reason", "skill": "medicine", "dc": "easy"},
+          "on_success": [
+            {"type": "text",
+             "text": "Enemy territory or not, it is a superbly equipped ward, and you use it — wounds properly debrided and closed, fractures set under actual light, everyone's blood cleaned of the journey's accumulating insults. The doctors observe your technique with collegial interest. One makes an approving note on a chart that should not have a column for this."},
+            {"type": "heal", "who": "party", "amount": 3},
+            {"type": "condition", "who": "party", "remove": "bleeding"},
+            {"type": "condition", "who": "party", "remove": "infected"},
+            {"type": "condition", "who": "party", "remove": "bruised"}
+          ],
+          "on_fail": [
+            {"type": "text",
+             "text": "Every dressing you apply is subtly corrected afterward by an orderly, re-wrapped in the ward's own pattern, until it is unclear whose work is holding anyone together. The wounded are better. You are not sure they are only better."},
+            {"type": "heal", "who": "party", "amount": 1}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operating_theatre",
+      "name": "The operating theatre",
+      "low_composure_name": "The bright room that is always ready",
+      "description": [
+        {"text": "Behind frosted-glass doors: a tiled theatre, its great lamp burning, its table draped and ready. It has the held-breath readiness of a stage before curtain. Instruments are laid out for a procedure whose nature the trays only half-suggest — some are surgical, some are horological, and one is a hinged iron frame the exact length of a person."}
+      ],
+      "actions": [
+        {
+          "id": "search_theatre",
+          "label": "Search the theatre's records",
+          "time": 6,
+          "tags": ["investigation", "death"],
+          "requires": {"any": [{"skill_min": {"medicine": 1}}, {"skill_min": {"investigation": 1}}]},
+          "requires_text": "The records are technical, coded, and defended by their own jargon. It needs a trained eye.",
+          "check": {"attr": "reason", "skill": "medicine", "dc": "normal"},
+          "on_success": [
+            {"type": "text",
+             "text": [
+               {"if": {"mystery": "sleeper_below"},
+                "text": "The procedure logs go back further than paper should survive, and they are not about patients. They are about a single patient. Dosage schedules for a body measured in carriages; sedation curves plotted against 'ambient fear intake'; one framed instruction, hung where surgeons scrub: THE PATIENT MUST NOT WAKE. THE WARD EXISTS TO KEEP THE PATIENT UNDER. In the margin of the latest log, a worried hand: 'intake declining. dreams shallowing. more is needed.'"},
+               {"text": "The procedure logs are post-mortem reports — every one. Every patient this theatre has ever received was certified dead BEFORE admission, in a column headed PRIOR TO BOARDING. The treatments listed are not surgeries. They are preparations: composure of features, securing of effects, 'reconciliation of the passenger to onward travel.' The ward does not heal the living. It readies the dead for a journey — and it has a bed already made for each of you."}
+             ]},
+            {"type": "evidence", "id": "theatre_records", "category": "physical",
+             "title": [
+               {"if": {"mystery": "sleeper_below"}, "text": "The sedation schedules"},
+               {"text": "The post-mortem admissions"}
+             ],
+             "text": [
+               {"if": {"mystery": "sleeper_below"},
+                "text": "The theatre's logs concern one enormous patient: sedation schedules fed by 'ambient fear intake', under the standing order THE PATIENT MUST NOT WAKE. Intake is declining. More is needed."},
+               {"text": "Every patient in the theatre's logs was certified dead prior to boarding. The ward prepares the dead for onward travel — and holds a made bed for each member of the party."}
+             ]},
+            {"type": "journal", "text": "Read the operating theatre's records. Understood more than is comfortable."}
+          ],
+          "on_fail": [
+            {"type": "text",
+             "text": "The logs defeat you — abbreviations that rearrange, dosages in units of distance, dates in the wrong direction. As you give up, the theatre's great lamp swivels — smoothly, trackingly — to light you where you stand, the way it would light a table."},
+            {"type": "composure", "who": "actor", "delta": -1}
+          ]
+        }
+      ]
+    }
+  ],
+  "escalations": [
+    {
+      "at_time": 32,
+      "text": "A soft double chime, and the ward begins — unhurriedly — to prepare. Orderlies wheel the screens back from the operating theatre. Instruments are re-counted. A fresh chart is clipped to a fresh board, and the head surgeon, passing, remarks to no one: 'The next admission is due shortly. They are rarely late. They are usually,' and here he checks the unmoving clock, 'right on time.'",
+      "effects": [{"type": "composure", "who": "party", "delta": -1}]
+    },
+    {
+      "at_time": 52,
+      "text": "Two orderlies detach from the walls and move toward the most badly hurt of you with gentle, absolute intent — a stretcher already between them, its sheet already turned down, a chart already filled in. 'The account,' the head surgeon explains from across the ward, not looking up, 'prefers to settle early when the patient is available.' It takes all of you together to refuse them, hands on the stretcher, digging in your heels while they lean patiently forward like men into wind. Eventually — a judgment, not a defeat — they desist.",
+      "effects": [
+        {"type": "harm", "who": "weakest", "amount": 1},
+        {"type": "composure", "who": "party", "delta": -1}
+      ]
+    }
+  ],
+  "exits": [
+    {
+      "id": "to_mirror",
+      "to": "mirror_car",
+      "label": "Forward door — DISCHARGES, in white enamel",
+      "time": 3,
+      "travel_text": "You leave through the door marked DISCHARGES, and the ward lets you — though every doctor pauses to watch you go, and the head surgeon inclines his head with the courtesy of a man confident of a return visit. Behind you, as the door closes, you hear the soft double chime again, and the sound of screens being drawn around a bed. You do not look to see whose."
+    }
+  ]
+}

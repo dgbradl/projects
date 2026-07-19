@@ -1,0 +1,17 @@
+{
+  "start_carriage": "rear_carriage",
+  "blackout_threshold": 45,
+  "default_action_time": 4,
+  "party_size_default": 4,
+  "party_size_min": 3,
+  "party_size_max": 5,
+  "starting_resources": {
+    "food": 2,
+    "water": 2,
+    "medicine": 1,
+    "ammunition": 2,
+    "lantern_oil": 2,
+    "tools": 1,
+    "ritual_materials": 0
+  }
+}

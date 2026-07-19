@@ -1,0 +1,13 @@
+[
+  {"id": "married", "name": "Married", "trust": 4, "strain": 2},
+  {"id": "siblings", "name": "Siblings", "trust": 3, "strain": 2},
+  {"id": "parent_child", "name": "Parent and Adult Child", "trust": 4, "strain": 2},
+  {"id": "former_lovers", "name": "Former Lovers", "trust": 2, "strain": 3},
+  {"id": "friends", "name": "Old Friends", "trust": 3, "strain": 1},
+  {"id": "rivals", "name": "Rivals", "trust": 1, "strain": 3},
+  {"id": "employer_employee", "name": "Employer and Employee", "trust": 2, "strain": 2},
+  {"id": "doctor_patient", "name": "Doctor and Former Patient", "trust": 3, "strain": 1},
+  {"id": "criminal_officer", "name": "Criminal and Arresting Officer", "trust": 1, "strain": 4},
+  {"id": "priest_parishioner", "name": "Priest and Former Parishioner", "trust": 3, "strain": 1},
+  {"id": "half_remembered", "name": "Strangers Who Recognize Each Other", "trust": 1, "strain": 1}
+]

@@ -1,0 +1,497 @@
+{
+  "id": "rear_carriage",
+  "name": "The Rear Carriage",
+  "index": 0,
+  "arrival": [
+    {
+      "if": {
+        "profession": "railway_worker"
+      },
+      "text": "You wake on the floor of a third-class carriage — and your railwayman's body knows three things before your eyes open: the train is at speed, the bogies are running sweet as a hymn, and there is no rhythm of a rear coupling behind you. This is the last carriage. Behind it there should be track, signals, night. Through the rear door's window there is nothing at all. Around you, strangers are sleeping among heaps of abandoned luggage. The lamps burn the color of weak tea."
+    },
+    {
+      "if": {
+        "composure_max": 3
+      },
+      "text": "You wake because the train's wheels are saying your name — tick-a-tack, tick-a-tack, over and over. The carriage is full of sleeping people breathing in unison, exactly in unison, like one animal. The luggage is piled like a barricade against something. The rear window has been painted black. No. It hasn't."
+    },
+    {
+      "text": "You wake on the swaying floor of an old third-class carriage, cheek against cold boards, with no memory of boarding. Oil lamps gutter in their brackets. Luggage lies everywhere — trunks, hatboxes, a birdcage with its little door open — as if a great crowd left in a hurry. A handful of other passengers are slumped in the seats, asleep or worse. The rear door's window shows no track, no night sky, no receding countryside. It shows nothing at all, a darkness so complete the glass might be painted — except that it is coming closer."
+    }
+  ],
+  "return_text": "The rear carriage is dimmer than you left it. The Blackout's cold breathes through the rear door's seams.",
+  "on_enter": [
+    {
+      "type": "journal",
+      "text": "Woke aboard the train. Last carriage. Rear window: nothing."
+    },
+    {
+      "type": "text",
+      "style": "alert",
+      "text": "Something is wrong behind the train. The darkness outside the rear window is not night. It is nearer than night should ever be."
+    }
+  ],
+  "nodes": [
+    {
+      "id": "sleeping_passengers",
+      "name": "The other sleepers",
+      "low_composure_name": "The breathing chorus",
+      "description": [
+        {
+          "if": {
+            "profession": [
+              "physician",
+              "nurse"
+            ]
+          },
+          "text": "Four strangers, slumped in their seats. Your clinical eye catalogues them at once: good color, steady pulses, pupils responsive — this is sleep, not coma. But all four breathe in perfect synchrony, and none respond to pain stimulus. That combination belongs in no textbook you have read."
+        },
+        {
+          "if": {
+            "composure_max": 3
+          },
+          "text": "Four bodies breathing with one set of lungs. Their eyes move together under closed lids, tracking the same dream. One of them is smiling at you."
+        },
+        {
+          "text": "Four strangers sleep in the wooden seats — a woman in a nurse's cape, an old man clutching a hat, two others with coats over their faces. They cannot be woken by voice alone. Their tickets are pinned to their lapels, the way children's are on long journeys."
+        }
+      ],
+      "actions": [
+        {
+          "id": "wake_them",
+          "label": "Try to wake the sleepers",
+          "time": 5,
+          "tags": [
+            "care",
+            "social"
+          ],
+          "check": {
+            "attr": "presence",
+            "skill": "psychology",
+            "dc": "normal"
+          },
+          "on_success": [
+            {
+              "type": "text",
+              "text": "You shake the nurse's shoulder and her eyes open — instantly, calmly, as if she had only been pretending. 'You shouldn't wake us,' she says, kindly. 'We paid for through-sleep. We don't have to see any of it this way.' She glances at the rear door. 'You should knock on the forward door before that gets here. The dark keeps the timetable better than the trains ever did.' Then she closes her eyes and is gone again, past reaching."
+            },
+            {
+              "type": "evidence",
+              "id": "through_sleepers",
+              "category": "testimony",
+              "title": "The sleepers chose to sleep",
+              "text": "A sleeping passenger woke long enough to say they 'paid for through-sleep' — a way to make the journey without seeing it. She warned that the darkness behind the train 'keeps the timetable.'"
+            },
+            {
+              "type": "composure",
+              "who": "actor",
+              "delta": 1
+            }
+          ],
+          "on_fail": [
+            {
+              "type": "text",
+              "text": "You shake them, shout, slap the old man's papery cheek. Nothing. But as you step back, all four sleepers turn their heads toward you in unison — eyes closed — and then slowly turn away again, like weathervanes after a gust."
+            },
+            {
+              "type": "composure",
+              "who": "actor",
+              "delta": -1
+            }
+          ]
+        },
+        {
+          "id": "check_tickets",
+          "label": "Examine the pinned tickets",
+          "time": 3,
+          "tags": [
+            "search",
+            "investigation"
+          ],
+          "effects": [
+            {
+              "type": "text",
+              "text": "Every ticket is identical: heavy cream stock, no date, no price, no origin. One word is printed where a destination should be, in letters that seem slightly too dark for the ink around them:\n\nTERMINUS.\n\nYou check your own pockets. Each of you is carrying one too."
+            },
+            {
+              "type": "evidence",
+              "id": "tickets_terminus",
+              "category": "physical",
+              "title": "Every ticket reads TERMINUS",
+              "text": "All tickets aboard — the sleepers' and the party's own — bear the same single destination: TERMINUS. No date, no origin, no price."
+            },
+            {
+              "type": "journal",
+              "text": "All tickets read TERMINUS."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "rear_door",
+      "name": "The rear door",
+      "low_composure_name": "The door that is being unmade",
+      "description": [
+        {
+          "if": {
+            "fear": "darkness"
+          },
+          "text": "You make yourself look at it, though everything in you refuses. The window in the rear door shows the exact dark you have feared all your life — the dark from under the childhood bed, the dark of the cellar stairs. It knows you. It has been catching up to you for years, and now it is one pane of glass away."
+        },
+        {
+          "text": "A standard connecting door, brass handle, pane of wired glass — and beyond it, nothing. Not blackness: absence. The rails' sound continues beneath the train, so track must exist back there, but nothing else does. As you watch, a faint frost of darkness creeps along the doorframe's seams, and withdraws, like a tide testing a sea wall."
+        }
+      ],
+      "actions": [
+        {
+          "id": "study_blackout",
+          "label": "Study the darkness through the glass",
+          "time": 4,
+          "tags": [
+            "darkness",
+            "blackout",
+            "eyes"
+          ],
+          "check": {
+            "attr": "will",
+            "dc": "normal"
+          },
+          "on_success": [
+            {
+              "type": "text",
+              "text": "You force yourself to keep looking. The darkness is not empty. Far back along the vanished track, something is walking — keeping pace with a train at full steam, unhurried, the way an adult keeps pace with a toddler. When it notices your attention, it stops walking. The train travels on. It does not fall behind."
+            },
+            {
+              "type": "evidence",
+              "id": "shape_behind",
+              "category": "observation",
+              "title": "Something walks behind the train",
+              "text": "Within the Blackout, a vast shape keeps pace with the train at a walk. It noticed being watched."
+            },
+            {
+              "type": "composure",
+              "who": "actor",
+              "delta": -1
+            }
+          ],
+          "on_fail": [
+            {
+              "type": "text",
+              "text": "You look, and the darkness looks back, and your mind simply declines the experience — you find yourself three steps away with no memory of stepping back, your heart going like a trapped bird."
+            },
+            {
+              "type": "composure",
+              "who": "actor",
+              "delta": -2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "luggage_heaps",
+      "name": "Heaps of abandoned luggage",
+      "low_composure_name": "The barricade the passengers built",
+      "description": [
+        {
+          "if": {
+            "profession": [
+              "criminal",
+              "drifter"
+            ]
+          },
+          "text": "A professional glance sorts the heap instantly: good leather worth stealing, cheap fibre cases worth ignoring, and — interesting — every single lock already forced or hanging open. Someone went through all of it before you woke. In a hurry. Looking for something specific."
+        },
+        {
+          "text": "Trunks, cases, carpet bags, a child's satchel — abandoned mid-journey and piled against the seats. Most hang open. Clothes and papers spill out like the aftermath of a customs inspection conducted by a storm."
+        }
+      ],
+      "actions": [
+        {
+          "id": "scavenge_luggage",
+          "label": "Search the luggage for supplies",
+          "time": 6,
+          "tags": [
+            "search",
+            "scavenge"
+          ],
+          "check": {
+            "attr": "awareness",
+            "skill": "scavenging",
+            "dc": "easy"
+          },
+          "on_success": [
+            {
+              "type": "text",
+              "text": "Beneath the spilled linens you turn up a storm lantern with oil still in the well, a tin of biscuits, a stoppered bottle of water, and a clasp knife someone will miss."
+            },
+            {
+              "type": "item",
+              "add": "lantern"
+            },
+            {
+              "type": "resource",
+              "id": "food",
+              "delta": 1
+            },
+            {
+              "type": "resource",
+              "id": "water",
+              "delta": 1
+            },
+            {
+              "type": "resource",
+              "id": "lantern_oil",
+              "delta": 1
+            }
+          ],
+          "on_partial": [
+            {
+              "type": "text",
+              "text": "You find a storm lantern and a little food — and a hatbox that, when opened, holds a wedding veil packed around a house brick, and nothing else. You put the lid back with more care than the contents deserve."
+            },
+            {
+              "type": "item",
+              "add": "lantern"
+            },
+            {
+              "type": "resource",
+              "id": "food",
+              "delta": 1
+            }
+          ],
+          "on_fail": [
+            {
+              "type": "text",
+              "text": "Cheap clothes, water-ruined books, a dead man's shaving kit. Under the last trunk, pressed flat as a flower, a child's mitten. You stop searching."
+            },
+            {
+              "type": "composure",
+              "who": "actor",
+              "delta": -1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "notice_frame",
+      "name": "Framed company notice",
+      "description": [
+        {
+          "text": "A framed notice, the sort that lists stations and fares. This one lists neither. Under the crest of no railway company you recognize — a wheel with far too many spokes — it reads:\n\n'PASSENGERS ARE REMINDED THAT THE TRAIN IS LONG. PASSENGERS ARE REMINDED THAT FORWARD IS PERMITTED. PASSENGERS ARE REMINDED NOT TO ARRIVE AHEAD OF THEIR ARRANGEMENTS.'\n\nBeneath, in smaller type: 'The Company thanks you for your continued travel.'"
+        }
+      ],
+      "actions": [
+        {
+          "id": "read_notice",
+          "label": "Study the notice closely",
+          "time": 3,
+          "tags": [
+            "investigation"
+          ],
+          "check": {
+            "attr": "reason",
+            "skill": "investigation",
+            "dc": "easy"
+          },
+          "on_success": [
+            {
+              "type": "text",
+              "text": "Under raking lamplight, older text ghosts through the paper — the notice has been pasted over many predecessors. One archaeological layer down: 'IN THE EVENT OF DARKNESS, MOVE FORWARD IN AN ORDERLY FASHION.' Below that, older still, hand-lettered: 'it only stops for someone who means it'."
+            },
+            {
+              "type": "evidence",
+              "id": "company_notices",
+              "category": "physical",
+              "title": "Layers of company notices",
+              "text": "The framed notice is pasted over generations of older ones. 'In the event of darkness, move forward in an orderly fashion.' And older, handwritten: 'it only stops for someone who means it.'"
+            },
+            {
+              "type": "journal",
+              "text": "The Company posts notices. The Company has been doing so for a very long time."
+            }
+          ],
+          "on_fail": [
+            {
+              "type": "text",
+              "text": "The longer you read it, the more reasonable it sounds, which is its own kind of warning. You learn nothing further."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "forward_door",
+      "name": "The forward door",
+      "description": [
+        {
+          "text": "The connecting door to the next carriage is solid oak below a wired-glass pane, and it is locked — not with a passenger latch but with a square-shanked carriage lock, the kind only staff should carry keys for. Through the glass: a swaying gangway, and beyond it the baggage car's darkness."
+        }
+      ],
+      "actions": [
+        {
+          "id": "unlock_with_key",
+          "label": "Unlock it with a carriage key",
+          "time": 2,
+          "requires": {
+            "item": "railway_key"
+          },
+          "requires_text": "It needs a square-shanked railway carriage key.",
+          "effects": [
+            {
+              "type": "text",
+              "text": "The square shank seats, turns; the lock gives with an oiled clack, obedient as a good dog. Whoever locked this door expected staff to follow."
+            },
+            {
+              "type": "unlock_exit",
+              "id": "to_baggage"
+            },
+            {
+              "type": "relationship",
+              "a": "actor",
+              "b": "others",
+              "trust": 1,
+              "silent": true
+            }
+          ]
+        },
+        {
+          "id": "pick_lock",
+          "label": "Pick the lock",
+          "time": 5,
+          "tags": [
+            "mechanical"
+          ],
+          "requires": {
+            "skill_min": {
+              "lockpicking": 1
+            }
+          },
+          "requires_text": "Without lockpicking training, the wards defeat you.",
+          "check": {
+            "attr": "agility",
+            "skill": "lockpicking",
+            "dc": "normal"
+          },
+          "on_success": [
+            {
+              "type": "text",
+              "text": "Old wards, honest tumblers. The lock surrenders in under a minute, and you resist the professional urge to relock it behind you."
+            },
+            {
+              "type": "unlock_exit",
+              "id": "to_baggage"
+            }
+          ],
+          "on_fail": [
+            {
+              "type": "text",
+              "text": "The pick skates — these wards are wrong somehow, as if the keyhole keeps changing its mind. You'll need another way."
+            }
+          ],
+          "once": false
+        },
+        {
+          "id": "force_door",
+          "label": "Force the door",
+          "time": 5,
+          "tags": [
+            "physical"
+          ],
+          "check": {
+            "attr": "body",
+            "skill": "melee",
+            "dc": "normal"
+          },
+          "on_success": [
+            {
+              "type": "text",
+              "text": "You hit it shoulder-first where the tongue meets the frame. Wood splits; the lock tears free with a sound like a snapped bone, and the door swings into the gangway's cold air."
+            },
+            {
+              "type": "unlock_exit",
+              "id": "to_baggage"
+            }
+          ],
+          "on_partial": [
+            {
+              "type": "text",
+              "text": "The frame gives way on the third try — and so does something in your shoulder."
+            },
+            {
+              "type": "harm",
+              "who": "actor",
+              "amount": 1
+            },
+            {
+              "type": "condition",
+              "who": "actor",
+              "add": "bruised"
+            },
+            {
+              "type": "unlock_exit",
+              "id": "to_baggage"
+            }
+          ],
+          "on_fail": [
+            {
+              "type": "text",
+              "text": "The door does not move. From the far side, politely, something knocks back: three slow raps, then silence."
+            },
+            {
+              "type": "harm",
+              "who": "actor",
+              "amount": 1
+            },
+            {
+              "type": "composure",
+              "who": "actor",
+              "delta": -1
+            }
+          ],
+          "once": false
+        }
+      ]
+    }
+  ],
+  "escalations": [
+    {
+      "at_time": 22,
+      "text": "The lamps dim in sequence, rear to front, as if something walked beneath them. In the rear door's window, the darkness now presses against the glass like deep-sea water. A hairline crack crosses the pane with a musical tick.",
+      "effects": [
+        {
+          "type": "composure",
+          "who": "party",
+          "delta": -1
+        }
+      ]
+    },
+    {
+      "at_time": 38,
+      "text": "Frost that is not frost spreads from the rear doorframe. The last row of seats has begun, very quietly, to stop existing — you can see the wall through them, then the night through the wall. The sleeping passengers sleep on.",
+      "effects": [
+        {
+          "type": "blackout",
+          "minutes": 8
+        },
+        {
+          "type": "journal",
+          "text": "Watched the rear seats of the last carriage begin to disappear."
+        }
+      ]
+    }
+  ],
+  "exits": [
+    {
+      "id": "to_baggage",
+      "to": "baggage_car",
+      "label": "Forward door — into the baggage car",
+      "locked": true,
+      "locked_text": "The forward door is locked with a staff carriage lock. A key, picks, or force might open it.",
+      "time": 3,
+      "travel_text": "The gangway between carriages is a bellows of freezing wind and rail-thunder. For one step, there is nothing under the steel plate but speed. You haul the baggage car's door open and pull each other through. Behind you, the sleepers sleep on in the dimming light, tickets pinned to their lapels. You did what could be done."
+    }
+  ]
+}

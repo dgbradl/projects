@@ -1,0 +1,49 @@
+[
+  {
+    "id": "anselm_guard",
+    "name": "Anselm Roth",
+    "age": 51,
+    "pronouns": "he/him",
+    "background": "the railway itself — he cannot remember working anywhere else, or being anywhere else",
+    "appearance": "a train guard's uniform gone grey with dust, one sleeve dark with dried blood",
+    "profession": "railway_worker",
+    "attrs": {"body": 3, "agility": 2, "reason": 3, "awareness": 3, "presence": 2, "will": 3},
+    "skills": {"railway_operations": 2, "mechanics": 1, "survival": 1, "history": 1},
+    "trait_positive": "calm_under_pressure",
+    "trait_difficult": "fatalistic",
+    "fear": "abandonment",
+    "secret": "been_aboard_before",
+    "secret_known": false,
+    "memories": [
+      {"kind": "believed", "text": "Signing on with the company as a young man, at a recruiting office with no address."},
+      {"kind": "incomplete", "text": "The name of the last station this train actually stopped at. It is on the tip of his tongue. It has been for years."},
+      {"kind": "contradicting", "text": "He remembers checking your tickets — all of you — on the night you boarded. None of you remember boarding."}
+    ],
+    "personal_item": "guard_lamp",
+    "conditions": ["bleeding"],
+    "recruit_text": "Anselm Roth, wounded train guard. Knows the train's procedures. Bleeding steadily."
+  },
+  {
+    "id": "petra_cook",
+    "name": "Petra Illes",
+    "age": 44,
+    "pronouns": "she/her",
+    "background": "the dining car's kitchen, from which she resigned by walking out mid-service and never looking back",
+    "appearance": "whites gone grey, forearms scarred by decades of oven burns, eyes that have seen the pantry",
+    "profession": "cook",
+    "attrs": {"body": 3, "agility": 2, "reason": 2, "awareness": 4, "presence": 2, "will": 3},
+    "skills": {"scavenging": 2, "melee": 1, "survival": 1, "psychology": 1},
+    "trait_positive": "resourceful",
+    "trait_difficult": "suspicious",
+    "fear": "crowds",
+    "secret": "partially_corrupted",
+    "secret_known": false,
+    "memories": [
+      {"kind": "believed", "text": "The first meal she ever cooked aboard: consommé, for four hundred silent covers."},
+      {"kind": "incomplete", "text": "What she saw in the pantry. There is only the walking-away part left."},
+      {"kind": "contradicting", "text": "She remembers feeding one of you before, years ago, and that you sent your compliments."}
+    ],
+    "personal_item": "kitchen_knife",
+    "recruit_text": "Petra Illes, a cook who refuses to enter the dining car. Knows what the kitchen serves."
+  }
+]

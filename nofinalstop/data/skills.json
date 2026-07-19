@@ -1,0 +1,20 @@
+[
+  {"id": "investigation", "name": "Investigation", "attr": "reason"},
+  {"id": "medicine", "name": "Medicine", "attr": "reason"},
+  {"id": "mechanics", "name": "Mechanics", "attr": "reason"},
+  {"id": "firearms", "name": "Firearms", "attr": "agility"},
+  {"id": "melee", "name": "Melee", "attr": "body"},
+  {"id": "stealth", "name": "Stealth", "attr": "agility"},
+  {"id": "survival", "name": "Survival", "attr": "awareness"},
+  {"id": "occult", "name": "Occult", "attr": "reason"},
+  {"id": "history", "name": "History", "attr": "reason"},
+  {"id": "psychology", "name": "Psychology", "attr": "awareness"},
+  {"id": "persuasion", "name": "Persuasion", "attr": "presence"},
+  {"id": "intimidation", "name": "Intimidation", "attr": "presence"},
+  {"id": "deception", "name": "Deception", "attr": "presence"},
+  {"id": "performance", "name": "Performance", "attr": "presence"},
+  {"id": "railway_operations", "name": "Railway Operations", "attr": "reason"},
+  {"id": "lockpicking", "name": "Lockpicking", "attr": "agility"},
+  {"id": "leadership", "name": "Leadership", "attr": "presence"},
+  {"id": "scavenging", "name": "Scavenging", "attr": "awareness"}
+]

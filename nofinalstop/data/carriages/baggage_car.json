@@ -1,0 +1,661 @@
+{
+  "id": "baggage_car",
+  "name": "The Baggage Car",
+  "index": 1,
+  "arrival": [
+    {
+      "if": {
+        "composure_max": 3
+      },
+      "text": "The luggage has been stacked into corridors, and the corridors have been stacked into a throat. Somewhere inside the maze of trunks, someone is calling your name in your own voice, getting the inflection almost right."
+    },
+    {
+      "text": "Luggage to the ceiling: wardrobe-trunks and tea chests and coffin-sized crates, stacked into narrow aisles that lean overhead like canyon walls. A single hurricane lamp swings from the roof, sweeping shadows through the maze in slow tides. Somewhere deep in the stacks, something shifts its weight — and from the same direction, low and conversational, comes a voice you each separately recognize as belonging to someone you love."
+    }
+  ],
+  "return_text": "The stacks have rearranged themselves since you left. The aisles are narrower now, and the voices are pleased you came back.",
+  "on_enter": [
+    {
+      "type": "journal",
+      "text": "Baggage car: a maze of stacked luggage. Something in it imitates familiar voices."
+    }
+  ],
+  "nodes": [
+    {
+      "id": "luggage_maze",
+      "name": "The stacked aisles",
+      "low_composure_name": "The gullet",
+      "description": [
+        {
+          "if": {
+            "profession": "hunter"
+          },
+          "text": "You read the maze the way you'd read a game trail. Drag marks on the dusty floor — something heavy moves through here regularly, keeping to the same runs. Tufts of horsehair stuffing snagged at knee height. Whatever lives in the stacks is large, habitual, and — see how the runs all curve inward — it herds things toward the middle."
+        },
+        {
+          "text": "The aisles between the stacks are barely shoulder-wide, floored with spilled straw and dust. Labels flutter on every trunk: names, and destinations that are all the same destination. Deeper in, the neat stacks give way to tumbled chaos, as if something has been burrowing."
+        }
+      ],
+      "actions": [
+        {
+          "id": "search_stacks",
+          "label": "Search the stacks for supplies",
+          "time": 6,
+          "tags": [
+            "search",
+            "scavenge",
+            "enclosed"
+          ],
+          "check": {
+            "attr": "awareness",
+            "skill": "scavenging",
+            "dc": "normal"
+          },
+          "on_success": [
+            {
+              "type": "text",
+              "text": "A provisions hamper — some emigrant family's whole careful larder: tinned meat, hard bread, a bottle of spirits. And wedged behind it, a tin of lamp oil and a coil of sound rope."
+            },
+            {
+              "type": "resource",
+              "id": "food",
+              "delta": 2
+            },
+            {
+              "type": "resource",
+              "id": "water",
+              "delta": 1
+            },
+            {
+              "type": "resource",
+              "id": "lantern_oil",
+              "delta": 1
+            },
+            {
+              "type": "resource",
+              "id": "tools",
+              "delta": 1
+            }
+          ],
+          "on_partial": [
+            {
+              "type": "text",
+              "text": "You find the hamper — and as you lift it free, the stack above lets go with a groan, a trunk's corner catching you across the back on its way down. The crash echoes. In the silence afterward, the voices deep in the maze stop pretending to be far away."
+            },
+            {
+              "type": "resource",
+              "id": "food",
+              "delta": 2
+            },
+            {
+              "type": "harm",
+              "who": "actor",
+              "amount": 1
+            },
+            {
+              "type": "condition",
+              "who": "actor",
+              "add": "bruised"
+            }
+          ],
+          "on_fail": [
+            {
+              "type": "text",
+              "text": "Every promising trunk holds the same thing: neatly folded clothes in your own size, pressed and camphored, as if packed for you by someone who knew your measurements and expected you aboard. None of you says anything. There is nothing useful here."
+            },
+            {
+              "type": "composure",
+              "who": "actor",
+              "delta": -1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "own_suitcases",
+      "name": "Cases bearing your names",
+      "low_composure_name": "The evidence against you",
+      "description": [
+        {
+          "text": "Set apart on a low shelf, as if staged, five modest cases — and each bears a brass frame holding a card with one of your names, in handwriting you'd each swear is your own. The cases are unlocked. They were packed with care."
+        }
+      ],
+      "actions": [
+        {
+          "id": "open_own_case",
+          "label": "Open the case with your name on it",
+          "time": 5,
+          "tags": [
+            "memory",
+            "search"
+          ],
+          "check": {
+            "attr": "will",
+            "dc": "easy"
+          },
+          "on_success": [
+            {
+              "type": "text",
+              "text": "Inside: a life. Your life, argued by objects — but not the life you remember. Letters in your hand you never wrote, a photograph of you standing outside a house you have never seen, a train timetable with one departure circled, years ago. At the bottom, folded, a garment of the exact kind the train's staff wear. It is in your size. It has been worn."
+            },
+            {
+              "type": "evidence",
+              "id": "packed_lives",
+              "category": "physical",
+              "title": "Cases packed with unlived lives",
+              "text": "The baggage car holds a case for each party member, packed with letters, photographs, and belongings from lives they do not remember living — and each contains a worn article of train staff uniform, in their size."
+            },
+            {
+              "type": "composure",
+              "who": "actor",
+              "delta": -1
+            },
+            {
+              "type": "journal",
+              "text": "Found my own case in the baggage car. I have apparently been here before, in some capacity."
+            }
+          ],
+          "on_fail": [
+            {
+              "type": "text",
+              "text": "Your hands refuse at the latch. It is the smell that stops you — the case breathes out the smell of your childhood home, exact and unbearable, and you step away before whatever is packed in there can be true."
+            },
+            {
+              "type": "composure",
+              "who": "actor",
+              "delta": -2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "voices_in_stacks",
+      "name": "The voices deep in the maze",
+      "low_composure_name": "Your family, waiting",
+      "description": [
+        {
+          "if": {
+            "fear": "abandonment"
+          },
+          "text": "The voice has stopped pretending to be anyone else's loved ones. It works only on you now, in the voice of the person who left you: 'This time I stayed,' it says, from beyond the lamplight. 'I'm still here. You only have to come in and see.'"
+        },
+        {
+          "text": "From beyond the lamplight, conversationally close, voices call each of you by name. Each of you hears someone different — a mother, a husband, a friend long dead — and each voice is talking about small true things: the loose gate hinge, the debt, the last argument. They are very slightly wrong, like a song played from memory. They ask, patiently, for help moving a trunk that is pinning them."
+        }
+      ],
+      "actions": [
+        {
+          "id": "test_the_voice",
+          "label": "Question the voice — test what it knows",
+          "time": 5,
+          "tags": [
+            "illusion",
+            "testimony",
+            "mind"
+          ],
+          "check": {
+            "attr": "awareness",
+            "skill": "psychology",
+            "dc": "normal"
+          },
+          "on_success": [
+            {
+              "type": "text",
+              "text": "You ask the voice about a thing that never happened — a seaside holiday, an invented cousin. It agrees warmly. It remembers the cousin fondly. It is not a memory: it is a mirror, feeding your own hopes back at a half-second's delay. When it realizes what you've done, all the voices stop at once, and one voice — flat, neither male nor female — says from much closer: 'That was rude.'"
+            },
+            {
+              "type": "evidence",
+              "id": "the_imitator",
+              "category": "observation",
+              "title": "The imitator in the baggage",
+              "text": "The thing in the stacks harvests loved ones' voices from listeners' minds and reflects them back, slightly wrong. Confirmed by feeding it a false memory, which it 'remembered.'"
+            },
+            {
+              "type": "composure",
+              "who": "party",
+              "delta": 1
+            },
+            {
+              "type": "journal",
+              "text": "The voices in the baggage car are bait. Tested and confirmed."
+            }
+          ],
+          "on_fail": [
+            {
+              "type": "text",
+              "text": "You mean to test it. But it says the thing — the exact private sentence you have wanted said aloud for years — and reason goes down like a match in wind. You are three steps into the maze before hands haul you back, and for a moment you fight them."
+            },
+            {
+              "type": "composure",
+              "who": "actor",
+              "delta": -2
+            },
+            {
+              "type": "relationship",
+              "a": "actor",
+              "b": "others",
+              "strain": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wounded_guard",
+      "name": "A wounded train guard",
+      "description": [
+        {
+          "if": {
+            "profession": [
+              "physician",
+              "nurse"
+            ]
+          },
+          "text": "A big grey-haired man in a guard's uniform sits propped against a mail hamper, one sleeve stiff with blood — a deep laceration, hours old, self-bandaged with competence but going bad. He needs proper treatment. He watches you assess him and says, 'Save your sticking plaster for the young ones. Or don't. I've been hurt on this train before. It never quite lets me finish.'"
+        },
+        {
+          "text": "A big grey-haired man in a railway guard's uniform sits propped against a mail hamper, pressing a wad of red-soaked cloth to his forearm. His lamp — a proper guard's signal lamp — stands beside him, burning white. 'Passengers,' he says, with something between relief and pity. 'Awake ones. It's been a while.' He nods rearward. 'You'll be wanting to keep ahead of that. I can help. I know this train's procedures — knew them before I knew my own name, which is Anselm, which took longer to keep hold of.'"
+        }
+      ],
+      "actions": [
+        {
+          "id": "treat_anselm",
+          "label": "Treat his wound",
+          "time": 6,
+          "tags": [
+            "care"
+          ],
+          "cost": {
+            "medicine": 1
+          },
+          "requires": {
+            "skill_min": {
+              "medicine": 1
+            }
+          },
+          "requires_text": "The wound is beyond amateur bandaging. It needs someone with medical training, and supplies.",
+          "check": {
+            "attr": "reason",
+            "skill": "medicine",
+            "dc": "easy"
+          },
+          "on_success": [
+            {
+              "type": "text",
+              "text": "You clean and close the wound properly while he narrates the train's gossip like a man discussing weather. Under the blood, old scars: the same laceration, healed many times over, always in the same place. He sees you notice. 'Told you,' he says. 'It never quite lets me finish.'"
+            },
+            {
+              "type": "flag",
+              "set": "anselm_treated"
+            },
+            {
+              "type": "evidence",
+              "id": "anselm_scars",
+              "category": "observation",
+              "title": "The guard's repeating wound",
+              "text": "Anselm's arm bears the same laceration healed many times over. He says the train 'never quite lets him finish' being hurt."
+            }
+          ],
+          "on_fail": [
+            {
+              "type": "text",
+              "text": "The wound is deeper than it looks and angry. You do what can be done with what you have; it will hold, barely, but he needs more than you can give him here."
+            },
+            {
+              "type": "flag",
+              "set": "anselm_treated_poorly"
+            }
+          ]
+        },
+        {
+          "id": "recruit_anselm",
+          "label": "Ask Anselm to travel with you",
+          "time": 3,
+          "tags": [
+            "social"
+          ],
+          "effects": [
+            {
+              "type": "text",
+              "text": "He looks rearward once, at the dark behind the door, and gets up the slow way, in stages, like a man who has decided something expensive. 'Forward, then,' he says. 'I've walked this train longer than I can count. Never once seen the engine. Always wanted to hand in my lamp personally.'"
+            },
+            {
+              "type": "recruit",
+              "id": "anselm_guard"
+            },
+            {
+              "type": "condition",
+              "who": "char:anselm_guard",
+              "remove": "bleeding",
+              "if": {
+                "flag": "anselm_treated"
+              }
+            },
+            {
+              "type": "journal",
+              "text": "Anselm Roth, train guard, joined the party. He has never seen the engine."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "the_imitator",
+      "name": "The thing beneath the baggage",
+      "low_composure_name": "Everyone you have ever missed",
+      "hidden": true,
+      "description": [
+        {
+          "text": "It has stopped hiding. The stacks bulge and settle as something vast pours itself through the gaps beneath them — a shape of packed clothes and leather and lost property, wearing a dozen luggage labels like jewelry, speaking in every borrowed voice at once. Between you and the forward door, trunks begin, gently, to rearrange themselves."
+        }
+      ],
+      "actions": [
+        {
+          "id": "fight_imitator",
+          "label": "Attack it",
+          "time": 5,
+          "tags": [
+            "combat",
+            "physical"
+          ],
+          "check": {
+            "attr": "body",
+            "skill": "melee",
+            "dc": "hard"
+          },
+          "on_success": [
+            {
+              "type": "text",
+              "text": "You go at it swinging. Blades and boots tear through coat-wool and wicker — and it comes apart, collapsing into an avalanche of ordinary luggage, the voices winking out one by one like lamps. The last voice, tiny and fading, says thank you. You choose not to think about that."
+            },
+            {
+              "type": "flag",
+              "set": "imitator_dealt_with"
+            },
+            {
+              "type": "composure",
+              "who": "party",
+              "delta": 1
+            },
+            {
+              "type": "journal",
+              "text": "Destroyed the imitator in the baggage car. Or released it. The distinction was not offered."
+            }
+          ],
+          "on_partial": [
+            {
+              "type": "text",
+              "text": "It comes apart under your assault — but not before something in the mass, a trunk lid or a jaw, closes on you hard enough to grind bone."
+            },
+            {
+              "type": "harm",
+              "who": "actor",
+              "amount": 2
+            },
+            {
+              "type": "condition",
+              "who": "actor",
+              "add": "bleeding"
+            },
+            {
+              "type": "flag",
+              "set": "imitator_dealt_with"
+            }
+          ],
+          "on_fail": [
+            {
+              "type": "text",
+              "text": "Your blows sink into it like fists into laundry. It does not even stop talking. Something like an arm made of coat sleeves takes you across the chest and puts you into the stacks."
+            },
+            {
+              "type": "harm",
+              "who": "actor",
+              "amount": 2
+            },
+            {
+              "type": "composure",
+              "who": "actor",
+              "delta": -1
+            }
+          ]
+        },
+        {
+          "id": "feed_imitator",
+          "label": "Leave it an offering of food",
+          "time": 3,
+          "cost": {
+            "food": 1
+          },
+          "effects": [
+            {
+              "type": "text",
+              "text": "Acting on an instinct older than argument, you set the food down and back away. The mass flows over the offering. The chewing is the worst sound yet. But the voices soften, grow drowsy, thin to a murmur — and the trunks blocking the forward aisle slide themselves apart, like a curtain being drawn for guests."
+            },
+            {
+              "type": "flag",
+              "set": "imitator_dealt_with"
+            },
+            {
+              "type": "journal",
+              "text": "The thing in the baggage car accepts offerings. It moved the luggage aside for us afterward."
+            }
+          ]
+        },
+        {
+          "id": "speak_to_it",
+          "label": "Speak to it in its own manner",
+          "time": 4,
+          "tags": [
+            "social",
+            "illusion",
+            "train_folk"
+          ],
+          "requires": {
+            "any": [
+              {
+                "evidence": "the_imitator"
+              },
+              {
+                "any_party": true,
+                "scar": "passengers_smile"
+              }
+            ]
+          },
+          "requires_text": "You do not understand what it is well enough to address it.",
+          "check": {
+            "attr": "presence",
+            "skill": "performance",
+            "dc": "normal"
+          },
+          "on_success": [
+            {
+              "type": "text",
+              "text": "You speak to it as it speaks to you: in a borrowed voice, saying small true things. You tell it about the gate hinge. The debt. The last argument. The mass goes still, listening — being, for once, the one who is called to. Then, slowly, it withdraws beneath the stacks, and every aisle in the maze straightens like a spine. On the floor where it lay: a neat pile of salvage, left the way a cat leaves tribute."
+            },
+            {
+              "type": "flag",
+              "set": "imitator_dealt_with"
+            },
+            {
+              "type": "resource",
+              "id": "food",
+              "delta": 1
+            },
+            {
+              "type": "resource",
+              "id": "medicine",
+              "delta": 1
+            },
+            {
+              "type": "composure",
+              "who": "party",
+              "delta": 1
+            },
+            {
+              "type": "journal",
+              "text": "Spoke to the baggage-thing in its own manner. It listened, and left tribute."
+            }
+          ],
+          "on_fail": [
+            {
+              "type": "text",
+              "text": "You try its own trick on it. The silence that follows has the specific temperature of offense. Every voice returns at once, at volume, all saying your name — and the stacks around you slam together like a book closing."
+            },
+            {
+              "type": "harm",
+              "who": "actor",
+              "amount": 1
+            },
+            {
+              "type": "composure",
+              "who": "party",
+              "delta": -1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "forward_blockage",
+      "name": "The forward door — blocked",
+      "description": [
+        {
+          "text": "The door to the next carriage stands behind a deliberate barricade of steamer trunks — stacked interlocked, the way a stevedore would do it. Built from this side. Someone wanted to keep something in the baggage car from following them forward."
+        }
+      ],
+      "actions": [
+        {
+          "id": "clear_blockage",
+          "label": "Clear the barricade",
+          "time": 8,
+          "tags": [
+            "physical"
+          ],
+          "check": {
+            "attr": "body",
+            "dc": "normal"
+          },
+          "on_success": [
+            {
+              "type": "text",
+              "text": "Trunk by trunk, you unbuild someone's last stand. Under the bottom tier, flattened, a guard's cap that is not Anselm's. The door behind is unlocked. It was always unlocked. They only needed the barricade for the other direction."
+            },
+            {
+              "type": "unlock_exit",
+              "id": "to_mail"
+            }
+          ],
+          "on_partial": [
+            {
+              "type": "text",
+              "text": "The barricade comes apart — noisily. Every crash rings through the stacks like a dinner bell, and the maze behind you goes attentively quiet."
+            },
+            {
+              "type": "unlock_exit",
+              "id": "to_mail"
+            },
+            {
+              "type": "time",
+              "minutes": 4
+            }
+          ],
+          "on_fail": [
+            {
+              "type": "text",
+              "text": "The interlocked trunks defeat you — and hauling at the top tier brings a wardrobe-case down. You get clear of most of it."
+            },
+            {
+              "type": "harm",
+              "who": "actor",
+              "amount": 1
+            }
+          ],
+          "once": false
+        },
+        {
+          "id": "squeeze_through",
+          "label": "Squeeze through the gap at the top",
+          "time": 3,
+          "tags": [
+            "crawl",
+            "enclosed",
+            "stealth"
+          ],
+          "requires": {
+            "any": [
+              {
+                "any_party": true,
+                "scar": "hollow_bones"
+              },
+              {
+                "attr_min": {
+                  "agility": 4
+                }
+              }
+            ]
+          },
+          "requires_text": "The gap is too narrow for any ordinary adult.",
+          "effects": [
+            {
+              "type": "text",
+              "text": "There is a gap at the top no wider than a coffin's shoulder — and one of you flows through it like smoke, drops to the far side, and dismantles the barricade's keystone trunk from behind. The wall of luggage sighs apart."
+            },
+            {
+              "type": "unlock_exit",
+              "id": "to_mail"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "escalations": [
+    {
+      "at_time": 20,
+      "text": "The hurricane lamp swings though the air is still. In the maze, the voices change tactics: they stop calling your names and begin, softly, answering each other — holding both halves of conversations you remember having. The stacks at the car's center have begun to move.",
+      "effects": [
+        {
+          "type": "composure",
+          "who": "party",
+          "delta": -1
+        },
+        {
+          "type": "reveal_node",
+          "id": "the_imitator"
+        }
+      ]
+    },
+    {
+      "at_time": 40,
+      "if": {
+        "not_flag": "imitator_dealt_with"
+      },
+      "text": "The luggage is rearranging itself in earnest now — aisles closing like slow jaws, stacks migrating between glances. The thing beneath has stopped imitating anyone. It is just calling, in its own flat voice, the way a man calls a dog.",
+      "effects": [
+        {
+          "type": "harm",
+          "who": "random",
+          "amount": 1
+        },
+        {
+          "type": "composure",
+          "who": "party",
+          "delta": -1
+        }
+      ]
+    }
+  ],
+  "exits": [
+    {
+      "id": "to_mail",
+      "to": "mail_car",
+      "label": "Forward door — into the mail car",
+      "locked": true,
+      "locked_text": "A deliberate barricade of interlocked trunks blocks the forward door. It will have to be cleared, or bypassed.",
+      "time": 3,
+      "travel_text": "You file through the unbarricaded door. The last one through looks back: the stacks have already closed the aisle behind you, seamlessly, and from deep in the maze something calls goodbye in a voice that, this time, none of you will admit to recognizing."
+    }
+  ]
+}

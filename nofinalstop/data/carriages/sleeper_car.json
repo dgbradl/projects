@@ -1,0 +1,280 @@
+{
+  "id": "sleeper_car",
+  "name": "The Sleeper Car",
+  "index": 5,
+  "arrival": [
+    {"if": {"fear": "children"},
+     "text": "You know before the door is fully open. The smell of warm milk and pencil shavings; the height of the fingerprints on the panelling — all of it low, all of it small. Somewhere down the long corridor of berths, a child is humming, and every nerve you own is telling you what it has always told you: children see too much, remember too much, and want something adults have forgotten how to give."},
+    {"if": {"profession": "railway_worker"},
+     "text": "Wrong stock. That's your first thought — this is a sleeper of a pattern no line you served ever ran, mahogany and brass from one decade, electric sconces from another, and a corridor that reads twelve compartments to the eye but walks longer. Guard's instinct checks the berth chart by the door: every berth is booked. Every berth, in the same round childish hand, to the same name: 'ME.'"},
+    {"text": "A sleeper carriage — a long panelled corridor down one side, compartment doors down the other, night-lamps burning blue. It is warm here, and hushed the way nurseries are hushed. From behind one door, or several, comes the sound of a child humming to itself — an old tune, patient, unafraid. On the berth chart by the entrance, every compartment is booked in a round, careful, childish hand, and every booking is the same word: 'ME.'"}
+  ],
+  "return_text": "The corridor is longer than it was. The humming does not pause when you enter this time. It knows your footsteps now.",
+  "on_enter": [
+    {"type": "journal", "text": "Sleeper car. Every berth booked to 'ME'. A child is humming somewhere. All the compartments are the child."}
+  ],
+  "nodes": [
+    {
+      "id": "porters_notice",
+      "name": "The porter's notice",
+      "description": [
+        {"text": "A small brass-framed card by the berth chart, in the Company's typeface: 'GUESTS ARE REMINDED THAT QUIET IS APPRECIATED AFTER LIGHTS-DOWN. GUESTS ARE ASKED NOT TO COUNT THE WINDOWS. THE COMPANY THANKS GUESTS WHO DO NOT COUNT THE WINDOWS.'"}
+      ],
+      "actions": [
+        {
+          "id": "read_notice",
+          "label": "Take the notice seriously",
+          "time": 2,
+          "effects": [
+            {"type": "text",
+             "text": "It is repeated, which notices about quiet never are. Someone wrote this rule twice because someone once needed telling twice."},
+            {"type": "rule", "id": "count_windows"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "compartments",
+      "name": "The compartment doors",
+      "low_composure_name": "The advent calendar",
+      "description": [
+        {"text": "Twelve varnished doors, or thereabouts — the number resists settling. Behind the first door you try: a sleeping child, perhaps four years old, curled around a wooden horse. Behind the second: the same child, perhaps nine, arms crossed even in sleep. Behind the third: the same child at thirteen, frowning at a dream. The same face. The same breath-rhythm. The night-lamps tint them all blue."}
+      ],
+      "actions": [
+        {
+          "id": "open_compartments",
+          "label": "Open more compartments, carefully",
+          "time": 6,
+          "tags": ["children", "investigation"],
+          "check": {"attr": "awareness", "skill": "investigation", "dc": "normal"},
+          "on_success": [
+            {"type": "text",
+             "text": "You work down the corridor, easing each door. The child, at six. At eleven. At fifteen — a bandage on the same left wrist the four-year-old had. The ages are not in order, and the corridor is longer than it was when you started; looking back, the entrance door stands farther away than you have walked. In the seventh compartment, the berth is empty — slept-in, still warm, a hollow in the pillow. The seventh. Remember that."},
+            {"type": "evidence", "id": "child_ages", "category": "observation",
+             "title": "One child, every age",
+             "text": "Each sleeper compartment holds the same child at a different age, same face, same scarred left wrist. Compartment seven alone is empty, and recently slept in. Opening doors lengthens the corridor."},
+            {"type": "reveal_node", "id": "compartment_seven"},
+            {"type": "journal", "text": "The corridor grows when doors are opened. Compartment seven is empty and warm."}
+          ],
+          "on_fail": [
+            {"type": "text",
+             "text": "You open doors faster than you should. The corridor takes offense: between one door and the next it stretches like toffee, the entrance receding to a pinhole, and you have to stop, breathe, and walk back a much longer way than you came. The child in the nearest berth, twelve years old tonight, is awake. Watching. It puts a finger to its lips."},
+            {"type": "time", "minutes": 8},
+            {"type": "composure", "who": "actor", "delta": -1},
+            {"type": "reveal_node", "id": "compartment_seven"}
+          ]
+        },
+        {
+          "id": "search_berths",
+          "label": "Search the occupied berths' luggage nets",
+          "time": 5,
+          "tags": ["search", "scavenge", "children"],
+          "check": {"attr": "awareness", "skill": "scavenging", "dc": "normal"},
+          "on_success": [
+            {"type": "text",
+             "text": "The luggage nets hold traveling supplies packed by someone who loved the traveler: barley sugar, a stoppered bottle of milk that is still cold, rolled bandages, a saint's medal with the face worn away. Each net also holds a crayon drawing. It is the same drawing in every compartment: a long train, and at its head, where an engine should be, something drawn with the crayon pressed down so hard the paper has torn."},
+            {"type": "resource", "id": "food", "delta": 1},
+            {"type": "resource", "id": "water", "delta": 1},
+            {"type": "resource", "id": "medicine", "delta": 1},
+            {"type": "evidence", "id": "childs_drawing", "category": "physical",
+             "title": "The child's drawing of the engine",
+             "text": [
+               {"if": {"mystery": "sleeper_below"},
+                "text": "Every berth holds the same crayon drawing: the train, and at its head a huge sleeping face, eyes scribbled firmly shut, with little bars drawn over the eyelids. The crayon tore the paper doing it."},
+               {"text": "Every berth holds the same crayon drawing: the train, and at its head a tall doorway full of scribbled black, with a crowd of stick figures queued at it, holding hands. The crayon tore the paper doing it."}
+             ]}
+          ],
+          "on_fail": [
+            {"type": "text",
+             "text": "Under the four-year-old's pillow your fingers close on something soft — a mitten. A child's mitten, damp, that matches exactly the flattened one someone found under the trunks in the rear carriage. You put it back. You say nothing. The child sighs in its sleep, contented, as if a question had been answered."},
+            {"type": "composure", "who": "actor", "delta": -1}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "compartment_seven",
+      "name": "Compartment seven — the empty berth",
+      "hidden": true,
+      "description": [
+        {"text": "The empty compartment, still warm. On the berth, dented into the pillow, the shape of a small head. The berth's ticket-holder — where every other compartment says 'ME' — holds a proper ticket, folded twice, tucked deep. The little door of the ticket-holder is locked, absurdly, with a real lock."}
+      ],
+      "actions": [
+        {
+          "id": "open_with_key",
+          "label": "Open the ticket-holder with the small brass key",
+          "time": 3,
+          "requires": {"item": "compartment_key"},
+          "requires_text": "The tiny lock wants a tiny key. Yours — the one that used to be something else — would fit.",
+          "consumes_item": "compartment_key",
+          "effects": [
+            {"type": "text",
+             "text": "The key that was a toy turns in the lock that should not exist. The folded ticket opens in your hands. It is a child's berth ticket, and on the line marked PASSENGER, in the Conductor's copperplate, is written a name. A real name — a whole name, first and last — and one of you goes white reading it, because it is theirs. Not the name they travel under. The one before that. The one they had almost, almost forgotten they had ever answered to."},
+            {"type": "evidence", "id": "remembered_name", "category": "identity",
+             "title": "A remembered true name",
+             "text": "A berth ticket in compartment seven bears the true, almost-forgotten name of one of the party — written in the Conductor's own hand. A remembered name is one of the engine's three authorizations."},
+            {"type": "composure", "who": "shakiest", "delta": -1},
+            {"type": "journal", "text": "Compartment seven held a ticket bearing a true name — one of ours. The Conductor wrote it."}
+          ]
+        },
+        {
+          "id": "pick_ticket_holder",
+          "label": "Pick the tiny lock",
+          "time": 4,
+          "tags": ["mechanical"],
+          "requires": {"skill_min": {"lockpicking": 1}},
+          "requires_text": "The lock is doll-sized and vicious. It needs real lockpicking craft.",
+          "check": {"attr": "agility", "skill": "lockpicking", "dc": "hard"},
+          "on_success": [
+            {"type": "text",
+             "text": "The smallest lock of your career, and among the hardest — the wards feel like they are being redesigned mid-pick. It gives. Inside, a child's berth ticket, folded twice, and on the PASSENGER line, in immaculate copperplate, a true name that belongs to one of you. The one before the name they travel under. The one they stopped answering to, for reasons standing in this corridor with you."},
+            {"type": "evidence", "id": "remembered_name", "category": "identity",
+             "title": "A remembered true name",
+             "text": "A berth ticket in compartment seven bears the true, almost-forgotten name of one of the party — written in the Conductor's own hand. A remembered name is one of the engine's three authorizations."},
+            {"type": "composure", "who": "shakiest", "delta": -1}
+          ],
+          "on_fail": [
+            {"type": "text",
+             "text": "The pick snaps — the lock's insides moved, you'd swear it in court. From the corridor behind you, small applause: the child, in the doorway, clapping politely. 'It doesn't like being opened by strangers,' it says. 'You're not all strangers, though. Are you.'"},
+            {"type": "composure", "who": "actor", "delta": -1}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "the_child",
+      "name": "The child, awake",
+      "low_composure_name": "All of them at once",
+      "description": [
+        {"if": {"composure_max": 3},
+         "text": "It stands in the corridor at every age simultaneously, the way a word is on every line of a page — four and nine and thirteen and six, overlapping, humming in chorus with itself. All of it looks at you with the same eyes. 'You look tired,' the chorus says, kindly."},
+        {"text": "It waits for you in the middle of the corridor in a flannel nightgown — nine years old, or thereabouts, tonight. It is not afraid of you, or of anything, which in a place like this is the most frightening credential imaginable. 'I know your names,' it says, conversationally. 'All your names. One of you promised to come back for me.' It looks from face to face, unhurried. 'One of you promised, and I have been very patient.'"}
+      ],
+      "actions": [
+        {
+          "id": "ask_who_promised",
+          "label": "Ask gently: who promised? What was promised?",
+          "time": 6,
+          "tags": ["children", "care", "testimony"],
+          "check": {"attr": "presence", "skill": "psychology", "dc": "normal"},
+          "on_success": [
+            {"type": "text",
+             "text": "You crouch to its height and ask, and it studies you for a long, adult moment. 'On a platform,' it says. 'It was raining. They said: get on, I'll be on the next one, I promise. I got on.' The night-lamps flicker. 'There wasn't a next one. There's only ever been this one.' It looks, briefly, at ONE of you — a glance like a hand closing — and then away, politely, as if it hadn't. 'I don't mind anymore. That's a lie. Will you sit with me a while? Nobody sits.'"},
+            {"type": "evidence", "id": "child_promise", "category": "testimony",
+             "title": "The promise on the platform",
+             "text": "The child boarded alone on a rainy platform, on a promise: 'I'll be on the next one.' There was no next train. There has only ever been this one. It looked at one of the party when it said so."},
+            {"type": "composure", "who": "party", "delta": -1},
+            {"type": "journal", "text": "The child was promised someone would follow it aboard. It looked at one of us."}
+          ],
+          "on_fail": [
+            {"type": "text",
+             "text": "You ask, and its face closes like a compartment door. 'You're doing the grown-up voice,' it says. 'The one for lying to children.' Down the corridor, every single compartment door clicks — locked, all at once. 'I'm not supposed to help people who do the voice.'"},
+            {"type": "composure", "who": "actor", "delta": -1},
+            {"type": "flag", "set": "child_offended"}
+          ]
+        },
+        {
+          "id": "sit_with_child",
+          "label": "Sit with the child a while",
+          "time": 8,
+          "tags": ["children", "care"],
+          "effects": [
+            {"type": "text",
+             "text": "You sit on the corridor's fold-down seat, and it sits beside you, and for a while nobody performs anything. It hums its patient tune; the train underlines it. 'The next car is two cars,' it says eventually, to no one. 'The white one fixes you before you're broken. The colored-glass one asks what you'd give.' It leans, very slightly, against your arm. 'People always pick the one that matches what they already are.'"},
+            {"type": "composure", "who": "party", "delta": 1},
+            {"type": "flag", "set": "sat_with_child"},
+            {"type": "evidence", "id": "childs_counsel", "category": "testimony",
+             "title": "The child on the road ahead",
+             "text": "'The white car fixes you before you're broken. The colored-glass one asks what you'd give. People pick the one that matches what they already are.'"},
+            {"type": "journal", "text": "Sat with the child. It thanked no one and helped everyone. It knows the cars ahead."}
+          ]
+        },
+        {
+          "id": "ask_true_names",
+          "label": "Ask it for one of the names it knows",
+          "time": 5,
+          "tags": ["children", "social"],
+          "requires": {"not_flag": "child_offended"},
+          "requires_text": "The child will not help people who do the grown-up voice. That door has closed.",
+          "check": {"attr": "presence", "dc": "hard"},
+          "on_success": [
+            {"type": "text",
+             "text": "'You want a name back.' It says it flatly — a shopkeeper confirming an order. 'The Conductor keeps them in his book, but he learned them from ME. I heard all of you, before. People say their real names in their sleep, you know. All the time.' It beckons one of you down to its height, cups small hands around an ear, and whispers — and the one who receives it stands up too fast, eyes bright, one hand over their mouth, remembering all at once the whole of who they used to be."},
+            {"type": "evidence", "id": "remembered_name", "category": "identity",
+             "title": "A remembered true name",
+             "text": "The child whispered back the true name of one of the party — the name from before, learned from talking in sleep. A remembered name is one of the engine's three authorizations."},
+            {"type": "composure", "who": "shakiest", "delta": -1},
+            {"type": "journal", "text": "The child returned a true name. It asked for nothing. That is a debt, not a gift."}
+          ],
+          "on_fail": [
+            {"type": "text",
+             "text": "It considers the request from a long way away. 'Names aren't sweets,' it says finally. 'You get a name back when you remember what you did to lose it.' It turns and walks into compartment four, where it is already asleep, aged four, and the door closes with a click that ends the conversation on the child's terms."}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "window_row",
+      "name": "The corridor windows",
+      "low_composure_name": "The row of held breaths",
+      "description": [
+        {"text": "Windows line the corridor at regular intervals, blinds half down, night pouring past outside. Regular intervals. Regular... You catch yourself on the edge of tallying and stop. The Company thanks guests who do not count the windows."}
+      ],
+      "actions": [
+        {
+          "id": "count_windows",
+          "label": "Count the windows anyway",
+          "time": 4,
+          "tags": ["mind"],
+          "check": {"attr": "will", "dc": "hard"},
+          "on_success": [
+            {"type": "text",
+             "text": "You count. Nine, ten, eleven — and at eleven the count begins to count back: you feel your own years being tallied by something on the far side of the glass, patiently, one by one, and how high it gets is how much of you it is owed. You stop at eleven. It stops at eleven. You step back from the window row with your heart slamming, and the corridor holds — twelve doors, eleven windows. Eleven windows on a twelve-compartment car. There is one compartment that has never had a window, and you now know which one looks out on nothing at all."},
+            {"type": "evidence", "id": "windows_wrong", "category": "observation",
+             "title": "Eleven windows, twelve compartments",
+             "text": "Counted (nearly to the end): the sleeper corridor has eleven windows for twelve compartments. Compartment seven has no window. Something on the far side counts back."},
+            {"type": "composure", "who": "actor", "delta": -1}
+          ],
+          "on_fail": [
+            {"type": "text",
+             "text": "You count. It counts back. And it is faster: you feel it reach your current age and keep going — on into years you have not lived yet, tallying them like coins into its palm, and every number past today is a number it now holds. You come back to yourself on your knees in the corridor with a nosebleed, certain of exactly one thing: it knows how many windows YOU have left, and you do not."},
+            {"type": "composure", "who": "actor", "delta": -2},
+            {"type": "condition", "who": "actor", "add": "paranoid"},
+            {"type": "journal", "text": "Someone counted the windows. The windows counted back, and further."}
+          ]
+        }
+      ]
+    }
+  ],
+  "escalations": [
+    {
+      "at_time": 30,
+      "text": "Every compartment door opens at once — softly, on well-oiled hinges — and in every berth the child, at every age, sits up and looks at you. Not hostile. Worse: hopeful. Twelve versions of the same face, waiting to see if this is the time somebody keeps the promise. After three heartbeats the doors swing shut again, all together, gentle as a lullaby's last line.",
+      "effects": [{"type": "composure", "who": "party", "delta": -1}]
+    },
+    {
+      "at_time": 48,
+      "text": "The corridor stretches — you can watch it happen now, the carpet's pattern pulling like taffy, the forward doors receding a full six paces. From every compartment, faintly, the humming has become a round: the child singing with itself across all its ages, patient as rain. The tune, you realize at last, is the wheels' own rhythm, slowed down and given words you can't quite hear.",
+      "effects": [
+        {"type": "time", "minutes": 6},
+        {"type": "blackout", "minutes": 5}
+      ]
+    }
+  ],
+  "exits": [
+    {
+      "id": "to_hospital",
+      "to": "hospital_car",
+      "label": "The white forward door — a red cross, a smell of carbolic",
+      "time": 3,
+      "travel_text": "The white door opens on white light. Behind you, down the long corridor, the humming pauses — and the child's voice, at some age or all of them, calls out with terrible neutrality: 'They'll have your beds ready. They always know who's coming.'"
+    },
+    {
+      "id": "to_chapel",
+      "to": "chapel_car",
+      "label": "The stained-glass forward door — colored light moving behind it",
+      "time": 3,
+      "travel_text": "The stained-glass door opens on candlelight and incense. Behind you, the child's voice follows down the corridor, matter-of-fact as a porter's call: 'Say one for me. Nobody ever says one for me.'"
+    }
+  ]
+}

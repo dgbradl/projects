@@ -1,0 +1,230 @@
+{
+  "id": "chapel_car",
+  "name": "The Chapel Car",
+  "index": 6,
+  "arrival": [
+    {"if": {"profession": "priest"},
+     "text": "You step through, and it is YOUR church. Not a church — yours: the parish of your ordination, pew by pew, the water stain shaped like a running dog on the third ceiling panel, the kneeler your own hands re-caned. Every detail exact, riding impossibly inside a train carriage. A congregation of perhaps twenty kneels in prayer. And at the altar — your altar — a figure in vestments is celebrating, and you know before he turns what face he will be wearing. Yours. Younger. Still certain."},
+    {"if": {"composure_max": 3},
+     "text": "The chapel is whatever you fear a chapel is. The kneeling figures pray in a language of clicks and swallowed vowels; the altar is a mouth politely closed; the stained-glass saints have all turned their backs, and their windows show not paradise but the corridor of the train, walked by something tall, coming carriage by carriage closer."},
+    {"text": "Candlelight and incense. A chapel rides inside the carriage — pews, a vaulted ceiling higher than the train's roof, stained glass lit from outside by a light that cannot be the night you know is out there. A congregation of perhaps twenty kneels, praying aloud, each — you slowly realize — in a different language, to a different name, in the cadence of a different faith, and yet in perfect unison. The altar at the front is difficult to look at directly: each of you, comparing later, will describe a different altar. Beneath the altar's platform, muffled, something knocks. Politely. Three times."}
+  ],
+  "return_text": "The congregation does not turn when you re-enter, but the prayer changes key — a note of expectation. Beneath the altar, the knocking starts up again. It missed you.",
+  "on_enter": [
+    {"type": "journal", "text": "Chapel car. A congregation prays in unison across languages and faiths. The altar differs per observer. Something knocks beneath it."}
+  ],
+  "nodes": [
+    {
+      "id": "the_altar",
+      "name": "The altar",
+      "low_composure_name": "The patient mouth",
+      "description": [
+        {"if": {"profession": "priest"},
+         "text": "You approach your own altar with your heart in pieces. Every article is right — the linens you folded, the chalice with the dent it took the Christmas the roof leaked. And laid across the missal stand, open, is the sermon you never finished writing, completed, in your handwriting, with a final line you would never have dared: 'GOD IS WHATEVER HEARS. SOMETHING HEARS. THEREFORE—' The rest is water-damaged. Deliberately, you suspect."},
+        {"if": {"trait": "skeptical"},
+         "text": "You look at the altar the way you look at everything: twice. And on the second look you see it — the seams. The altar is a mechanism: pipes running down through the platform into the floor, into the train's underworks, and behind the reredos a slow rhythmic suction, like a pump's intake. Whatever the congregation pours out here, the architecture is plumbed to collect. This is not a chapel. It is a gathering apparatus wearing one."},
+        {"text": "Up close, the altar refuses consensus: each of you sees the holy furniture of your own history — or of histories you never had. What is constant: candles that burn leaning toward the engine, always toward the engine, though the air is still. And beneath the platform, when the prayer swells, the polite knocking keeps time."}
+      ],
+      "actions": [
+        {
+          "id": "study_altar",
+          "label": "Compare what each of you sees in the altar",
+          "time": 5,
+          "tags": ["occult", "illusion", "investigation"],
+          "check": {"attr": "reason", "skill": "occult", "dc": "normal"},
+          "on_success": [
+            {"type": "text",
+             "text": "You stand in a row and describe it aloud, one by one — altar of stone, altar of brass, kitchen table with a white cloth, hospital bed with a white screen — and as the descriptions diverge, the altar flickers between them like a lamp between voltages, faster and faster, until for one splinter of a second it cannot keep up, and you all see what is underneath. None of you will describe it afterward. What you will agree on, later, shaken, in the gangway: it had a slot. The kind of slot a machine has, where the offering goes in."},
+            {"type": "evidence", "id": "altar_shifts", "category": "observation",
+             "title": "The altar wears the observer's faith",
+             "text": "The altar shows each observer their own sacred furniture. Overloaded by contradiction, it slipped: beneath the disguises is an apparatus with a slot for offerings."},
+            {"type": "composure", "who": "party", "delta": -1}
+          ],
+          "on_fail": [
+            {"type": "text",
+             "text": "You try to compare notes, and find you cannot: each time someone describes their altar, the others see THAT altar, memory rewriting itself mid-sentence to agree. Within a minute you are all describing the same altar in the same words, nodding, unanimous, and it takes a dropped hymnal's bang to break the spiral. You stop the exercise there. It was not an exercise you were running."},
+            {"type": "composure", "who": "party", "delta": -1}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "the_celebrant",
+      "name": "The celebrant",
+      "description": [
+        {"text": "The priest at the altar is elderly, exhausted, and — beneath the vestments of no single tradition — utterly sincere. 'You've come forward from the dark cars,' he says. 'Then you know it is real, what follows the train.' He grips the altar rail. 'Faith moves this world, friends — here, that is not doctrine, it is engineering. The prayers of this congregation are the only thing I have found that slows the darkness down. Pray with us. Every voice matters. Every voice literally matters.'"}
+      ],
+      "actions": [
+        {
+          "id": "join_prayer",
+          "label": "Join the congregation's prayer",
+          "time": 8,
+          "tags": ["occult", "fear", "crowds"],
+          "check": {"attr": "will", "skill": "occult", "dc": "normal"},
+          "on_success": [
+            {"type": "text",
+             "text": "You kneel, and you pray — each in whatever words you own — and the unison takes you like a current takes swimmers. The carriage fills with a pressure that is not sound. The candle flames stand up straight. And behind the train — you feel it, all of you, like a hand lifted from the back of the neck — the darkness slows. The celebrant weeps with relief, openly, professionally. 'Every voice,' he whispers. 'You see. It listens.' He does not say what listens. Beneath the altar, the knocking has gone very still, the stillness of something listening too."},
+            {"type": "blackout", "minutes": -20},
+            {"type": "composure", "who": "party", "delta": 1},
+            {"type": "flag", "set": "prayed_in_chapel"},
+            {"type": "evidence", "id": "prayer_works", "category": "observation",
+             "title": "Prayer measurably slows the Blackout",
+             "text": "Joining the chapel's unison prayer produced a physical effect: the Blackout's advance slowed. Something hears. What hears was not established."},
+            {"type": "journal", "text": "Prayed with the chapel congregation. The Blackout slowed. Filed under: true, and therefore worse."}
+          ],
+          "on_fail": [
+            {"type": "text",
+             "text": "You kneel and try, but the unison rejects you the way a choir rejects a cracked note — your words curdle on your tongue, your borrowed reverence rings tin, and the congregation's twenty voices bend, mid-prayer, to pray around you, a stream around a stone. You rise with your ears burning and the distinct feeling of having been weighed by whatever hears, and marked: insufficient."},
+            {"type": "composure", "who": "actor", "delta": -1}
+          ]
+        },
+        {
+          "id": "confession",
+          "label": "Ask the celebrant to hear a confession",
+          "time": 7,
+          "tags": ["care", "testimony"],
+          "effects": [
+            {"type": "choose_character",
+             "prompt": "Who kneels at the rail and confesses their secret?",
+             "optional": true,
+             "skip_effects": [
+               {"type": "text",
+                "text": "The celebrant waits at the rail a courteous while, then bows and returns to his office. 'The train hears everything anyway,' he says, not unkindly. 'Confession is merely choosing your listener.'"}
+             ],
+             "effects": [
+               {"type": "text",
+                "text": "The rail, the lowered voice, the old shape of the sacrament — and out it comes, the carried thing, the thing sewn into the coat lining of the soul. The celebrant listens with his eyes shut. He does not absolve — 'that's above my current station,' he says with a ruined smile — but he receives it, whole, and the weight of being the only one who knew moves out of the confessing heart and into the carriage's keeping. Beneath the altar, softly, the knocking repeats the confession's rhythm back. Like applause. Or like filing."},
+               {"type": "composure", "who": "chosen", "delta": 3},
+               {"type": "relationship", "a": "chosen", "b": "others", "trust": 1, "strain": -1},
+               {"type": "flag", "set": "confessed_in_chapel"},
+               {"type": "journal", "text": "A confession was made at the chapel rail. The knocking under the altar repeated its rhythm. Filed, or applauded."}
+             ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "prisoner_beneath",
+      "name": "The knocking beneath the altar",
+      "low_composure_name": "The one honest voice in the room",
+      "description": [
+        {"text": "Behind the altar platform, half-hidden by hangings, a low iron grate is set into the floor — a maintenance space, or a crypt, or a cell. From it, when the prayer ebbs, comes the knocking, and beneath the knocking a voice, dry as paper: 'Down here. Yes. You. The ones who still walk crooked — the honest gait. Come down where the acoustics are honest too.'"}
+      ],
+      "actions": [
+        {
+          "id": "speak_with_prisoner",
+          "label": "Kneel at the grate and hear him out",
+          "time": 6,
+          "tags": ["testimony", "occult"],
+          "check": {"attr": "awareness", "skill": "psychology", "dc": "normal"},
+          "on_success": [
+            {"type": "text",
+             "text": [
+               {"if": {"mystery": "sleeper_below"},
+                "text": "Eyes glint up through the grate — old, amused, sane. 'They think their prayers slow the dark. They do! Marvelous. Ask the next question: HOW.' He laughs, papery. 'Prayer is fear folded politely. This whole train runs on it. The prayers go down these pipes to the front, to the big sleeper, and they thicken its dreaming — and the darker its dreams, the darker everything gets, back here where the dreams pool. They are not holding back the night, friends. They are BREWING it. I said so from that pulpit. Note my current address.'"},
+               {"text": "Eyes glint up through the grate — young, exhausted, alive. 'Feel my hand,' he says, and presses two fingers up through the iron. They are warm. In this whole train of cool skins and steady rooms, they are the first warm thing you have touched. 'That's my heresy. That's my whole crime. I checked, you see — pulses, breath, mirrors. Twenty in the pews and not one heartbeat among them. This is a train OF the dead, friends, crewed BY the dead, praying FOR the dead. And I'm down here because the one thing a congregation of the dead cannot forgive —' the warm fingers withdraw '— is being reminded.'"}
+             ]},
+            {"type": "evidence", "id": "prisoners_testimony", "category": "testimony",
+             "title": [
+               {"if": {"mystery": "sleeper_below"}, "text": "The prayers feed the dreaming"},
+               {"text": "The warm hand under the altar"}
+             ],
+             "text": [
+               {"if": {"mystery": "sleeper_below"},
+                "text": "The prisoner beneath the altar: the congregation's prayers are piped forward to 'the big sleeper', thickening its dreams — the Blackout is those dreams pooling. The chapel brews the very dark it holds back."},
+               {"text": "The prisoner beneath the altar is warm — the only warm-blooded body encountered aboard. He found no pulse in any of twenty congregants. He was imprisoned for saying so."}
+             ]},
+            {"type": "journal", "text": "The prisoner under the chapel altar talks more sense than anyone above it. Naturally he is the one in the cell."}
+          ],
+          "on_fail": [
+            {"type": "text",
+             "text": "You kneel at the grate, and the voice pours out its case — but the congregation's prayer swells at exactly that moment, twenty voices in twenty tongues in perfect unison, and his words are milled into syllables and the syllables into hiss. You catch only the last of it, pressed against the iron: '...whatever else you do — don't let them finish the—' The prayer crests. When it ebbs, he has been moved somewhere deeper, and the grate hums like a struck bell."},
+            {"type": "composure", "who": "actor", "delta": -1},
+            {"type": "flag", "set": "prisoner_moved"}
+          ]
+        },
+        {
+          "id": "free_prisoner",
+          "label": "Force the grate and free him",
+          "time": 7,
+          "tags": ["physical", "mercy"],
+          "requires": {"not_flag": "prisoner_moved"},
+          "requires_text": "The space beneath the grate is empty now. They moved him deeper when you failed to listen.",
+          "check": {"attr": "body", "skill": "melee", "dc": "hard"},
+          "on_success": [
+            {"type": "text",
+             "text": "The grate's hinges shear with a scream that stops the prayer mid-syllable. You haul him out — light as kindling, blinking, laughing and weeping in the same breath — and for one moment he stands free in the candlelight while the congregation turns, row by row, to look. 'No,' he says then, softly, to something none of you said. 'Not forward. I know what's forward.' And before any hand can catch him he is running — REARWARD, against the one rule everyone learns, through the door you came by, toward the dark you have been fleeing. His footsteps fade. Then stop. Then — distant, distinct — a sound like a held breath released after long years. Not a scream. A relief."},
+            {"type": "rule", "id": "dead_forward"},
+            {"type": "evidence", "id": "prisoner_freed", "category": "observation",
+             "title": "The prisoner ran rearward",
+             "text": "Freed, the altar's prisoner fled rearward into the Blackout — deliberately, saying 'I know what's forward.' The sound at the end was relief. The dead may travel forward, never backward. He could.",
+             "if": {"mystery": "ferry_of_the_dead"}},
+            {"type": "evidence", "id": "prisoner_freed_sleeper", "category": "observation",
+             "title": "The prisoner ran rearward",
+             "text": "Freed, the deposed preacher fled rearward into the Blackout — deliberately, saying 'I know what's forward.' He preferred the pooled dark to the dreamer brewing it.",
+             "if": {"mystery": "sleeper_below"}},
+            {"type": "composure", "who": "party", "delta": -1},
+            {"type": "journal", "text": "Freed the prisoner. He chose the Blackout over the engine, and sounded relieved to reach it. That choice is now on the evidence board, and in my head at night."}
+          ],
+          "on_fail": [
+            {"type": "text",
+             "text": "The grate holds — it is not hinged iron at all, you realize mid-heave, but a single casting with the floor, the HINGES merely sculpted on, a cruelty of decoration. From below, gently: 'Ah. They rebuilt it after the last rescue. I should have said.' Your wrenched shoulders will remember this carriage."},
+            {"type": "harm", "who": "actor", "amount": 1},
+            {"type": "condition", "who": "actor", "add": "bruised"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "votive_stores",
+      "name": "The votive stores",
+      "description": [
+        {"text": "A cupboard beside the vestry rail: beeswax candles by the gross, incense, chalked sigils of several faiths in a labeled drawer — the working stock of a chapel that serves every tradition at once, ecumenical out of pure necessity."}
+      ],
+      "actions": [
+        {
+          "id": "gather_materials",
+          "label": "Gather candles and ritual materials",
+          "time": 4,
+          "tags": ["scavenge", "occult"],
+          "effects": [
+            {"type": "text",
+             "text": "You pack candles, incense, chalk, salt, and a stoppered flask of water blessed under — the label is thorough — 'all applicable rites.' The equipment of belief, portable. The celebrant sees you take it and nods grimly: 'Good. Forward of here, you'll want ballast for the soul.'"},
+            {"type": "resource", "id": "ritual_materials", "delta": 2},
+            {"type": "item", "add": "chapel_candle"}
+          ]
+        }
+      ]
+    }
+  ],
+  "escalations": [
+    {
+      "at_time": 30,
+      "text": "The prayer modulates — a new intention — and outside the stained glass, the light CHANGES. Through a clear pane at the window's edge you watch it happen: the formless dark beyond the train curdles, gathers, and becomes a landscape, sketched in real time by twenty praying voices — hills, a road, a steeple, home. Somebody's home. The congregation is not describing the world outside. It is drafting it.",
+      "effects": [
+        {"type": "evidence", "id": "prayers_draft_world", "category": "observation",
+         "title": "The prayers draft the world outside",
+         "text": "Watched through a clear pane: the congregation's prayer visibly composes the landscape beyond the windows. The world outside the train is being written from in here."},
+        {"type": "composure", "who": "party", "delta": -1}
+      ]
+    },
+    {
+      "at_time": 50,
+      "text": "The prayer rises toward something none of you like — a completion, a cadence gathering weight the way a wave gathers water — and beneath the altar the pipes begin to swallow audibly, gulp on gulp, the offering going down and forward. The candle flames stretch toward the engine like things straining at leashes. Whatever the congregation is feeding, tonight it is being fed well, and the dark behind the train grows correspondingly fat.",
+      "effects": [
+        {"type": "blackout", "minutes": 10},
+        {"type": "composure", "who": "party", "delta": -1}
+      ]
+    }
+  ],
+  "exits": [
+    {
+      "id": "to_mirror",
+      "to": "mirror_car",
+      "label": "Forward door — beyond the vestry",
+      "time": 3,
+      "travel_text": "You leave through the vestry, past hanging vestments of every tradition in every size — including, you cannot help noticing, several small enough for a child. The celebrant raises a hand after you in a blessing older than any of his vestments. 'Say one for me,' he calls — and then stops, stricken, as if the words had not been his."
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "believed": [
+    "Standing on a station platform in the rain, holding a ticket they did not buy.",
+    "A kitchen with yellow curtains, and someone singing badly in the next room.",
+    "Shaking hands with a man whose face they can no longer assemble.",
+    "The exact weight of a coffin handle in their palm.",
+    "A telegram on a hall table: COME AT ONCE. ALL IS FORGIVEN.",
+    "Locking a door from the outside and walking away quickly.",
+    "The smell of carbolic soap and someone counting backwards from ten.",
+    "A promise made at a bedside, in a whisper, meant to be kept."
+  ],
+  "incomplete": [
+    "A long corridor, a red door, and then — nothing. The memory simply stops.",
+    "Someone shouting their name across water. They never turn around to see who.",
+    "Three days missing from the month before they boarded. Nobody would say where they had been.",
+    "A photograph they burned, though they cannot remember what it showed.",
+    "The end of an argument. They remember slamming the door, not what the argument was about.",
+    "A funeral where they cannot recall who was in the casket.",
+    "Being handed something small and warm and being told: keep this safe. Their hands are empty.",
+    "A tune they know all the words to, in a language they have never learned."
+  ],
+  "contradicting": [
+    "They remember the fire at the mill — and that they were the only survivor. So does someone else here.",
+    "They remember growing up an only child. One of the others remembers being their sibling.",
+    "They remember this exact conversation happening before, word for word, aboard this train.",
+    "They remember their wedding day clearly. The person beside them at the altar is in this party, and denies it.",
+    "They remember burying one of the people now standing in this carriage.",
+    "They remember boarding alone at an empty platform. Another passenger remembers boarding beside them, talking the whole way.",
+    "They remember the year differently from everyone else. Nobody's papers agree.",
+    "They remember owing a debt to someone in the party — who insists it was paid, in full, in blood."
+  ]
+}

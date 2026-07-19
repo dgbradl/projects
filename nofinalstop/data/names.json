@@ -1,0 +1,40 @@
+{
+  "first": [
+    "Ada", "Miriam", "Elsa", "Greta", "Ines", "Vera", "Clara", "Odile", "Ruth", "Sylvie",
+    "Hannah", "Margit", "Leonora", "Beatrice", "Ilse",
+    "Emil", "Viktor", "August", "Casimir", "Jonas", "Henrik", "Aurel", "Tomas", "Gregor",
+    "Anton", "Feliks", "Oskar", "Rupert", "Silas", "Walther"
+  ],
+  "last": [
+    "Vance", "Holloway", "Brandt", "Kessler", "Marchetti", "Sokolov", "Ferreira", "Lindqvist",
+    "Okafor", "Duval", "Whitlock", "Sandoval", "Petran", "Aldous", "Renner", "Castellan",
+    "Voss", "Merle", "Hartmann", "Quill", "Ostrander", "Bellamy", "Crane", "Ivanovna", "Thorne"
+  ],
+  "pronouns": ["she/her", "he/him", "they/them"],
+  "backgrounds": [
+    "a coastal fishing town that no longer appears on maps",
+    "a soot-black industrial city of chimneys and canals",
+    "a mountain village that buried more people than it fed",
+    "a capital of streetcars, embassies, and rumors",
+    "a farming province flattened by the last war",
+    "a port city where every language was spoken badly",
+    "a company town owned entirely by the mine",
+    "a border region that changed countries four times",
+    "a river barge family that never stayed anywhere",
+    "a university quarter of cold rooms and long arguments"
+  ],
+  "appearances": [
+    "gaunt, with ink-stained cuffs and a borrowed coat",
+    "broad-shouldered, with a boxer's bent nose",
+    "small and quick, with eyes that count exits",
+    "elegant once, the clothes now a size too loose",
+    "weathered brown by outdoor work, scarred knuckles",
+    "pale as paper, with a habit of touching doorframes",
+    "immaculately groomed despite everything",
+    "wrapped in a greatcoat two wars out of date",
+    "young-faced but grey at the temples",
+    "heavyset and slow-moving, with careful gentle hands",
+    "wiry, twitchy, cigarette-burned fingers",
+    "tall and stooped, as if apologizing for it"
+  ]
+}

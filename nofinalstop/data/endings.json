@@ -1,0 +1,54 @@
+[
+  {
+    "id": "the_last_stop",
+    "name": "ENDING — The Last Stop",
+    "victory": true,
+    "text": [
+      {"if": {"mystery": "ferry_of_the_dead"},
+       "text": "The brakes engage for the first time in centuries. Outside the windows a station assembles itself out of fog and lamplight, and its sign says nothing at all, because it does not need to. The doors open. Warm air. A smell like a remembered kitchen. Only those who still carry their real lives — a name, a debt, a promise, a grief with edges — feel their feet touch the platform. The others remain in the doorway, translucent as breath, waving without sorrow. The train waits until the last true passenger steps down. Then it moves on, lighter, to gather the rest of its manifest. You were dead when you boarded. You are not entirely sure that's still true."},
+      {"text": "The brakes engage, screaming, and for the first time the wheels' rhythm slows, stutters, stops. A station platform waits outside — ordinary, gaslit, smelling of rain. The doors open only for those who genuinely intend to leave, and only those who still remember who they were can hold that intention long enough to cross the threshold. You step down. The boards are solid. Somewhere behind you the train exhales and begins, very slowly, to move again — because it must, because it always must — and you do not look back at the faces in the windows. The ones who leave carry what they carried. The ones who stay become what stays."}
+    ]
+  },
+  {
+    "id": "new_conductor",
+    "name": "ENDING — New Conductor",
+    "victory": true,
+    "text": "The uniform fits. That is the terrible part — it fits perfectly, instantly, the brass buttons closing themselves. The punch settles into the pocket over the heart. The train's long body flexes ahead and behind, attentive, obedient, hungry, and the timetable unrolls in a new Conductor's mind like a language they have always known. The others are given seats in first class, or set down gently at stations that exist for exactly as long as the disembarking takes. The train needs a will to steer it between the world's cracks. It has one. Where it goes now — which sleepers it gathers, which doors it opens, whether it is kinder under new management — is a question for the next frightened party to wake in the rear carriage and answer."
+  },
+  {
+    "id": "containment",
+    "name": "ENDING — Containment",
+    "victory": true,
+    "text": "The seals close like a wound healing in reverse — evidence, sacrifice, and understanding pressed into the engine's lock in the correct order. Beneath the boiler-plates the sleeping thing turns over, sighs a continent's worth of sigh, and sinks deeper than it has slept in an age. The train does not stop. It can never stop; you understand that now, and you remain aboard as its keepers — tending the fires of its dreaming, walking its impossible corridors, meeting each new party of frightened passengers in the rear carriage with lanterns and gentle lies. The nightmare stays contained. The price is a crew. You are the crew."
+  },
+  {
+    "id": "mercy",
+    "name": "ENDING — Mercy",
+    "victory": true,
+    "text": "You open the engine not with force but the way one opens a sickroom door. Inside is the heart the whole train grew from — old, vast, laboring, faithful — still trying to deliver its passengers to a station that no longer exists. You show it the manifest. You show it the truth it has been outrunning: that the journey is finished, that the dead it carries were owed rest, not perpetual motion. The pistons slow like a pulse under a kind hand. Carriage by carriage the lights go down, not into darkness but into the dark of a bedroom at day's end. The passengers dissolve smiling. The train sighs to stillness on rails that fade beneath it, and what remains is a quiet field at dusk, and no more timetable, ever."
+  },
+  {
+    "id": "release",
+    "name": "ENDING — Release",
+    "victory": false,
+    "text": "The lock was never meant to open from inside a moving prison — but it opens for you. For one instant the engine is just an engine, honest iron and steam. Then the thing that slept inside unfolds through the boiler, through the carriages, through the idea of carriages, stretching after its long confinement. It is not grateful. It is not cruel. It is simply awake, and the world it wakes into is suddenly very thin. The train scatters like beads from a cut string, each carriage falling into a different night. Perhaps you knew what you were doing. Perhaps you were the last hinge of a door that wanted, very patiently, to be opened. Behind you, everywhere, something begins."
+  },
+  {
+    "id": "the_blackout",
+    "name": "ENDING — The Blackout",
+    "victory": false,
+    "text": "You stop running. You open the engine's rear doors, throw the couplings, and let the darkness that has eaten every mile of the journey come forward to take the last of it. The Blackout pours over the engine like a tide over a sandcastle — and then, in the last second, you finally see it clearly. It was never pursuing the train. It was cleaning up after it: unmaking the nightmare mile by mile, erasing the impossible corridors, releasing what the train had swallowed back into whatever true night waits outside. The engine goes out like a coal in water. And behind the train — behind everything — you see at last what has been walking there the whole time, patient as a shepherd at the end of the day, holding open a door made of dark. You step through."
+  },
+  {
+    "id": "consumed",
+    "name": "ENDING — Consumed",
+    "victory": false,
+    "text": "The Blackout closes over the carriage like a mouth that has finished playing with its food. The lamps die. The windows die. The idea of windows dies. For a moment there is only the sound of the rails, continuing without any train upon them — and then the Shape Behind the Train arrives to inventory what it has caught. Whatever the party was, whatever they knew, whoever loved them: the manifest is amended in black ink. The train continues forward, one carriage shorter, toward TERMINUS. It does not slow. Somewhere at the rear, a new last carriage full of sleeping strangers is already forming."
+  },
+  {
+    "id": "all_dead",
+    "name": "ENDING — The Manifest Closes",
+    "victory": false,
+    "text": "The last of the party stops moving, and the train notices immediately, the way a ledger notices a sum. Attendants arrive without hurrying. The bodies are dressed, composed, and seated in a quiet carriage with antimacassars and drawn blinds, facing forward, tickets tucked into their breast pockets — punched at last. The dead may travel forward, never backward, and so they do: onward, forever, toward TERMINUS, in the company of everyone else who almost made it. The train is not angry. The train is never angry. The train simply keeps what it is given."
+  }
+]
