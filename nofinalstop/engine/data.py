@@ -62,3 +62,12 @@ def get_registry():
     if _registry is None:
         _registry = DataRegistry()
     return _registry
+
+
+def reload_registry():
+    """Rebuild the registry from disk (dev hot reload). Raises on bad data,
+    in which case the previous registry remains in place."""
+    global _registry
+    fresh = DataRegistry()
+    _registry = fresh
+    return fresh

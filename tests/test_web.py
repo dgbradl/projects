@@ -168,6 +168,52 @@ def test_save_and_continue(registry, tmp_path):
     assert "tickets_terminus" in session2.game.evidence
 
 
+def test_registry_hot_swap_mid_run(registry, tmp_path):
+    """Dev reload: fresh content applies to a RUNNING game without losing state."""
+    from nofinalstop.engine.data import DataRegistry
+
+    session = Session(seed=7, save_dir=str(tmp_path))
+    session.cmd({"cmd": "new_quick", "size": 4})
+    session.cmd({"cmd": "inspect", "node": "sleeping_passengers"})
+    session.cmd({"cmd": "act", "node": "sleeping_passengers", "action": "check_tickets"})
+    time_before = session.game.total_time
+    evidence_before = set(session.game.evidence)
+
+    fresh = DataRegistry()
+    fresh.carriages["rear_carriage"]["objective"] = "EDITED OBJECTIVE"
+    session.apply_registry(fresh)
+
+    v = session.cmd({"cmd": "view"})
+    assert v["status"]["objective"] == "EDITED OBJECTIVE", "new content is live"
+    assert session.game.total_time == time_before, "game state survived the swap"
+    assert set(session.game.evidence) == evidence_before
+    node = session._find_node("rear_door")
+    assert node and session.game.available_actions(node), "play continues under new content"
+
+
+def test_devstatus_endpoint(registry, tmp_path):
+    httpd, session, url = serve(seed=1, save_dir=str(tmp_path), port=0,
+                                open_browser=False, background=True, dev=True)
+    try:
+        s = json.loads(urllib.request.urlopen(url + "api/devstatus").read())
+        assert s["dev"] is True
+        assert s["token"] and s["gen"] == 0 and s["assets"] > 0
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+
+
+def test_devstatus_off_by_default(registry, tmp_path):
+    httpd, session, url = serve(seed=1, save_dir=str(tmp_path), port=0,
+                                open_browser=False, background=True)
+    try:
+        s = json.loads(urllib.request.urlopen(url + "api/devstatus").read())
+        assert s == {"dev": False}
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+
+
 def test_http_server_serves_page_and_api(registry, tmp_path):
     httpd, session, url = serve(seed=7, save_dir=str(tmp_path), port=0,
                                 open_browser=False, background=True)

@@ -332,7 +332,7 @@ function exitHTML(x) {
    night rushing past, lamps, per-carriage props from data, the party as
    silhouette figures, node markers, doors — and the Blackout pouring in. */
 
-const SCENE_W = 1000, SCENE_H = 190, FLOOR = 168;
+const SCENE_W = 1400, SCENE_H = 190, FLOOR = 168;
 const INK = "#d9cba9", DIMINK = "#8a7a5c", PANEL = "#241c12", DARK = "#0b0806";
 
 function fig(x, opts) {
@@ -411,7 +411,7 @@ function renderScene() {
       <g clip-path="inset(0)"><line class="streak s1" x1="${wx + 6}" y1="46" x2="${wx + 26}" y2="46" stroke="#3a332a" stroke-width="2"/>
       <line class="streak s2" x1="${wx + 20}" y1="62" x2="${wx + 44}" y2="62" stroke="#2c261f" stroke-width="2"/></g>`);
   }
-  for (const lx of [250, 640]) {  // hanging lamps
+  for (const lx of [280, 700, 1120]) {  // hanging lamps
     parts.push(`<g class="lamp-swing" style="transform-origin:${lx}px 14px">
       <line x1="${lx}" y1="14" x2="${lx}" y2="34" stroke="${DIMINK}"/>
       <path d="M ${lx - 10} 34 l 20 0 l -5 10 l -10 0 z" fill="${PANEL}" stroke="${INK}"/>
@@ -432,7 +432,7 @@ function renderScene() {
   // the party, clustered mid-car; click a figure to switch observer
   const living = (view.party || []).filter((c) => c.alive);
   living.forEach((c, i) => {
-    const x = 480 + (i - (living.length - 1) / 2) * 40;
+    const x = SCENE_W * 0.47 + (i - (living.length - 1) / 2) * 40;
     const hurt = c.health / c.max_health <= 0.4;
     const shaky = c.composure <= 3;
     const cls = ["pcfig", c.active ? "obs" : "", shaky ? "tremble" : ""].join(" ");
@@ -515,7 +515,7 @@ function renderRail() {
   const rail = $("#rail");
   const cards = (view.party || []).map((c) => partyCardHTML(c)).join("");
   rail.innerHTML = `
-    ${cards}
+    <div class="party-list">${cards}</div>
     <div class="tabbox">
       <div class="tabs">
         ${["inventory", "evidence", "journal", "bonds", "history"].map((t) =>
@@ -666,6 +666,30 @@ function renderEnding() {
   $("#btn-again").onclick = () => post("title");
 }
 
+/* ------------------------------ dev reload -------------------------- */
+function devWatch() {
+  let baseline = null, offline = false, reloading = false;
+  const timer = setInterval(async () => {
+    if (reloading) return;
+    let status;
+    try {
+      const r = await fetch("/api/devstatus", { cache: "no-store" });
+      status = await r.json();
+    } catch (e) {
+      offline = true;   // server restarting — keep polling until it returns
+      return;
+    }
+    if (!status.dev) { clearInterval(timer); return; }
+    const key = JSON.stringify([status.token, status.gen, status.assets]);
+    if (baseline === null && !offline) { baseline = key; return; }
+    if (key !== baseline || offline) {
+      reloading = true;
+      toast("The train has been rebuilt. Reboarding…");
+      setTimeout(() => location.reload(), 500);
+    }
+  }, 1500);
+}
+
 /* ------------------------------ boot ------------------------------- */
 (async function boot() {
   try {
@@ -676,4 +700,5 @@ function renderEnding() {
     return;
   }
   render();
+  devWatch();
 })();

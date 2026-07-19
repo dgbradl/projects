@@ -63,6 +63,14 @@ class Session:
         self.chargen_state = None
         self.open_node = None
 
+    def apply_registry(self, registry):
+        """Swap in freshly-loaded content (dev hot reload). Game state holds
+        only ids and flags, so a running game continues under new content."""
+        with self.lock:
+            self.registry = registry
+            if self.game is not None:
+                self.game.registry = registry
+
     # ------------------------------------------------------------- commands
     def cmd(self, data):
         with self.lock:

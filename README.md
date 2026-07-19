@@ -47,6 +47,7 @@ Useful flags:
 | `--secret-mode all\|some\|none` | how much you know of your characters' secrets |
 | `--auto` | a bot plays a complete run (demo / smoke test) |
 | `--save-dir PATH` | where saves go (default `./saves`) |
+| `--dev` | with `--web`: hot reload — content edits (JSON) swap into the running game with state preserved; code edits save the run and restart the server; the browser detects either and reboards itself |
 
 The game autosaves on entering each carriage; `Continue` on the title menu
 resumes. `[s]` saves anywhere, `[q]` saves and quits.
