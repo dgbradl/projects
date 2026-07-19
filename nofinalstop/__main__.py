@@ -18,7 +18,17 @@ def main(argv=None):
     p.add_argument("--secret-mode", choices=("all", "some", "none"), default="all",
                    help="how much the player knows of the characters' secrets")
     p.add_argument("--save-dir", default=None, help="directory for save files (default ./saves)")
+    p.add_argument("--web", action="store_true",
+                   help="serve the graphical front-end in your browser instead of the terminal")
+    p.add_argument("--port", type=int, default=8337, help="port for --web (default 8337)")
+    p.add_argument("--no-browser", action="store_true", help="with --web: don't auto-open a browser")
     args = p.parse_args(argv)
+
+    if args.web:
+        from .web.server import serve
+        serve(seed=args.seed, save_dir=args.save_dir, secret_mode=args.secret_mode,
+              port=args.port, open_browser=not args.no_browser)
+        return 0
 
     app = App(seed=args.seed, plain=args.plain, auto=args.auto or args.auto_verbose,
               party_size=args.party, secret_mode=args.secret_mode, save_dir=args.save_dir,

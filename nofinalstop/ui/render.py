@@ -41,6 +41,29 @@ EVENT_STYLES = {
     "ending": f"bold {BRASS}",
 }
 
+def character_fate(game, c):
+    """One-line epilogue fate for a character, shared by all front-ends."""
+    if not c.alive:
+        return c.fate or "died aboard"
+    fate = "survived to the end of the line"
+    if game.ending == "consumed":
+        fate = "was inventoried by the Shape Behind the Train"
+    elif game.ending == "the_blackout":
+        fate = "stepped through the door made of dark"
+    elif game.ending == "release":
+        fate = "fell into a different night when the train scattered"
+    elif game.ending == "mercy":
+        fate = "dissolved smiling, at rest at last"
+    elif game.ending == "the_last_stop":
+        fate = ("stepped down onto the platform" if c.composure >= 3
+                else "stood in the doorway, translucent, waving")
+    elif game.ending == "containment":
+        fate = "remains aboard, a keeper of the sleep"
+    elif game.ending == "new_conductor":
+        fate = "rides on, first class, under new management"
+    return fate
+
+
 TITLE_ART = r"""
                     ___   ___   ___
       _________..--|___|-|___|-|___|--..________
@@ -282,25 +305,7 @@ class Renderer:
         self.line()
         self.rule("Epilogue")
         for c in game.party.characters:
-            if c.alive:
-                fate = "survived to the end of the line"
-                if game.ending == "consumed":
-                    fate = "was inventoried by the Shape Behind the Train"
-                elif game.ending == "the_blackout":
-                    fate = "stepped through the door made of dark"
-                elif game.ending == "release":
-                    fate = "fell into a different night when the train scattered"
-                elif game.ending == "mercy":
-                    fate = "dissolved smiling, at rest at last"
-                elif game.ending == "the_last_stop":
-                    fate = "stepped down onto the platform" if c.composure >= 3 else \
-                           "stood in the doorway, translucent, waving"
-                elif game.ending in ("containment",):
-                    fate = "remains aboard, a keeper of the sleep"
-                elif game.ending == "new_conductor":
-                    fate = "rides on, first class, under new management"
-            else:
-                fate = c.fate or "died aboard"
+            fate = character_fate(game, c)
             scars = ", ".join(registry.scars.get(s, {"name": s})["name"] for s in c.scars)
             line = f"  {c.name} — {fate}."
             if scars:

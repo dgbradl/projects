@@ -1,6 +1,7 @@
 # NO FINAL STOP
 
-A party-based survival-horror roguelite, played in the terminal.
+A party-based survival-horror roguelite — playable in your browser or in the
+terminal.
 
 You create a party of three to five ordinary, frightened people who wake in the
 last occupied carriage of an impossibly long train. Behind them, a supernatural
@@ -13,7 +14,23 @@ configurations, multiple endings, and a complete run of roughly 60–90 minutes.
 
 ## Running the game
 
-Requires Python 3.10+ and (for the styled presentation) `rich`:
+Requires Python 3.10+.
+
+**Graphical (recommended)** — a local web app styled like an illustrated
+nightmare from an old book; no dependencies beyond the standard library:
+
+```
+python -m nofinalstop --web
+```
+
+This starts a private server on `127.0.0.1:8337` and opens your browser
+(`--port N` to change it, `--no-browser` to just print the URL). Everything —
+parchment narrative log, ticket-styled actions, the Blackout meter, party
+dossiers, the evidence board — lives in one page. Click a party member's card
+to read their full dossier; *Look through their eyes* switches the observer
+and visibly rewrites what the room says.
+
+**Terminal** — the same game rendered with `rich`:
 
 ```
 pip install -r requirements.txt
@@ -86,8 +103,19 @@ nofinalstop/
 │   ├── mysteries.json     # 2 mystery configurations (change evidence & endings)
 │   ├── endings.json       # 8 endings
 │   └── survivors.json     # recruitable NPCs
-└── ui/              # rich renderer, interactive & bot controllers, main loop
+├── ui/              # rich renderer, interactive & bot controllers, main loop
+└── web/             # graphical front-end: stdlib HTTP server + session API
+    ├── session.py   #   JSON views; snapshot/replay for mid-effect choices
+    ├── server.py    #   ThreadingHTTPServer, /api/view + /api/cmd
+    └── static/      #   single-page client (vanilla JS, pure-CSS aesthetic)
 ```
+
+Both front-ends drive the same engine: the web layer holds a `Session` that
+translates commands (`inspect`, `act`, `exit`, `observer`, `choose`, …) into
+engine calls and returns a full JSON view. When an effect needs a character
+chosen mid-resolution, the session rolls the state back (a deep-frozen
+snapshot including the RNG stream), asks the browser, and replays the action
+deterministically with the answer queued — so the engine never blocks on I/O.
 
 Adding a carriage, profession, item, scar, rule, survivor, or ending means
 adding JSON — the engine interprets `requires` predicates, effect lists, and
@@ -101,8 +129,10 @@ not taken), and the Blackout consumes them by index.
 python -m pytest tests/
 ```
 
-47 tests: data integrity (every cross-reference in every carriage resolves),
+58 tests: data integrity (every cross-reference in every carriage resolves),
 character generation, checks/requirements/effects/perception units, save/load
-round-trips, and — most importantly — bot-driven **complete playthroughs**
-through the real game loop across many seeds, both mysteries, and all party
-sizes. `python -m nofinalstop --auto` shows one.
+round-trips, bot-driven **complete playthroughs** through the real game loop
+across many seeds, both mysteries, and all party sizes — plus web-session full
+runs and a headless-Chromium browser test that plays title → carriage →
+sacrifice modal → ending (skipped automatically if Playwright/Chromium are
+absent). `python -m nofinalstop --auto` shows a terminal run.
