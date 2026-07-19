@@ -8,7 +8,8 @@ const ui = {
   armedExit: null,
   partySize: 4,
   carriage: null,     // which carriage the play shell was built for
-  lastLogLen: 0,      // how many log entries are already in the DOM
+  lastLogLen: 0,      // how much of the server log has been consumed
+  currentPage: null,  // the entries shown on the current "page" of narrative
 };
 
 const $ = (sel, el) => (el || document).querySelector(sel);
@@ -184,7 +185,7 @@ function renderPlay() {
   } else {
     tint.hidden = true;
   }
-  appendLog(newShell);
+  renderPage(newShell);
   renderStage();
   renderRail();
 }
@@ -210,34 +211,39 @@ function topbarHTML(st) {
   </header>`;
 }
 
-function evHTML(e, old) {
+function evHTML(e, old, delayMs) {
   const k = e.kind || "text";
   const cls = `ev ev-${esc(k)}${old ? " old" : ""}`;
-  if (k === "arrive") return `<div class="${cls} ev-arrive">${esc(e.text)}</div>`;
-  return `<div class="${cls}">${esc(e.text)}</div>`;
+  const style = delayMs ? ` style="animation-delay:${delayMs}ms"` : "";
+  if (k === "arrive") return `<div class="${cls} ev-arrive"${style}>${esc(e.text)}</div>`;
+  return `<div class="${cls}"${style}>${esc(e.text)}</div>`;
 }
 
-function appendLog(fresh) {
+function renderPage(rebuilt) {
+  // The narrative pane is a book page, not a feed: each turn's events REPLACE
+  // the page, so nothing accumulates and nothing needs scrolling. The full
+  // record lives in the History tab.
   const el = $("#log");
   const log = view.log || [];
-  if (fresh || log.length < ui.lastLogLen) {
-    // rebuilt shell (or a new game shrank the log): lay in the whole history
-    // WITHOUT entry animations, then jump to the end
-    el.innerHTML = log.map((e) => evHTML(e, true)).join("");
-    ui.lastLogLen = log.length;
-    el.scrollTo({ top: el.scrollHeight, behavior: "auto" });
-    return;
+  if (log.length < ui.lastLogLen) {          // a new game shrank the log
+    ui.lastLogLen = 0;
+    ui.currentPage = null;
   }
-  if (log.length === ui.lastLogLen) return;
-  // append only what's new — old entries keep still, new ones settle in,
-  // and the scroll glides down to meet them instead of snapping
-  const frag = document.createElement("div");
-  frag.innerHTML = log.slice(ui.lastLogLen).map((e) => evHTML(e, false)).join("");
-  while (frag.firstChild) el.appendChild(frag.firstChild);
+  const fresh = log.slice(ui.lastLogLen);
   ui.lastLogLen = log.length;
-  requestAnimationFrame(() => {
-    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-  });
+  if (fresh.length) {
+    ui.currentPage = fresh;
+  } else if (!ui.currentPage || rebuilt) {
+    // nothing new (e.g. page reload): reconstruct this carriage's page
+    let start = 0;
+    for (let i = 0; i < log.length; i++) if (log[i].kind === "arrive") start = i;
+    ui.currentPage = log.slice(start);
+  } else {
+    return; // page unchanged — leave the DOM alone
+  }
+  el.innerHTML = ui.currentPage
+    .map((e, i) => evHTML(e, false, Math.min(i * 70, 490))).join("");
+  el.scrollTop = 0;   // a fresh page reads from the top
 }
 
 function renderStage() {
@@ -258,7 +264,7 @@ function renderStage() {
     el.querySelectorAll("[data-action]").forEach((b) => {
       b.onclick = () => post("act", { node: nd.id, action: b.dataset.action });
     });
-    el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    el.scrollTop = 0;
     return;
   }
   el.innerHTML = `
@@ -320,7 +326,7 @@ function renderRail() {
     ${cards}
     <div class="tabbox">
       <div class="tabs">
-        ${["inventory", "evidence", "journal", "bonds"].map((t) =>
+        ${["inventory", "evidence", "journal", "bonds", "history"].map((t) =>
           `<button data-tab="${t}" class="${ui.tab === t ? "on" : ""}">${t}</button>`).join("")}
       </div>
       <div class="tab-body" id="tab-body"></div>
@@ -407,12 +413,18 @@ function renderTab() {
     const jr = (view.journal || []).map((j) => `<div class="jr-line">${esc(j)}</div>`).join("");
     el.innerHTML = (rules ? `<div style="margin-bottom:10px">${rules}</div>` : "") + jr ||
       '<em style="color:var(--smoke)">The journal is blank. So far.</em>';
-  } else {
+  } else if (ui.tab === "bonds") {
     el.innerHTML = (view.relationships || []).map((r) =>
       `<div class="rel-line"><b>${esc(r.a)}</b> &amp; <b>${esc(r.b)}</b> — ${esc(r.kind)}<br>
        <span class="rel-meter">trust ${"●".repeat(r.trust)}${"○".repeat(5 - r.trust)}
        &nbsp; strain ${"●".repeat(r.strain)}${"○".repeat(5 - r.strain)}</span></div>`).join("") ||
       '<em style="color:var(--smoke)">Strangers, so far.</em>';
+  } else {
+    // history — the complete narrative record of the run
+    el.innerHTML = (view.log || []).map((e) =>
+      `<div class="hist-ev k-${esc(e.kind || "text")}">${esc(e.text)}</div>`).join("") ||
+      '<em style="color:var(--smoke)">The journey has not begun.</em>';
+    el.scrollTop = el.scrollHeight;
   }
 }
 

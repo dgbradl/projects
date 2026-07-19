@@ -50,13 +50,17 @@ def test_browser_full_journey(tmp_path):
             assert "The Rear Carriage" in page.text_content(".car-name")
             assert len(page.query_selector_all(".party-card")) == 4
 
-            # inspect and act
+            # inspect and act — the narrative pane page-turns to the new events
             page.click(".node-btn")
             page.wait_for_selector(".node-detail")
-            n_log = len(page.query_selector_all(".ev"))
+            log_before = page.text_content("#log")
             page.query_selector_all("button.ticket")[0].click()
             page.wait_for_function(
-                f"document.querySelectorAll('.ev').length > {n_log}")
+                "prev => document.querySelector('#log').textContent !== prev",
+                arg=log_before)
+            # the page itself must never scroll
+            assert page.evaluate(
+                "document.documentElement.scrollHeight <= window.innerHeight + 1")
 
             # observer switch from an expanded party card
             cards = page.query_selector_all(".party-card")
