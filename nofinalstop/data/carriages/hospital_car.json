@@ -497,5 +497,41 @@
       "travel_text": "You leave through the door marked DISCHARGES, and the ward lets you — though every doctor pauses to watch you go, and the head surgeon inclines his head with the courtesy of a man confident of a return visit. Behind you, as the door closes, you hear the soft double chime again, and the sound of screens being drawn around a bed. You do not look to see whose."
     }
   ],
-  "objective": "Every patient in this ward wears one of your faces, and the doctors are treating wounds you have not yet taken. Use the ward — real healing is here, at prices. Your sleeping doubles know things, including, perhaps, a true name. Leave through the door marked DISCHARGES before the account settles."
+  "objective": "Every patient in this ward wears one of your faces, and the doctors are treating wounds you have not yet taken. Use the ward — real healing is here, at prices. Your sleeping doubles know things, including, perhaps, a true name. Leave through the door marked DISCHARGES before the account settles.",
+  "scene": {
+    "props": [
+      {
+        "type": "beds",
+        "x": 0.18
+      },
+      {
+        "type": "beds",
+        "x": 0.34
+      },
+      {
+        "type": "beds",
+        "x": 0.5
+      },
+      {
+        "type": "npc",
+        "x": 0.62,
+        "hat": "none",
+        "tall": true
+      },
+      {
+        "type": "cabinet",
+        "x": 0.72
+      },
+      {
+        "type": "screen",
+        "x": 0.86
+      }
+    ],
+    "nodes": {
+      "ward_rows": 0.34,
+      "head_doctor": 0.62,
+      "supply_cabinet": 0.72,
+      "operating_theatre": 0.86
+    }
+  }
 }

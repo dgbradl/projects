@@ -430,5 +430,26 @@
     {
       "text": "This is the end of the train. The black iron threshold demands the third authorization: a life, freely tendered — a volunteer at the shelf, or a death already paid before boarding, if one of you carries such a thing. Only then does the bulkhead open on the engine's heart, and the ending you choose."
     }
-  ]
+  ],
+  "scene": {
+    "props": [
+      {
+        "type": "boiler",
+        "x": 0.3
+      },
+      {
+        "type": "gauges",
+        "x": 0.52
+      },
+      {
+        "type": "bulkhead",
+        "x": 0.88
+      }
+    ],
+    "nodes": {
+      "gauge_panel": 0.52,
+      "the_threshold": 0.8,
+      "the_heart": 0.92
+    }
+  }
 }

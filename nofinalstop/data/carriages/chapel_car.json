@@ -451,5 +451,40 @@
       "travel_text": "You leave through the vestry, past hanging vestments of every tradition in every size — including, you cannot help noticing, several small enough for a child. The celebrant raises a hand after you in a blessing older than any of his vestments. 'Say one for me,' he calls — and then stops, stricken, as if the words had not been his."
     }
   ],
-  "objective": "The congregation's prayer is real: joining it can measurably slow the Blackout, and confession here genuinely lightens a soul. But something knocks beneath the altar and calls the whole arrangement a lie. Hear both sides, take the votive stores, and leave through the vestry when you have decided what you believe."
+  "objective": "The congregation's prayer is real: joining it can measurably slow the Blackout, and confession here genuinely lightens a soul. But something knocks beneath the altar and calls the whole arrangement a lie. Hear both sides, take the votive stores, and leave through the vestry when you have decided what you believe.",
+  "scene": {
+    "props": [
+      {
+        "type": "pews",
+        "x": 0.2
+      },
+      {
+        "type": "pews",
+        "x": 0.34
+      },
+      {
+        "type": "pews",
+        "x": 0.48
+      },
+      {
+        "type": "npc",
+        "x": 0.6,
+        "hat": "none"
+      },
+      {
+        "type": "altar",
+        "x": 0.74
+      },
+      {
+        "type": "candles",
+        "x": 0.86
+      }
+    ],
+    "nodes": {
+      "the_altar": 0.74,
+      "the_celebrant": 0.6,
+      "prisoner_beneath": 0.8,
+      "votive_stores": 0.9
+    }
+  }
 }

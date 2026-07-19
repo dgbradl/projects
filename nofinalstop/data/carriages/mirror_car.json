@@ -297,5 +297,38 @@
       "travel_text": "Hands and knees, cold steel, the wheels hammering inches below — and then a push-panel opens into candlelight and incense. You have crawled back along the train's spine to the car you didn't pick. The congregation is mid-prayer. The celebrant, without turning, moves one hand in welcome: latecomers are, it seems, expected."
     }
   ],
-  "objective": "Do not linger among the reflections — they grow bolder the longer you stand still. The basins offer a wash and a vital ritual; a shard of glass may prove useful; and the crew hatch between the panels can crawl back to the car you didn't choose. The plain far door leads on."
+  "objective": "Do not linger among the reflections — they grow bolder the longer you stand still. The basins offer a wash and a vital ritual; a shard of glass may prove useful; and the crew hatch between the panels can crawl back to the car you didn't choose. The plain far door leads on.",
+  "scene": {
+    "props": [
+      {
+        "type": "mirrors",
+        "x": 0.16
+      },
+      {
+        "type": "mirrors",
+        "x": 0.28
+      },
+      {
+        "type": "mirrors",
+        "x": 0.4
+      },
+      {
+        "type": "basins",
+        "x": 0.58
+      },
+      {
+        "type": "mirrors",
+        "x": 0.76
+      },
+      {
+        "type": "mirrors",
+        "x": 0.88
+      }
+    ],
+    "nodes": {
+      "mirror_walls": 0.28,
+      "basin_row": 0.58,
+      "maintenance_hatch": 0.82
+    }
+  }
 }

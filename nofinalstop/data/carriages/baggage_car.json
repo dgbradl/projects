@@ -678,5 +678,55 @@
     {
       "text": "Search the stacks for supplies, decide about the wounded guard, and clear the barricade blocking the forward door. Do not trust the voices: test them first. Something moves beneath the luggage, and it is getting bolder."
     }
-  ]
+  ],
+  "scene": {
+    "props": [
+      {
+        "type": "luggage",
+        "x": 0.14
+      },
+      {
+        "type": "luggage",
+        "x": 0.22
+      },
+      {
+        "type": "luggage",
+        "x": 0.38
+      },
+      {
+        "type": "crate",
+        "x": 0.3
+      },
+      {
+        "type": "luggage",
+        "x": 0.52
+      },
+      {
+        "type": "crate",
+        "x": 0.6
+      },
+      {
+        "type": "npc",
+        "x": 0.72,
+        "hat": "cap",
+        "seated": true
+      },
+      {
+        "type": "crate",
+        "x": 0.86
+      },
+      {
+        "type": "luggage",
+        "x": 0.9
+      }
+    ],
+    "nodes": {
+      "luggage_maze": 0.3,
+      "own_suitcases": 0.46,
+      "voices_in_stacks": 0.2,
+      "wounded_guard": 0.72,
+      "the_imitator": 0.38,
+      "forward_blockage": 0.88
+    }
+  }
 }

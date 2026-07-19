@@ -578,5 +578,42 @@
     {
       "text": "The iron door to the engine demands two things HERE: a PUNCHED TICKET (blood-franked in the mail car, or bought from the Conductor) and a REMEMBERED NAME (recovered somewhere in the train's depths, or sold into the Conductor's ledger — at a terrible price). The Conductor answers questions. The maps, records, and ledger reward attention. A third authorization waits beyond the door."
     }
-  ]
+  ],
+  "scene": {
+    "props": [
+      {
+        "type": "pigeonholes",
+        "x": 0.14
+      },
+      {
+        "type": "maps",
+        "x": 0.3
+      },
+      {
+        "type": "lectern",
+        "x": 0.44
+      },
+      {
+        "type": "desk",
+        "x": 0.64
+      },
+      {
+        "type": "npc",
+        "x": 0.64,
+        "hat": "cap",
+        "seated": true
+      },
+      {
+        "type": "desk",
+        "x": 0.8
+      }
+    ],
+    "nodes": {
+      "route_maps": 0.3,
+      "passenger_records": 0.14,
+      "the_ledger": 0.44,
+      "the_conductor": 0.64,
+      "punch_desk": 0.8
+    }
+  }
 }

@@ -152,6 +152,47 @@ button:disabled { cursor: default; }
   font-size: 11px; color: var(--brass); margin-right: 10px;
 }
 
+/* ============================== scene =============================== */
+.scene-band {
+  border: 1px solid #3a2f1f;
+  background: #14100b;
+  box-shadow: 0 10px 30px rgba(0,0,0,.6), inset 0 0 60px rgba(0,0,0,.6);
+  line-height: 0;
+}
+.scene-band svg { width: 100%; height: 172px; display: block; }
+.scene-band .pcfig, .scene-band .marker, .scene-band .door { cursor: pointer; }
+.scene-band .pcfig:hover circle, .scene-band .pcfig:hover path { filter: brightness(1.35); }
+.scene-band .marker circle { transition: r .15s; }
+.scene-band .marker:hover circle { stroke-width: 2.5; }
+.scene-band .marker.open circle { fill: #b08d3e; }
+.scene-band .marker.open path { fill: #171008; }
+.scene-band .door:hover rect { filter: brightness(1.3); }
+.scene-band .door.armed rect { stroke: var(--blood-bright); }
+.scene-band text { font-family: var(--serif); }
+
+.lamp-swing { animation: lampsway 5.2s ease-in-out infinite; }
+@keyframes lampsway { 0%,100% { transform: rotate(-1.6deg); } 50% { transform: rotate(1.6deg); } }
+.lampglow { animation: glowflicker 6s steps(1) infinite; }
+@keyframes glowflicker {
+  0%,100% { opacity: .08; } 78% { opacity: .08; } 79% { opacity: .03; }
+  80% { opacity: .07; } 88% { opacity: .04; } 89% { opacity: .08; }
+}
+.streak { animation: streakmove 1.1s linear infinite; }
+.streak.s2 { animation-duration: 0.8s; animation-delay: .3s; }
+@keyframes streakmove { from { transform: translateX(46px); } to { transform: translateX(-66px); } }
+.sway { animation: lampsway 4.6s ease-in-out infinite; transform-origin: center 50px; }
+.flame { animation: glowflicker 3.4s steps(1) infinite; }
+.breathe { animation: boilerbreathe 7s ease-in-out infinite; transform-origin: center; }
+@keyframes boilerbreathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+.tremble { animation: tremble .28s linear infinite; }
+@keyframes tremble { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-.9px); } 75% { transform: translateX(.9px); } }
+.veil .tendril { animation: tendrildrift 4.5s ease-in-out infinite; }
+.veil .tendril.t2 { animation-duration: 6s; animation-delay: 1s; }
+@keyframes tendrildrift { 0%,100% { transform: translateX(0); } 50% { transform: translateX(10px); } }
+
+/* on short viewports the scene yields its space to the story */
+@media (max-height: 720px) { #scene-slot { display: none; } }
+
 /* ============================== layout ============================== */
 .play-grid {
   flex: 1 1 auto; min-height: 0;

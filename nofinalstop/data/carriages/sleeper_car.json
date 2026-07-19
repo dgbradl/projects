@@ -541,5 +541,26 @@
     {
       "text": "The child in this carriage knows your real names, and one of you once made it a promise. Be gentle and honest with it — it punishes the grown-up voice. Somewhere here a TRUE NAME can be recovered, and the engine far ahead will demand one. When you are done, two doors lead forward: the white car or the colored-glass car. Choose."
     }
-  ]
+  ],
+  "scene": {
+    "props": [
+      {
+        "type": "compartments",
+        "x": 0.42
+      },
+      {
+        "type": "npc",
+        "x": 0.62,
+        "hat": "none",
+        "small": true
+      }
+    ],
+    "nodes": {
+      "porters_notice": 0.08,
+      "compartments": 0.3,
+      "compartment_seven": 0.5,
+      "the_child": 0.62,
+      "window_row": 0.75
+    }
+  }
 }

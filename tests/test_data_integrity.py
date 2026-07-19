@@ -110,6 +110,26 @@ def test_traits_and_fears_shape(registry):
     assert len(registry.secrets) >= 10
 
 
+KNOWN_PROPS = {"seats", "luggage", "crate", "table", "table_small", "chair", "pews",
+               "altar", "candles", "beds", "cabinet", "screen", "mirrors", "basins",
+               "pigeonholes", "desk", "sacks", "press", "compartments", "lectern",
+               "maps", "boiler", "gauges", "bulkhead", "notice", "trio", "npc"}
+
+
+def test_scene_blocks_resolve(registry):
+    """Every carriage has a scene; its node markers and props are valid."""
+    for cid, car in registry.carriages.items():
+        scene = car.get("scene")
+        assert scene is not None, f"{cid}: missing scene block"
+        node_ids = {n["id"] for n in car.get("nodes", [])}
+        for nid, x in scene.get("nodes", {}).items():
+            assert nid in node_ids, f"{cid}: scene marker for unknown node {nid}"
+            assert 0.0 <= x <= 1.0, f"{cid}: scene x out of range for {nid}"
+        for prop in scene.get("props", []):
+            assert prop["type"] in KNOWN_PROPS, f"{cid}: unknown prop {prop['type']}"
+            assert 0.0 <= prop.get("x", 0.5) <= 1.0, f"{cid}: prop x out of range"
+
+
 def test_vertical_slice_scope(registry):
     """The milestone: 8 main carriages + 4 transitional, 2 mysteries, 3+ endings."""
     main = [c for c in registry.carriages.values() if not c.get("transitional")]

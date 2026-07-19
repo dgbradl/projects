@@ -494,5 +494,36 @@
       "travel_text": "The gangway between carriages is a bellows of freezing wind and rail-thunder. For one step, there is nothing under the steel plate but speed. You haul the baggage car's door open and pull each other through. Behind you, the sleepers sleep on in the dimming light, tickets pinned to their lapels. You did what could be done."
     }
   ],
-  "objective": "Learn what this carriage can teach, gather what it offers, and open the locked forward door — a railway key, lockpicks, or brute force will all serve. The darkness behind the rear door is coming. Do not be here when it arrives."
+  "objective": "Learn what this carriage can teach, gather what it offers, and open the locked forward door — a railway key, lockpicks, or brute force will all serve. The darkness behind the rear door is coming. Do not be here when it arrives.",
+  "scene": {
+    "props": [
+      {
+        "type": "seats",
+        "x": 0.16
+      },
+      {
+        "type": "seats",
+        "x": 0.3
+      },
+      {
+        "type": "luggage",
+        "x": 0.46
+      },
+      {
+        "type": "luggage",
+        "x": 0.54
+      },
+      {
+        "type": "notice",
+        "x": 0.66
+      }
+    ],
+    "nodes": {
+      "sleeping_passengers": 0.23,
+      "rear_door": 0.05,
+      "luggage_heaps": 0.5,
+      "notice_frame": 0.66,
+      "forward_door": 0.9
+    }
+  }
 }

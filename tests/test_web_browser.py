@@ -50,6 +50,17 @@ def test_browser_full_journey(tmp_path):
             assert "The Rear Carriage" in page.text_content(".car-name")
             assert len(page.query_selector_all(".party-card")) == 4
 
+            # the scene shows the party in the carriage, with markers and doors
+            page.wait_for_selector(".scene-band svg")
+            assert len(page.query_selector_all(".scene-band .pcfig")) == 4
+            assert len(page.query_selector_all(".scene-band .marker")) >= 3
+            assert page.query_selector(".scene-band .door")
+            # clicking a scene marker opens that node's detail
+            page.click('.scene-band .marker[data-node="luggage_heaps"]')
+            page.wait_for_selector(".node-detail")
+            assert "luggage" in page.text_content(".nd-name").lower()
+            page.click("#nd-close")
+
             # inspect and act — the narrative pane page-turns to the new events
             page.click(".node-btn")
             page.wait_for_selector(".node-detail")

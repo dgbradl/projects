@@ -311,5 +311,40 @@
       "travel_text": "As you file past his chair, the gentleman raises the everlasting cigar in salute. 'Mind the child,' he says. You stop. He does not elaborate. The gangway's cold swallows the questions you should have asked."
     }
   ],
-  "objective": "A rare mercy: nothing here hunts you. Rest and recover if you can spare the time, hear what the gentleman knows — he speaks freely about the Conductor — and move on before comfort becomes its own trap."
+  "objective": "A rare mercy: nothing here hunts you. Rest and recover if you can spare the time, hear what the gentleman knows — he speaks freely about the Conductor — and move on before comfort becomes its own trap.",
+  "scene": {
+    "props": [
+      {
+        "type": "chair",
+        "x": 0.22
+      },
+      {
+        "type": "chair",
+        "x": 0.36
+      },
+      {
+        "type": "table_small",
+        "x": 0.29
+      },
+      {
+        "type": "chair",
+        "x": 0.56
+      },
+      {
+        "type": "npc",
+        "x": 0.72,
+        "hat": "top",
+        "seated": true
+      },
+      {
+        "type": "chair",
+        "x": 0.72
+      }
+    ],
+    "nodes": {
+      "armchairs": 0.3,
+      "smoke_strata": 0.5,
+      "gentleman": 0.72
+    }
+  }
 }

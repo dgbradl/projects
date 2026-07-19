@@ -285,5 +285,42 @@
     {
       "text": "A short sorting car — take what it offers. The staff notices teach a rule about tickets and blood, and somewhere in the pigeonholes is a blank ticket. Far ahead, the engine will demand a punched ticket from anyone who knocks. Leave this car carrying more than you brought in."
     }
-  ]
+  ],
+  "scene": {
+    "props": [
+      {
+        "type": "pigeonholes",
+        "x": 0.18
+      },
+      {
+        "type": "sacks",
+        "x": 0.4
+      },
+      {
+        "type": "sacks",
+        "x": 0.5
+      },
+      {
+        "type": "desk",
+        "x": 0.64
+      },
+      {
+        "type": "npc",
+        "x": 0.64,
+        "hat": "cap",
+        "seated": true,
+        "dusty": true
+      },
+      {
+        "type": "press",
+        "x": 0.82
+      }
+    ],
+    "nodes": {
+      "dust_clerk": 0.64,
+      "mail_sacks": 0.45,
+      "sorting_desk": 0.7,
+      "franking_station": 0.82
+    }
+  }
 }

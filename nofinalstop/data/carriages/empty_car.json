@@ -202,5 +202,12 @@
     {
       "text": "There is nothing in this carriage but the crossing itself — and the crossing is the obstacle. Cross it TOGETHER, deliberately, talking the whole way. The far door will not be reached any other way."
     }
-  ]
+  ],
+  "scene": {
+    "props": [],
+    "nodes": {
+      "the_crossing": 0.5,
+      "floor_writing": 0.5
+    }
+  }
 }

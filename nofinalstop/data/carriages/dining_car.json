@@ -709,5 +709,43 @@
     {
       "text": "The maître d' will not open the forward vestibule until travelers dine. Four ways forward are possible: eat (everyone — or one for all, if you can negotiate it); fake the meal with sleight of hand; expose the feast — with evidence of what it really is; or slip through the kitchen door and take the staff passage."
     }
-  ]
+  ],
+  "scene": {
+    "props": [
+      {
+        "type": "table",
+        "x": 0.16
+      },
+      {
+        "type": "table",
+        "x": 0.3
+      },
+      {
+        "type": "table",
+        "x": 0.44
+      },
+      {
+        "type": "npc",
+        "x": 0.58,
+        "hat": "none",
+        "tall": true
+      },
+      {
+        "type": "table",
+        "x": 0.7
+      },
+      {
+        "type": "trio",
+        "x": 0.84
+      }
+    ],
+    "nodes": {
+      "feast_tables": 0.3,
+      "maitre_d": 0.58,
+      "the_table": 0.44,
+      "string_trio": 0.84,
+      "kitchen_door": 0.94,
+      "petra_in_passage": 0.97
+    }
+  }
 }

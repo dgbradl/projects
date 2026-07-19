@@ -340,6 +340,7 @@ class Session:
         prof = reg.professions.get(c.profession, {"name": c.profession})
         d = {
             "id": c.id, "name": c.name, "profession": prof["name"],
+            "profession_id": c.profession,
             "age": c.age, "pronouns": c.pronouns, "alive": c.alive, "fate": c.fate,
             "health": c.health, "max_health": c.max_health,
             "composure": c.composure, "max_composure": c.max_composure,
@@ -400,6 +401,7 @@ class Session:
             },
             "nodes": nodes,
             "exits": exits,
+            "scene": car.get("scene", {}),
             "party": [self._character_payload(c, full=True) for c in g.party.characters],
             "relationships": [
                 {"a": g.party.get(r.a).name, "b": g.party.get(r.b).name,
