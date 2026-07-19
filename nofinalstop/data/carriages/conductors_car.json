@@ -3,11 +3,16 @@
   "name": "The Conductor's Car",
   "index": 9,
   "arrival": [
-    {"text": "The administrative heart of the train: a long office car of pigeonholes, ledger-desks, and route maps in brass frames, lit by green-shaded lamps that burn without flickering — the steadiest light aboard. At the far desk, writing, sits a figure in the Company's uniform: silver-buttoned, immaculate, neither old nor young, his cap on a stand beside him like a second head. He does not look up. 'Parties reaching this door,' he says, in a voice like a well-kept clock, 'are asked to state their business. Parties without business are asked to be brief about discovering some.'"}
+    {
+      "text": "The administrative heart of the train: a long office car of pigeonholes, ledger-desks, and route maps in brass frames, lit by green-shaded lamps that burn without flickering — the steadiest light aboard. At the far desk, writing, sits a figure in the Company's uniform: silver-buttoned, immaculate, neither old nor young, his cap on a stand beside him like a second head. He does not look up. 'Parties reaching this door,' he says, in a voice like a well-kept clock, 'are asked to state their business. Parties without business are asked to be brief about discovering some.'"
+    }
   ],
   "return_text": "The Conductor is writing when you re-enter, as he was writing when you left, as he has perhaps always been writing. 'Again,' he says, without inflection, and turns to a fresh page.",
   "on_enter": [
-    {"type": "journal", "text": "The Conductor's car. Maps of impossible routes. Ledgers. Him."}
+    {
+      "type": "journal",
+      "text": "The Conductor's car. Maps of impossible routes. Ledgers. Him."
+    }
   ],
   "nodes": [
     {
@@ -15,29 +20,57 @@
       "name": "The route maps",
       "low_composure_name": "The confession of the Company",
       "description": [
-        {"if": {"profession": "railway_worker"},
-         "text": "You have read route maps your whole working life, and these are real ones — gradients, passing loops, signal sections, all drawn to practice. That is what makes them unbearable. The gradients are marked in units of grief. The passing loops pass through named dreams. One junction is labeled THE WAR (ALL). The mileposts count down not to a terminus but to a word that has been neatly inked out — recently, and, you would swear, in haste."},
-        {"text": "Brass-framed maps cover the wall: the train's route, drawn with complete professional seriousness across territories no atlas holds — track crossing dreams, deaths, histories, unrealized futures. Branch lines serve places like THE FLOOD, THE FIRST WINTER, WHAT THE CITIES BECAME. And winding through them all, one heavy mainline in confident black ink, arrowed always forward, toward a terminus at the map's edge whose name has been inked out."}
+        {
+          "if": {
+            "profession": "railway_worker"
+          },
+          "text": "You have read route maps your whole working life, and these are real ones — gradients, passing loops, signal sections, all drawn to practice. That is what makes them unbearable. The gradients are marked in units of grief. The passing loops pass through named dreams. One junction is labeled THE WAR (ALL). The mileposts count down not to a terminus but to a word that has been neatly inked out — recently, and, you would swear, in haste."
+        },
+        {
+          "text": "Brass-framed maps cover the wall: the train's route, drawn with complete professional seriousness across territories no atlas holds — track crossing dreams, deaths, histories, unrealized futures. Branch lines serve places like THE FLOOD, THE FIRST WINTER, WHAT THE CITIES BECAME. And winding through them all, one heavy mainline in confident black ink, arrowed always forward, toward a terminus at the map's edge whose name has been inked out."
+        }
       ],
       "actions": [
         {
           "id": "study_maps",
           "label": "Trace the mainline to its end",
           "time": 5,
-          "tags": ["investigation", "search"],
-          "check": {"attr": "reason", "skill": "railway_operations", "dc": "normal"},
+          "tags": [
+            "investigation",
+            "search"
+          ],
+          "check": {
+            "attr": "reason",
+            "skill": "railway_operations",
+            "dc": "normal"
+          },
           "on_success": [
-            {"type": "text",
-             "text": "You trace the mainline junction by junction — and find the truth hiding in plain professional sight. The route never terminates. It CIRCLES: an immense loop through every mapped territory, rejoining itself at the rear. The inked-out terminus is not ahead of the train at all; the word beneath the ink, read at an angle in the lamplight, is TERMINUS — and it sits on the loop BEHIND the train, in territory shaded solid black. The train is not traveling toward its destination. It is traveling away from it, around and around, and the Blackout is the destination, patiently keeping its appointment."},
-            {"type": "evidence", "id": "route_is_a_loop", "category": "physical",
-             "title": "The route is a circle",
-             "text": "The mainline never ends: it loops through every territory and rejoins itself. TERMINUS lies BEHIND the train, inked out, in the blacked-out section. The train is circling away from its own destination — and the Blackout keeps the appointment."},
-            {"type": "journal", "text": "Traced the mainline. We are not headed to TERMINUS. We are orbiting it. The dark behind us is not pursuit. It is the station."}
+            {
+              "type": "text",
+              "text": "You trace the mainline junction by junction — and find the truth hiding in plain professional sight. The route never terminates. It CIRCLES: an immense loop through every mapped territory, rejoining itself at the rear. The inked-out terminus is not ahead of the train at all; the word beneath the ink, read at an angle in the lamplight, is TERMINUS — and it sits on the loop BEHIND the train, in territory shaded solid black. The train is not traveling toward its destination. It is traveling away from it, around and around, and the Blackout is the destination, patiently keeping its appointment."
+            },
+            {
+              "type": "evidence",
+              "id": "route_is_a_loop",
+              "category": "physical",
+              "title": "The route is a circle",
+              "text": "The mainline never ends: it loops through every territory and rejoins itself. TERMINUS lies BEHIND the train, inked out, in the blacked-out section. The train is circling away from its own destination — and the Blackout keeps the appointment."
+            },
+            {
+              "type": "journal",
+              "text": "Traced the mainline. We are not headed to TERMINUS. We are orbiting it. The dark behind us is not pursuit. It is the station."
+            }
           ],
           "on_fail": [
-            {"type": "text",
-             "text": "The maps defeat you politely — every time you trace the mainline, your finger arrives somewhere your eye did not follow it, and after the third attempt you notice the Conductor has stopped writing. Not looking up. Just: stopped, pen lifted, listening to your finger on his maps. You step away from the wall."},
-            {"type": "composure", "who": "actor", "delta": -1}
+            {
+              "type": "text",
+              "text": "The maps defeat you politely — every time you trace the mainline, your finger arrives somewhere your eye did not follow it, and after the third attempt you notice the Conductor has stopped writing. Not looking up. Just: stopped, pen lifted, listening to your finger on his maps. You step away from the wall."
+            },
+            {
+              "type": "composure",
+              "who": "actor",
+              "delta": -1
+            }
           ]
         }
       ]
@@ -46,28 +79,56 @@
       "id": "passenger_records",
       "name": "The passenger records",
       "description": [
-        {"text": "Pigeonholes floor to ceiling, each holding a passenger file bound in grey board. The drawers are labeled by carriage, going back carriage upon carriage, more carriages than the train could hold — unless the records are also for carriages the train used to have. Or will have."}
+        {
+          "text": "Pigeonholes floor to ceiling, each holding a passenger file bound in grey board. The drawers are labeled by carriage, going back carriage upon carriage, more carriages than the train could hold — unless the records are also for carriages the train used to have. Or will have."
+        }
       ],
       "actions": [
         {
           "id": "pull_own_files",
           "label": "Pull the party's own files",
           "time": 6,
-          "tags": ["investigation", "search"],
-          "check": {"attr": "reason", "skill": "investigation", "dc": "normal"},
+          "tags": [
+            "investigation",
+            "search"
+          ],
+          "check": {
+            "attr": "reason",
+            "skill": "investigation",
+            "dc": "normal"
+          },
           "on_success": [
-            {"type": "text",
-             "text": "You find your files — most of them. Each is thorough beyond nightmare: boarding record, assigned fears, scheduled trials, a column headed OUTCOME left blank in fresh-ruled ink. But when you lay them side by side and count, the arithmetic goes wrong: there is one file too few. One of you has no file at all. No boarding record, no assignment, no page. The pigeonhole where it should sit holds only a printed slip: NOT MANIFESTED. The Conductor's pen, across the car, writes on."},
-            {"type": "evidence", "id": "never_aboard", "category": "identity",
-             "title": "One of the party was never aboard",
-             "text": "The records hold a file for each party member except one. Their pigeonhole holds a slip: NOT MANIFESTED. At least one of the party is not officially on this train."},
-            {"type": "composure", "who": "party", "delta": -1},
-            {"type": "journal", "text": "Pulled our files. One of us has none. NOT MANIFESTED. The train has been improvising around somebody."}
+            {
+              "type": "text",
+              "text": "You find your files — most of them. Each is thorough beyond nightmare: boarding record, assigned fears, scheduled trials, a column headed OUTCOME left blank in fresh-ruled ink. But when you lay them side by side and count, the arithmetic goes wrong: there is one file too few. One of you has no file at all. No boarding record, no assignment, no page. The pigeonhole where it should sit holds only a printed slip: NOT MANIFESTED. The Conductor's pen, across the car, writes on."
+            },
+            {
+              "type": "evidence",
+              "id": "never_aboard",
+              "category": "identity",
+              "title": "One of the party was never aboard",
+              "text": "The records hold a file for each party member except one. Their pigeonhole holds a slip: NOT MANIFESTED. At least one of the party is not officially on this train."
+            },
+            {
+              "type": "composure",
+              "who": "party",
+              "delta": -1
+            },
+            {
+              "type": "journal",
+              "text": "Pulled our files. One of us has none. NOT MANIFESTED. The train has been improvising around somebody."
+            }
           ],
           "on_fail": [
-            {"type": "text",
-             "text": "The files are alphabetized by an alphabet you do not know. Every drawer you open holds files for other parties — dozens of other parties, hundreds, each with its blank OUTCOME column — until the sheer census of it closes your throat and you shut the drawer on all those patient grey spines."},
-            {"type": "composure", "who": "actor", "delta": -1}
+            {
+              "type": "text",
+              "text": "The files are alphabetized by an alphabet you do not know. Every drawer you open holds files for other parties — dozens of other parties, hundreds, each with its blank OUTCOME column — until the sheer census of it closes your throat and you shut the drawer on all those patient grey spines."
+            },
+            {
+              "type": "composure",
+              "who": "actor",
+              "delta": -1
+            }
           ]
         }
       ]
@@ -77,29 +138,59 @@
       "name": "The Conductor's ledger",
       "low_composure_name": "The book that is reading you",
       "description": [
-        {"text": "On its own lectern, chained like a medieval bible: the ledger. Columns of names in perfect copperplate, thousands of pages deep. Beside it hangs a small brass bell on a bracket, and a sign: RING FOR SERVICE. The bell's clapper is wrapped in cloth, muffled — wrapped, by the look of the knots, urgently."}
+        {
+          "text": "On its own lectern, chained like a medieval bible: the ledger. Columns of names in perfect copperplate, thousands of pages deep. Beside it hangs a small brass bell on a bracket, and a sign: RING FOR SERVICE. The bell's clapper is wrapped in cloth, muffled — wrapped, by the look of the knots, urgently."
+        }
       ],
       "actions": [
         {
           "id": "read_ledger",
           "label": "Read the ledger while he writes",
           "time": 6,
-          "tags": ["investigation", "occult"],
-          "check": {"attr": "reason", "skill": "occult", "dc": "hard"},
+          "tags": [
+            "investigation",
+            "occult"
+          ],
+          "check": {
+            "attr": "reason",
+            "skill": "occult",
+            "dc": "hard"
+          },
           "on_success": [
-            {"type": "text",
-             "text": "You turn the great pages with a fingertip. Names, thousands upon thousands, and every single one struck through with one clean line — every name in the book, page after page, struck through in the same unwearying hand. Except, on the last written page, a short column of names not yet struck: yours. All of yours. And beneath the entries, in the margin, two notations in the Conductor's smallest writing: 'Bell: three rings = replacement effected. Do not unmuffle.' And: 'N.B. — the engine cannot hear a person who has been completely forgotten. This is the only mercy I have found in the regulations. — C.'"},
-            {"type": "rule", "id": "bell_three_times"},
-            {"type": "rule", "id": "forgotten_unheard"},
-            {"type": "evidence", "id": "ledger_struck", "category": "physical",
-             "title": "Every name struck through but yours",
-             "text": "The ledger strikes through every passenger's name — thousands of pages of them. The party's names are the only ones not yet struck. The Conductor's margin notes: the muffled bell announces replacements; the engine cannot hear the completely forgotten."},
-            {"type": "journal", "text": "Our names are the last unstruck entries in the ledger. The Conductor keeps his own private mercies in the margins. He signs himself C."}
+            {
+              "type": "text",
+              "text": "You turn the great pages with a fingertip. Names, thousands upon thousands, and every single one struck through with one clean line — every name in the book, page after page, struck through in the same unwearying hand. Except, on the last written page, a short column of names not yet struck: yours. All of yours. And beneath the entries, in the margin, two notations in the Conductor's smallest writing: 'Bell: three rings = replacement effected. Do not unmuffle.' And: 'N.B. — the engine cannot hear a person who has been completely forgotten. This is the only mercy I have found in the regulations. — C.'"
+            },
+            {
+              "type": "rule",
+              "id": "bell_three_times"
+            },
+            {
+              "type": "rule",
+              "id": "forgotten_unheard"
+            },
+            {
+              "type": "evidence",
+              "id": "ledger_struck",
+              "category": "physical",
+              "title": "Every name struck through but yours",
+              "text": "The ledger strikes through every passenger's name — thousands of pages of them. The party's names are the only ones not yet struck. The Conductor's margin notes: the muffled bell announces replacements; the engine cannot hear the completely forgotten."
+            },
+            {
+              "type": "journal",
+              "text": "Our names are the last unstruck entries in the ledger. The Conductor keeps his own private mercies in the margins. He signs himself C."
+            }
           ],
           "on_fail": [
-            {"type": "text",
-             "text": "The copperplate swims. The names rearrange as you read, and among them — you would swear, briefly, before the page settles — your own, already struck through, in an entry dated tomorrow. When you look up, the Conductor is watching you for the first time. 'The ledger,' he says, returning to his work, 'is a mirror with better handwriting.'"},
-            {"type": "composure", "who": "actor", "delta": -2}
+            {
+              "type": "text",
+              "text": "The copperplate swims. The names rearrange as you read, and among them — you would swear, briefly, before the page settles — your own, already struck through, in an entry dated tomorrow. When you look up, the Conductor is watching you for the first time. 'The ledger,' he says, returning to his work, 'is a mirror with better handwriting.'"
+            },
+            {
+              "type": "composure",
+              "who": "actor",
+              "delta": -2
+            }
           ]
         }
       ]
@@ -109,9 +200,16 @@
       "name": "The Conductor",
       "low_composure_name": "The uniform that wears a man",
       "description": [
-        {"if": {"any_party": true, "scar": "marked_by_conductor"},
-         "text": "He looks up as you approach — directly, immediately, at the one of you who carries his mark, as he has always known exactly where that one stands. 'My mark,' he observes. 'It suits you better than it suited me.' The marked one's palm itches. 'Ask your questions. Family discount.'"},
-        {"text": "Up close, the uniform is the realest thing in the car — every button regulation, every crease eternal — and the man inside it is slightly less so, like a photograph of a man, taken by someone who loved the uniform. His eyes, when he finally raises them, are kind, tired, and completely without hope, which is somehow worse than cruelty would be. 'State your business,' he says. 'Or I can state it for you. It is always the same business. You want the engine.'"}
+        {
+          "if": {
+            "any_party": true,
+            "scar": "marked_by_conductor"
+          },
+          "text": "He looks up as you approach — directly, immediately, at the one of you who carries his mark, as he has always known exactly where that one stands. 'My mark,' he observes. 'It suits you better than it suited me.' The marked one's palm itches. 'Ask your questions. Family discount.'"
+        },
+        {
+          "text": "Up close, the uniform is the realest thing in the car — every button regulation, every crease eternal — and the man inside it is slightly less so, like a photograph of a man, taken by someone who loved the uniform. His eyes, when he finally raises them, are kind, tired, and completely without hope, which is somehow worse than cruelty would be. 'State your business,' he says. 'Or I can state it for you. It is always the same business. You want the engine.'"
+        }
       ],
       "actions": [
         {
@@ -119,76 +217,167 @@
           "label": "Ask the terms of passage to the engine",
           "time": 4,
           "once": false,
-          "tags": ["social", "train_folk"],
+          "tags": [
+            "social",
+            "train_folk"
+          ],
           "effects": [
-            {"type": "text",
-             "text": "He sets down the pen — an event; the silence where its scratching was is enormous — and recites, from a memory older than the recitation: 'Passage to the engine requires three authorizations. ONE: a valid ticket, punched. The Company recognizes its own punch, and' — distaste crosses the kind, tired eyes — 'certain irregular frankings. TWO: a remembered name. The engine admits no anonymous callers; someone at the door must carry a true name, held in living memory or in the Company's records. THREE: a voluntary sacrifice, tendered at the threshold itself. Not taken. TENDERED.' He resumes the pen. 'The first two may be arranged in this car, by parties of sufficient desperation. The third is between you and the engine. It always is.'"},
-            {"type": "evidence", "id": "three_authorizations", "category": "rule",
-             "title": "The engine's three authorizations",
-             "text": "Passage to the engine requires: a punched ticket (official or blood-franked); a remembered true name (in living memory or the Company's records); and a voluntary sacrifice, tendered at the threshold."},
-            {"type": "journal", "text": "The Conductor stated terms: ticket, name, sacrifice. He called blood-franking 'irregular' with a face like vinegar."}
+            {
+              "type": "text",
+              "text": "He sets down the pen — an event; the silence where its scratching was is enormous — and recites, from a memory older than the recitation:\n\n'Passage to the engine requires three authorizations.\n\nONE: a valid ticket, punched. The Company recognizes its own punch, and' — distaste crosses the kind, tired eyes — 'certain irregular frankings.\n\nTWO: a remembered name. The engine admits no anonymous callers. Someone at the door must carry a true name — held in living memory, or in the Company's records.\n\nTHREE: a voluntary sacrifice, tendered at the threshold itself. Not taken. TENDERED.'\n\nHe resumes the pen. 'The first two may be arranged in this car, by parties of sufficient desperation. The third is between you and the engine. It always is.'"
+            },
+            {
+              "type": "evidence",
+              "id": "three_authorizations",
+              "category": "rule",
+              "title": "The engine's three authorizations",
+              "text": "Passage to the engine requires: a punched ticket (official or blood-franked); a remembered true name (in living memory or the Company's records); and a voluntary sacrifice, tendered at the threshold."
+            },
+            {
+              "type": "journal",
+              "text": "The Conductor stated terms: ticket, name, sacrifice. He called blood-franking 'irregular' with a face like vinegar."
+            }
           ]
         },
         {
           "id": "ask_about_him",
           "label": "Ask who he is — who he was",
           "time": 5,
-          "tags": ["social", "testimony", "train_folk"],
-          "check": {"attr": "presence", "skill": "psychology", "dc": "normal"},
+          "tags": [
+            "social",
+            "testimony",
+            "train_folk"
+          ],
+          "check": {
+            "attr": "presence",
+            "skill": "psychology",
+            "dc": "normal"
+          },
           "on_success": [
-            {"type": "text",
-             "text": [
-               {"if": {"mystery": "sleeper_below"},
-                "text": "The question lands somewhere unarmored. He is quiet a long moment. 'There was a party,' he says at last, 'that reached the engine. As you may. The engine requires tending — the sleep requires tending — and the party understood, as you may, what would happen if the tending stopped. A volunteer was called for.' He straightens a stack that was already straight. 'I have worn the uniform since. I no longer remember my name — that is not poetry, you understand; surrendering it is part of the fitting. Should you reach the threshold, and should a volunteer be called for—' the tired eyes come up '—consider whether you like the fit of silver buttons. Someone must. Someone always must.'"},
-               {"text": "The question lands somewhere unarmored. He is quiet a long moment. 'I was the ferryman,' he says simply. 'This route ran to a terminus, once — a real one. I delivered every manifest, on time, for longer than empires. And then one crossing, the terminus was not there. No closure notice. No amended orders. Simply — not there.' He squares the ledger. 'I have kept to the timetable since. The dead deserve a punctual service even where no destination remains — ESPECIALLY where none remains. If you reach the engine, you will find it agrees with me. That is the trouble. It agrees with me completely.'"}
-             ]},
-            {"type": "evidence", "id": "conductor_identity", "category": "identity",
-             "title": [
-               {"if": {"mystery": "sleeper_below"}, "text": "The Conductor is the previous volunteer"},
-               {"text": "The Conductor is the ferryman of a lost terminus"}
-             ],
-             "text": [
-               {"if": {"mystery": "sleeper_below"},
-                "text": "The Conductor was a passenger from an earlier party that reached the engine — the volunteer who took the uniform so the engine's sleep would be tended. Surrendering his name was 'part of the fitting.' A successor will eventually be needed."},
-               {"text": "The Conductor was the ferryman of the dead. The terminus vanished mid-service, with no amended orders, and he has kept the timetable ever since — because the dead deserve punctuality, especially with nowhere to arrive."}
-             ]},
-            {"type": "flag", "set": "offered_uniform"},
-            {"type": "journal", "text": "Asked the Conductor who he was. He told us. Nobody spoke for a while afterward."}
+            {
+              "type": "text",
+              "text": [
+                {
+                  "if": {
+                    "mystery": "sleeper_below"
+                  },
+                  "text": "The question lands somewhere unarmored. He is quiet a long moment. 'There was a party,' he says at last, 'that reached the engine. As you may. The engine requires tending — the sleep requires tending — and the party understood, as you may, what would happen if the tending stopped. A volunteer was called for.' He straightens a stack that was already straight. 'I have worn the uniform since. I no longer remember my name — that is not poetry, you understand; surrendering it is part of the fitting. Should you reach the threshold, and should a volunteer be called for—' the tired eyes come up '—consider whether you like the fit of silver buttons. Someone must. Someone always must.'"
+                },
+                {
+                  "text": "The question lands somewhere unarmored. He is quiet a long moment. 'I was the ferryman,' he says simply. 'This route ran to a terminus, once — a real one. I delivered every manifest, on time, for longer than empires. And then one crossing, the terminus was not there. No closure notice. No amended orders. Simply — not there.' He squares the ledger. 'I have kept to the timetable since. The dead deserve a punctual service even where no destination remains — ESPECIALLY where none remains. If you reach the engine, you will find it agrees with me. That is the trouble. It agrees with me completely.'"
+                }
+              ]
+            },
+            {
+              "type": "evidence",
+              "id": "conductor_identity",
+              "category": "identity",
+              "title": [
+                {
+                  "if": {
+                    "mystery": "sleeper_below"
+                  },
+                  "text": "The Conductor is the previous volunteer"
+                },
+                {
+                  "text": "The Conductor is the ferryman of a lost terminus"
+                }
+              ],
+              "text": [
+                {
+                  "if": {
+                    "mystery": "sleeper_below"
+                  },
+                  "text": "The Conductor was a passenger from an earlier party that reached the engine — the volunteer who took the uniform so the engine's sleep would be tended. Surrendering his name was 'part of the fitting.' A successor will eventually be needed."
+                },
+                {
+                  "text": "The Conductor was the ferryman of the dead. The terminus vanished mid-service, with no amended orders, and he has kept the timetable ever since — because the dead deserve punctuality, especially with nowhere to arrive."
+                }
+              ]
+            },
+            {
+              "type": "flag",
+              "set": "offered_uniform"
+            },
+            {
+              "type": "journal",
+              "text": "Asked the Conductor who he was. He told us. Nobody spoke for a while afterward."
+            }
           ],
           "on_fail": [
-            {"type": "text",
-             "text": "'Who I am,' he says, 'is the uniform. Who I WAS is filed.' He gestures, minutely, at the thousands of pigeonholes. 'You are welcome to look. I have looked. I could not find me either.' The pen resumes. The interview is over."}
+            {
+              "type": "text",
+              "text": "'Who I am,' he says, 'is the uniform. Who I WAS is filed.' He gestures, minutely, at the thousands of pigeonholes. 'You are welcome to look. I have looked. I could not find me either.' The pen resumes. The interview is over."
+            }
           ]
         },
         {
           "id": "bargain_name",
           "label": "Trade a true name for a punched ticket",
           "time": 6,
-          "tags": ["train_folk", "testimony"],
-          "requires": {"not_item": ["punched_ticket"]},
+          "tags": [
+            "train_folk",
+            "testimony"
+          ],
+          "requires": {
+            "not_item": [
+              "punched_ticket"
+            ]
+          },
           "effects": [
-            {"type": "text",
-             "text": "'There is,' he says, when the subject of tickets is raised, 'a standing exchange. The Company purchases names. It pays in validity.' He produces, from the desk's shallow drawer, a blank ticket and the punch — heavy nickel, jaws stained. 'A true name, spoken aloud, entered in the ledger. In consideration: one ticket, officially punched. I am required to tell you the exchange is voluntary. I am not required to tell you it is fair.'"},
-            {"type": "choose_character",
-             "prompt": "Who speaks their true name aloud, and sells it to the Company?",
-             "optional": true,
-             "skip_effects": [
-               {"type": "text",
-                "text": "None of you speaks. The Conductor returns ticket and punch to the drawer without comment — but with, you would swear, relief."}
-             ],
-             "effects": [
-               {"type": "text",
-                "text": "The name is spoken. The Conductor writes it into the ledger with terrible care, letter by letter, and as the ink dries the seller feels it leave — not the sound of the name but the OWNERSHIP of it, the way it used to sit in the mouths of people who loved them. The others find, testing quietly, that they can no longer quite fix the seller's face when they look away. The punch closes on the blank ticket with a sound like a small door. 'The Company,' says the Conductor, handing it over, 'thanks you for your custom.' He does not meet anyone's eyes. He knows exactly what was just purchased. He sold the same thing once, for less."},
-               {"type": "condition", "who": "chosen", "add": "partially_forgotten"},
-               {"type": "composure", "who": "chosen", "delta": -2},
-               {"type": "item", "add": "punched_ticket"},
-               {"type": "flag", "set": "name_in_ledger"},
-               {"type": "rule", "id": "true_name"},
-               {"type": "evidence", "id": "name_sold", "category": "identity",
-                "title": "A name sold to the Company",
-                "text": "One of the party sold their true name to the Company for a punched ticket. The name now lives in the ledger — which means the Company's records hold a remembered name. The seller is becoming hard to keep in mind."},
-               {"type": "journal", "text": "A name was sold at the Conductor's desk. The ticket is valid. The cost is walking around with us, slightly harder to see."}
-             ]
+            {
+              "type": "text",
+              "text": "'There is,' he says, when the subject of tickets is raised, 'a standing exchange. The Company purchases names. It pays in validity.' He produces, from the desk's shallow drawer, a blank ticket and the punch — heavy nickel, jaws stained. 'A true name, spoken aloud, entered in the ledger. In consideration: one ticket, officially punched. I am required to tell you the exchange is voluntary. I am not required to tell you it is fair.'"
+            },
+            {
+              "type": "choose_character",
+              "prompt": "Who speaks their true name aloud, and sells it to the Company?",
+              "optional": true,
+              "skip_effects": [
+                {
+                  "type": "text",
+                  "text": "None of you speaks. The Conductor returns ticket and punch to the drawer without comment — but with, you would swear, relief."
+                }
+              ],
+              "effects": [
+                {
+                  "type": "text",
+                  "text": "The name is spoken. The Conductor writes it into the ledger with terrible care, letter by letter.\n\nAs the ink dries, the seller feels it leave — not the sound of the name but the OWNERSHIP of it, the way it used to sit in the mouths of people who loved them. The others find, testing quietly, that they can no longer quite fix the seller's face when they look away.\n\nThe punch closes on the blank ticket with a sound like a small door. 'The Company,' says the Conductor, handing it over, 'thanks you for your custom.' He does not meet anyone's eyes. He sold the same thing once, for less."
+                },
+                {
+                  "type": "condition",
+                  "who": "chosen",
+                  "add": "partially_forgotten"
+                },
+                {
+                  "type": "composure",
+                  "who": "chosen",
+                  "delta": -2
+                },
+                {
+                  "type": "item",
+                  "add": "punched_ticket"
+                },
+                {
+                  "type": "flag",
+                  "set": "name_in_ledger"
+                },
+                {
+                  "type": "rule",
+                  "id": "true_name"
+                },
+                {
+                  "type": "evidence",
+                  "id": "name_sold",
+                  "category": "identity",
+                  "title": "A name sold to the Company",
+                  "text": "One of the party sold their true name to the Company for a punched ticket. The name now lives in the ledger — which means the Company's records hold a remembered name. The seller is becoming hard to keep in mind."
+                },
+                {
+                  "type": "journal",
+                  "text": "A name was sold at the Conductor's desk. The ticket is valid. The cost is walking around with us, slightly harder to see."
+                }
+              ]
             }
           ]
         },
@@ -196,21 +385,53 @@
           "id": "attack_conductor",
           "label": "Take the punch from him by force",
           "time": 5,
-          "tags": ["combat", "train_folk"],
-          "check": {"attr": "body", "skill": "melee", "dc": "extreme"},
+          "tags": [
+            "combat",
+            "train_folk"
+          ],
+          "check": {
+            "attr": "body",
+            "skill": "melee",
+            "dc": "extreme"
+          },
           "on_success": [
-            {"type": "text",
-             "text": "You move on him — and he does not resist. That is the horror of it: he watches your hands come with the tired kindness of a man being mugged for the third time this week, and at the last instant simply is not where the uniform is. The uniform holds its shape a half-second, empty, and folds over the chairback like laundry — and the punch drops from its sleeve into your closing hand, surrendered. From everywhere and nowhere, mildly: 'Violence is also filed. Take the punch. It has opinions of its own; you will find you agree with them or you will find you were wrong to take it.' When you look again, he is at the far desk. Writing."},
-            {"type": "item", "add": "conductors_punch"},
-            {"type": "flag", "set": "conductor_defied"},
-            {"type": "composure", "who": "party", "delta": -1},
-            {"type": "journal", "text": "Took the Conductor's punch by force, in the sense that he permitted it. Its jaws are stained. We are trying not to think in whose ink."}
+            {
+              "type": "text",
+              "text": "You move on him — and he does not resist. That is the horror of it: he watches your hands come with the tired kindness of a man being mugged for the third time this week, and at the last instant simply is not where the uniform is. The uniform holds its shape a half-second, empty, and folds over the chairback like laundry — and the punch drops from its sleeve into your closing hand, surrendered. From everywhere and nowhere, mildly: 'Violence is also filed. Take the punch. It has opinions of its own; you will find you agree with them or you will find you were wrong to take it.' When you look again, he is at the far desk. Writing."
+            },
+            {
+              "type": "item",
+              "add": "conductors_punch"
+            },
+            {
+              "type": "flag",
+              "set": "conductor_defied"
+            },
+            {
+              "type": "composure",
+              "who": "party",
+              "delta": -1
+            },
+            {
+              "type": "journal",
+              "text": "Took the Conductor's punch by force, in the sense that he permitted it. Its jaws are stained. We are trying not to think in whose ink."
+            }
           ],
           "on_fail": [
-            {"type": "text",
-             "text": "You move on him — and his hand, which has written ten thousand pages tonight, catches your wrist out of the air without hurry. The grip is not strong. It is FINAL, the way a filed document is final. 'Parties are asked,' he says, and the punch is somehow in his other hand, and its jaws close on your palm with a neat, cold, DOUBLE click, 'not to handle Company property.' He releases you. In your palm: a punch-shaped wound that does not bleed, precise as a cancellation. It will never entirely fade. Doors, from now on, will know you."},
-            {"type": "harm", "who": "actor", "amount": 2},
-            {"type": "scar", "who": "actor", "add": "marked_by_conductor"}
+            {
+              "type": "text",
+              "text": "You move on him — and his hand, which has written ten thousand pages tonight, catches your wrist out of the air without hurry. The grip is not strong. It is FINAL, the way a filed document is final. 'Parties are asked,' he says, and the punch is somehow in his other hand, and its jaws close on your palm with a neat, cold, DOUBLE click, 'not to handle Company property.' He releases you. In your palm: a punch-shaped wound that does not bleed, precise as a cancellation. It will never entirely fade. Doors, from now on, will know you."
+            },
+            {
+              "type": "harm",
+              "who": "actor",
+              "amount": 2
+            },
+            {
+              "type": "scar",
+              "who": "actor",
+              "add": "marked_by_conductor"
+            }
           ]
         }
       ]
@@ -218,23 +439,43 @@
     {
       "id": "punch_desk",
       "name": "The validation desk",
-      "visible_if": {"item": "conductors_punch"},
+      "visible_if": {
+        "item": "conductors_punch"
+      },
       "description": [
-        {"text": "With the Conductor's own punch in hand, the validation desk is simply furniture: a green blotter, an ink stand, and the shallow drawer of blank tickets, unlocked. The punch sits heavy in the hand, and — he was right — it has opinions. It wants to be used. It is very clear about the wanting."}
+        {
+          "text": "With the Conductor's own punch in hand, the validation desk is simply furniture: a green blotter, an ink stand, and the shallow drawer of blank tickets, unlocked. The punch sits heavy in the hand, and — he was right — it has opinions. It wants to be used. It is very clear about the wanting."
+        }
       ],
       "actions": [
         {
           "id": "self_punch",
           "label": "Punch yourselves a valid ticket",
           "time": 3,
-          "tags": ["endure"],
-          "requires": {"not_item": "punched_ticket"},
+          "tags": [
+            "endure"
+          ],
+          "requires": {
+            "not_item": "punched_ticket"
+          },
           "effects": [
-            {"type": "text",
-             "text": "You take a blank from the drawer and close the Conductor's punch upon it. The jaws bite paper — and, the drawer's small print explains too late, punch and blank alike are Company property, and the Company's instruments draw their fee at source: a deep ache travels up the punching arm and settles somewhere behind the sternum, a payment made in a currency you cannot name and will not miss until you need it. The ticket, though, is flawless. Punched. Valid. The engine's first door will argue with no one."},
-            {"type": "harm", "who": "actor", "amount": 1},
-            {"type": "item", "add": "punched_ticket"},
-            {"type": "journal", "text": "Punched our own ticket with his punch. It took its fee out of somewhere deeper than flesh."}
+            {
+              "type": "text",
+              "text": "You take a blank from the drawer and close the Conductor's punch upon it. The jaws bite paper — and, the drawer's small print explains too late, punch and blank alike are Company property, and the Company's instruments draw their fee at source: a deep ache travels up the punching arm and settles somewhere behind the sternum, a payment made in a currency you cannot name and will not miss until you need it. The ticket, though, is flawless. Punched. Valid. The engine's first door will argue with no one."
+            },
+            {
+              "type": "harm",
+              "who": "actor",
+              "amount": 1
+            },
+            {
+              "type": "item",
+              "add": "punched_ticket"
+            },
+            {
+              "type": "journal",
+              "text": "Punched our own ticket with his punch. It took its fee out of somewhere deeper than flesh."
+            }
           ]
         }
       ]
@@ -244,7 +485,12 @@
     {
       "at_time": 35,
       "text": "The Conductor, without looking up, draws out a pocket watch — and the whole car flinches, because it TICKS, the first ticking any of you has heard aboard. 'You are running late,' he says, conversationally, to his page. 'The service behind you is running early. The Company remarks upon the discrepancy.' He puts the watch away. The scratching pen sounds faster now. Perhaps it always did.",
-      "effects": [{"type": "blackout", "minutes": 8}]
+      "effects": [
+        {
+          "type": "blackout",
+          "minutes": 8
+        }
+      ]
     }
   ],
   "exits": [
@@ -253,24 +499,84 @@
       "to": "engine",
       "label": "The forward door — riveted iron, marked ENGINE",
       "locked": true,
-      "requires": {"all": [
-        {"any": [{"item": "punched_ticket"}, {"item": "blood_punched_ticket"}]},
-        {"any": [{"evidence": "remembered_name"}, {"flag": "name_in_ledger"}]}
-      ]},
+      "requires": {
+        "all": [
+          {
+            "any": [
+              {
+                "item": "punched_ticket"
+              },
+              {
+                "item": "blood_punched_ticket"
+              }
+            ]
+          },
+          {
+            "any": [
+              {
+                "evidence": "remembered_name"
+              },
+              {
+                "flag": "name_in_ledger"
+              }
+            ]
+          }
+        ]
+      },
       "locked_text": "The iron door has no handle — only a ticket-slot and a speaking-grille. It requires the first two authorizations: a PUNCHED TICKET (the Conductor's punch, or blood-franking in the mail car), and a REMEMBERED NAME (recovered from the train's depths, or sold into the ledger). The third — a voluntary sacrifice — is tendered at the threshold beyond.",
       "time": 4,
-      "travel_text": "The ticket goes into the slot. A pause — a long, considering pause — and then a voice from the grille, which is not the Conductor's voice and is not one voice, speaks a name. The remembered name. Correctly. Gently. The way it used to be spoken. The iron door unrivets itself along its seams and swings open onto heat and enormous sound, and the Conductor, behind you, stands and removes his cap — the first time you have seen his bare head — and holds it to his chest until the last of you has passed through. 'Mind the threshold,' he says. It is what he has instead of goodbye."
+      "travel_text": "The ticket goes into the slot. A pause — a long, considering pause — and then a voice from the grille, which is not the Conductor's voice and is not one voice, speaks a name. The remembered name. Correctly. Gently. The way it used to be spoken.\n\nThe iron door unrivets itself along its seams and swings open onto heat and enormous sound.\n\nThe Conductor stands and removes his cap — the first time you have seen his bare head — and holds it to his chest until the last of you has passed through. 'Mind the threshold,' he says. It is what he has instead of goodbye."
     },
     {
       "id": "unheard_walk",
       "to": "engine",
       "label": "Walk through unheard — the mercy in the regulations",
       "locked": true,
-      "visible_if": {"rule_known": "forgotten_unheard", "any_party": true, "condition": "partially_forgotten"},
-      "requires": {"rule_known": "forgotten_unheard", "any_party": true, "condition": "partially_forgotten"},
+      "visible_if": {
+        "rule_known": "forgotten_unheard",
+        "any_party": true,
+        "condition": "partially_forgotten"
+      },
+      "requires": {
+        "rule_known": "forgotten_unheard",
+        "any_party": true,
+        "condition": "partially_forgotten"
+      },
       "locked_text": "The margin-note's mercy requires someone the train has partly forgotten, and the knowledge of the rule itself.",
       "time": 4,
       "travel_text": "The one the train has begun to forget walks to the iron door — and the door, which admits no anonymous callers, does not notice the caller at all. Their half-erased hand works the bolts from the inside of the door's attention, unseen, unheard, unfiled; the seams part around a person the regulations can no longer perceive. The rest of you slip through the gap in the engine's noticing, pressed close behind your vanishing friend like travelers sheltering behind a gravestone from wind. The Conductor watches the door stand open with no recorded cause. He writes nothing. For one entire minute, deliberately, he writes nothing at all."
+    }
+  ],
+  "objective": [
+    {
+      "if": {
+        "all": [
+          {
+            "any": [
+              {
+                "item": "punched_ticket"
+              },
+              {
+                "item": "blood_punched_ticket"
+              }
+            ]
+          },
+          {
+            "any": [
+              {
+                "evidence": "remembered_name"
+              },
+              {
+                "flag": "name_in_ledger"
+              }
+            ]
+          }
+        ]
+      },
+      "text": "You hold both authorizations — a punched ticket and a remembered name. The iron door will open. The third authorization, a voluntary sacrifice, is tendered at the threshold beyond. Squeeze this car for knowledge first: the maps, the records, the ledger."
+    },
+    {
+      "text": "The iron door to the engine demands two things HERE: a PUNCHED TICKET (blood-franked in the mail car, or bought from the Conductor) and a REMEMBERED NAME (recovered somewhere in the train's depths, or sold into the Conductor's ledger — at a terrible price). The Conductor answers questions. The maps, records, and ledger reward attention. A third authorization waits beyond the door."
     }
   ]
 }

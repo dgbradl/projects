@@ -69,6 +69,10 @@ class App:
             self.renderer.character_sheet(self.registry, c)
         self.renderer.party_sheet(self.registry, game)
         self.renderer.line()
+        self.renderer._print("How to survive: inspect the numbered points of interest and act on them. "
+                             "Every action costs minutes, and the minutes feed the darkness behind the "
+                             "train. Find and open each forward door. Reach the engine. "
+                             "Switch observers [o] to see what different eyes see.", "grey58")
         savemod.save_game(game, save_dir=self.save_dir)
         self.renderer.events(events)
         return game
@@ -125,6 +129,7 @@ class App:
                 break
             r.line()
             r.status(game)
+            r.objective(game.current_objective())
             picked = self.controller.choose(game, "", self.carriage_options(game))
             kind = picked["kind"]
             if kind == "node":

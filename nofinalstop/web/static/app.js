@@ -7,6 +7,8 @@ const ui = {
   expanded: new Set(),
   armedExit: null,
   partySize: 4,
+  carriage: null,     // which carriage the play shell was built for
+  lastLogLen: 0,      // how many log entries are already in the DOM
 };
 
 const $ = (sel, el) => (el || document).querySelector(sel);
@@ -48,9 +50,9 @@ function toast(msg) {
 function render() {
   ui.armedExit = null;
   if (!view) return;
-  if (view.phase === "title") renderTitle();
-  else if (view.phase === "chargen") renderChargen();
-  else if (view.phase === "ending") renderEnding();
+  if (view.phase === "title") { ui.carriage = null; renderTitle(); }
+  else if (view.phase === "chargen") { ui.carriage = null; renderChargen(); }
+  else if (view.phase === "ending") { ui.carriage = null; renderEnding(); }
   else renderPlay();
   renderModal();
 }
@@ -152,17 +154,37 @@ function renderChargen() {
 /* ------------------------------ play ------------------------------- */
 function renderPlay() {
   const st = view.status;
-  app.innerHTML = `
-    ${topbarHTML(st)}
-    <div class="play-grid">
-      <section class="paper">
-        <div id="log"></div>
-        ${st.observer_tint ? `<div class="tint-note">(${esc(st.observer)}: ${esc(st.observer_tint)})</div>` : ""}
-        <div id="stage"></div>
-      </section>
-      <aside class="rail" id="rail"></aside>
-    </div>`;
-  renderLog();
+  // Build the layout shell only when entering play or changing carriage —
+  // rebuilding everything per click made all log entries re-animate at once
+  // and snapped the scroll, which felt like the page "popping".
+  const newShell = ui.carriage !== st.carriage || !$("#log");
+  if (newShell) {
+    app.innerHTML = `
+      <div id="topbar-slot"></div>
+      <div id="objective-slot"></div>
+      <div class="play-grid">
+        <section class="paper">
+          <div id="log"></div>
+          <div id="tint" class="tint-note" hidden></div>
+          <div id="stage"></div>
+        </section>
+        <aside class="rail" id="rail"></aside>
+      </div>`;
+    ui.carriage = st.carriage;
+    ui.lastLogLen = 0;
+  }
+  $("#topbar-slot").innerHTML = topbarHTML(st);
+  $("#objective-slot").innerHTML = st.objective
+    ? `<div class="objective-bar"><span class="ob-tag">the way forward</span> ${esc(st.objective)}</div>`
+    : "";
+  const tint = $("#tint");
+  if (st.observer_tint) {
+    tint.hidden = false;
+    tint.textContent = `(${st.observer}: ${st.observer_tint})`;
+  } else {
+    tint.hidden = true;
+  }
+  appendLog(newShell);
   renderStage();
   renderRail();
 }
@@ -188,14 +210,34 @@ function topbarHTML(st) {
   </header>`;
 }
 
-function renderLog() {
+function evHTML(e, old) {
+  const k = e.kind || "text";
+  const cls = `ev ev-${esc(k)}${old ? " old" : ""}`;
+  if (k === "arrive") return `<div class="${cls} ev-arrive">${esc(e.text)}</div>`;
+  return `<div class="${cls}">${esc(e.text)}</div>`;
+}
+
+function appendLog(fresh) {
   const el = $("#log");
-  el.innerHTML = (view.log || []).map((e) => {
-    const k = e.kind || "text";
-    if (k === "arrive") return `<div class="ev ev-arrive">${esc(e.text)}</div>`;
-    return `<div class="ev ev-${esc(k)}">${esc(e.text)}</div>`;
-  }).join("");
-  el.scrollTop = el.scrollHeight;
+  const log = view.log || [];
+  if (fresh || log.length < ui.lastLogLen) {
+    // rebuilt shell (or a new game shrank the log): lay in the whole history
+    // WITHOUT entry animations, then jump to the end
+    el.innerHTML = log.map((e) => evHTML(e, true)).join("");
+    ui.lastLogLen = log.length;
+    el.scrollTo({ top: el.scrollHeight, behavior: "auto" });
+    return;
+  }
+  if (log.length === ui.lastLogLen) return;
+  // append only what's new — old entries keep still, new ones settle in,
+  // and the scroll glides down to meet them instead of snapping
+  const frag = document.createElement("div");
+  frag.innerHTML = log.slice(ui.lastLogLen).map((e) => evHTML(e, false)).join("");
+  while (frag.firstChild) el.appendChild(frag.firstChild);
+  ui.lastLogLen = log.length;
+  requestAnimationFrame(() => {
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  });
 }
 
 function renderStage() {
@@ -216,6 +258,7 @@ function renderStage() {
     el.querySelectorAll("[data-action]").forEach((b) => {
       b.onclick = () => post("act", { node: nd.id, action: b.dataset.action });
     });
+    el.scrollIntoView({ behavior: "smooth", block: "nearest" });
     return;
   }
   el.innerHTML = `

@@ -472,7 +472,7 @@
           "on_success": [
             {
               "type": "text",
-              "text": "You speak to it as it speaks to you: in a borrowed voice, saying small true things. You tell it about the gate hinge. The debt. The last argument. The mass goes still, listening — being, for once, the one who is called to. Then, slowly, it withdraws beneath the stacks, and every aisle in the maze straightens like a spine. On the floor where it lay: a neat pile of salvage, left the way a cat leaves tribute."
+              "text": "You speak to it as it speaks to you: in a borrowed voice, saying small true things. You tell it about the gate hinge. The debt. The last argument.\n\nThe mass goes still, listening — being, for once, the one who is called to. Then it withdraws beneath the stacks, and every aisle in the maze straightens like a spine.\n\nOn the floor where it lay: a neat pile of salvage, left the way a cat leaves tribute."
             },
             {
               "type": "flag",
@@ -624,6 +624,10 @@
         {
           "type": "reveal_node",
           "id": "the_imitator"
+        },
+        {
+          "type": "flag",
+          "set": "imitator_surfaced"
         }
       ]
     },
@@ -656,6 +660,23 @@
       "locked_text": "A deliberate barricade of interlocked trunks blocks the forward door. It will have to be cleared, or bypassed.",
       "time": 3,
       "travel_text": "You file through the unbarricaded door. The last one through looks back: the stacks have already closed the aisle behind you, seamlessly, and from deep in the maze something calls goodbye in a voice that, this time, none of you will admit to recognizing."
+    }
+  ],
+  "objective": [
+    {
+      "if": {
+        "flag": "imitator_dealt_with"
+      },
+      "text": "The thing beneath the baggage is settled. Finish clearing the barricaded forward door and move on — and decide whether the wounded guard comes with you."
+    },
+    {
+      "if": {
+        "flag": "imitator_surfaced"
+      },
+      "text": "The thing beneath the baggage has surfaced. Deal with it — fight it, feed it, or speak to it in its own manner — and clear the barricade blocking the forward door."
+    },
+    {
+      "text": "Search the stacks for supplies, decide about the wounded guard, and clear the barricade blocking the forward door. Do not trust the voices: test them first. Something moves beneath the luggage, and it is getting bolder."
     }
   ]
 }

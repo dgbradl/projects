@@ -63,7 +63,7 @@
           "on_fail": [
             {
               "type": "text",
-              "text": "Somewhere past the middle, the talk runs dry — one beat of silence, that is all it takes — and the car takes its opening. The walls recede without moving. The door stays the same size while getting farther away. Each of you becomes privately certain the others' linked arms are farther off than arms can be, that the voices beside you are recordings, that you have always been crossing this car and always will be. When the far door finally bangs open under someone's fist, you spill through white-faced and gasping, and the crossing has taken far longer than any forty steps."
+              "text": "Somewhere past the middle, the talk runs dry — one beat of silence, that is all it takes — and the car takes its opening.\n\nThe walls recede without moving. The door stays the same size while getting farther away. Each of you becomes privately certain that the linked arms beside you are farther off than arms can be, that the voices are recordings, that you have always been crossing this car.\n\nWhen the far door finally bangs open under someone's fist, you spill through white-faced and gasping. The crossing took far longer than forty steps."
             },
             {
               "type": "composure",
@@ -190,6 +190,17 @@
       "locked_text": "The far door is a long, strange walk away. The crossing itself is the obstacle — best made together, and deliberately.",
       "time": 3,
       "travel_text": "The far door bears a small brass plate, the first fitting in the whole carriage: CONDUCTOR. Beneath it, on a paper form ruled for the purpose, a tally of strokes in groups of five — hundreds of groups, thousands of strokes — and a pencil on a string. The heading of the form reads: PARTIES REACHING THIS DOOR. The most recent stroke is fresh. Yours. It was there before you arrived."
+    }
+  ],
+  "objective": [
+    {
+      "if": {
+        "flag": "crossed_empty"
+      },
+      "text": "The crossing is behind you and the far door is honest now. Read what earlier passengers scratched into the boards, rest if you must, and go on to the Conductor."
+    },
+    {
+      "text": "There is nothing in this carriage but the crossing itself — and the crossing is the obstacle. Cross it TOGETHER, deliberately, talking the whole way. The far door will not be reached any other way."
     }
   ]
 }

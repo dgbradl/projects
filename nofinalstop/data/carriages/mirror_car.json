@@ -4,12 +4,21 @@
   "index": 7,
   "transitional": true,
   "arrival": [
-    {"if": {"fear": "mirrors"},
-     "text": "No. Of all the carriages — no. It is a corridor of mirrors, floor to ceiling both sides, and you must walk between your own reflections repeated to infinity, every one of them at the wrong angle of delay, every one of them possessing whatever it is you have always known lives behind silvered glass. They are all looking at you. They have been waiting for you specifically."},
-    {"text": "A washroom and grooming car, the mirrors floor to ceiling on both walls — an infinite corridor of yourselves marching away left and right into green-tinted depths. The reflections are wrong by half a second: raise a hand and watch a ripple of hands rise down the line like a wave through wheat. Somewhere in the fifth or sixth repetition, the figures stop bothering to copy you precisely and merely walk alongside, in step, watching."}
+    {
+      "if": {
+        "fear": "mirrors"
+      },
+      "text": "No. Of all the carriages — no. It is a corridor of mirrors, floor to ceiling both sides, and you must walk between your own reflections repeated to infinity, every one of them at the wrong angle of delay, every one of them possessing whatever it is you have always known lives behind silvered glass. They are all looking at you. They have been waiting for you specifically."
+    },
+    {
+      "text": "A washroom and grooming car, the mirrors floor to ceiling on both walls — an infinite corridor of yourselves marching away left and right into green-tinted depths. The reflections are wrong by half a second: raise a hand and watch a ripple of hands rise down the line like a wave through wheat. Somewhere in the fifth or sixth repetition, the figures stop bothering to copy you precisely and merely walk alongside, in step, watching."
+    }
   ],
   "on_enter": [
-    {"type": "journal", "text": "Mirror car. Reflections lag half a second, and stop copying entirely a few repetitions deep."}
+    {
+      "type": "journal",
+      "text": "Mirror car. Reflections lag half a second, and stop copying entirely a few repetitions deep."
+    }
   ],
   "nodes": [
     {
@@ -17,52 +26,110 @@
       "name": "The mirrored walls",
       "low_composure_name": "The other corridor",
       "description": [
-        {"text": "Yourselves, and yourselves, and yourselves. In the deep repetitions the light is different — warmer, as if THAT corridor's lamps are better kept — and the far figures move with an ease none of you have felt since boarding. They look, frankly, like they are doing better than you."}
+        {
+          "text": "Yourselves, and yourselves, and yourselves. In the deep repetitions the light is different — warmer, as if THAT corridor's lamps are better kept — and the far figures move with an ease none of you have felt since boarding. They look, frankly, like they are doing better than you."
+        }
       ],
       "actions": [
         {
           "id": "study_reflections",
           "label": "Study the reflections' differences",
           "time": 5,
-          "tags": ["mirrors", "eyes", "investigation"],
-          "check": {"attr": "awareness", "skill": "investigation", "dc": "normal"},
+          "tags": [
+            "mirrors",
+            "eyes",
+            "investigation"
+          ],
+          "check": {
+            "attr": "awareness",
+            "skill": "investigation",
+            "dc": "normal"
+          },
           "on_success": [
-            {"type": "text",
-             "text": "You make yourselves look, methodically, counting heads down the corridor of repetitions. The count is wrong. In every repetition past the third, your party has one member MORE — a figure standing among your reflected selves, comfortable, familiar, arm around a reflected shoulder, its face always exactly turned away no matter the angle. It is not copying anyone in this carriage. It is waiting for a vacancy."},
-            {"type": "evidence", "id": "extra_reflection", "category": "observation",
-             "title": "One reflection too many",
-             "text": "Past the third repetition, the mirrored party gains an extra member — face always turned away, at every angle. It reflects no one present. It appears to be waiting for a vacancy."},
-            {"type": "composure", "who": "actor", "delta": -1},
-            {"type": "journal", "text": "Counted the reflections. We are four and some. The 'some' has no face we can catch."}
+            {
+              "type": "text",
+              "text": "You make yourselves look, methodically, counting heads down the corridor of repetitions. The count is wrong. In every repetition past the third, your party has one member MORE — a figure standing among your reflected selves, comfortable, familiar, arm around a reflected shoulder, its face always exactly turned away no matter the angle. It is not copying anyone in this carriage. It is waiting for a vacancy."
+            },
+            {
+              "type": "evidence",
+              "id": "extra_reflection",
+              "category": "observation",
+              "title": "One reflection too many",
+              "text": "Past the third repetition, the mirrored party gains an extra member — face always turned away, at every angle. It reflects no one present. It appears to be waiting for a vacancy."
+            },
+            {
+              "type": "composure",
+              "who": "actor",
+              "delta": -1
+            },
+            {
+              "type": "journal",
+              "text": "Counted the reflections. We are four and some. The 'some' has no face we can catch."
+            }
           ],
           "on_fail": [
-            {"type": "text",
-             "text": "You stare into the deep repetitions until the half-second lag begins to feel like it is on YOUR side of the glass — until you are no longer certain your own hand rose before its reflection or after. You step back from the wall with a small cry. Down the infinite corridor, one by one, a ripple of figures steps back a half-second later, and one of them — one of them steps FORWARD."},
-            {"type": "composure", "who": "actor", "delta": -2}
+            {
+              "type": "text",
+              "text": "You stare into the deep repetitions until the half-second lag begins to feel like it is on YOUR side of the glass — until you are no longer certain your own hand rose before its reflection, or after.\n\nYou step back from the wall with a small cry. Down the infinite corridor, one by one, a ripple of figures steps back a half-second later.\n\nOne of them steps FORWARD."
+            },
+            {
+              "type": "composure",
+              "who": "actor",
+              "delta": -2
+            }
           ]
         },
         {
           "id": "take_shard",
           "label": "Break off a shard of mirror-glass",
           "time": 3,
-          "tags": ["mirrors"],
-          "check": {"attr": "agility", "dc": "easy"},
+          "tags": [
+            "mirrors"
+          ],
+          "check": {
+            "attr": "agility",
+            "dc": "easy"
+          },
           "on_success": [
-            {"type": "text",
-             "text": "You wrap your fist in a coat sleeve and punch a spiderweb into the wall's cheapest corner, prying loose a palm-sized shard. The corridor of reflections shudders down its whole length like a struck gong. In your hand, the shard keeps its half-second delay — a little window that shows the recent past of whatever it faces. That will be useful. That will be horribly useful."},
-            {"type": "item", "add": "mirror_shard"}
+            {
+              "type": "text",
+              "text": "You wrap your fist in a coat sleeve and punch a spiderweb into the wall's cheapest corner, prying loose a palm-sized shard. The corridor of reflections shudders down its whole length like a struck gong. In your hand, the shard keeps its half-second delay — a little window that shows the recent past of whatever it faces. That will be useful. That will be horribly useful."
+            },
+            {
+              "type": "item",
+              "add": "mirror_shard"
+            }
           ],
           "on_partial": [
-            {"type": "text",
-             "text": "The shard comes free and takes its price on the way — a deep, clean cut across the palm that holds it. In the mirror wall, your reflection wraps its unhurt hand and looks at you with something that might be contempt."},
-            {"type": "item", "add": "mirror_shard"},
-            {"type": "harm", "who": "actor", "amount": 1},
-            {"type": "condition", "who": "actor", "add": "bleeding"}
+            {
+              "type": "text",
+              "text": "The shard comes free and takes its price on the way — a deep, clean cut across the palm that holds it. In the mirror wall, your reflection wraps its unhurt hand and looks at you with something that might be contempt."
+            },
+            {
+              "type": "item",
+              "add": "mirror_shard"
+            },
+            {
+              "type": "harm",
+              "who": "actor",
+              "amount": 1
+            },
+            {
+              "type": "condition",
+              "who": "actor",
+              "add": "bleeding"
+            }
           ],
           "on_fail": [
-            {"type": "text",
-             "text": "The glass does not break. Your fist rebounds as if from ship's plate, and every reflection down the line absorbs the blow without flinching — then, together, all of them slowly smile, which you are choosing to believe is the lag distorting your grimace of pain."},
-            {"type": "harm", "who": "actor", "amount": 1}
+            {
+              "type": "text",
+              "text": "The glass does not break. Your fist rebounds as if from ship's plate, and every reflection down the line absorbs the blow without flinching — then, together, all of them slowly smile, which you are choosing to believe is the lag distorting your grimace of pain."
+            },
+            {
+              "type": "harm",
+              "who": "actor",
+              "amount": 1
+            }
           ]
         }
       ]
@@ -71,25 +138,53 @@
       "id": "basin_row",
       "name": "The washbasins",
       "description": [
-        {"text": "A row of porcelain basins with good taps — actual hot water, the first since boarding. Above each basin, set into the mirror wall, a small shaving glass on an extending arm, angled by the last user. One of the shaving glasses is angled to face the room's corner, where no user would stand. Where nothing stands. Probably."}
+        {
+          "text": "A row of porcelain basins with good taps — actual hot water, the first since boarding. Above each basin, set into the mirror wall, a small shaving glass on an extending arm, angled by the last user. One of the shaving glasses is angled to face the room's corner, where no user would stand. Where nothing stands. Probably."
+        }
       ],
       "actions": [
         {
           "id": "wash_and_check",
           "label": "Wash, drink, and check everyone in the glass",
           "time": 6,
-          "tags": ["care", "mirrors"],
+          "tags": [
+            "care",
+            "mirrors"
+          ],
           "effects": [
-            {"type": "text",
-             "text": [
-               {"if": {"any_party": true, "condition": "dead_but_moving"},
-                "text": "Hot water, soap, the animal comfort of being briefly clean — and then the ritual nobody names: one by one, each of you before the shaving glass. One of you casts no reflection at all. The glass shows the basin, the taps, the towel moving — and no hands moving it. Nobody says the old rule aloud. Everybody thinks it: a passenger without a reflection must not be allowed to sleep."},
-               {"text": "Hot water, soap, the animal comfort of being briefly clean. One by one you check yourselves in the shaving glasses — hollow-cheeked, older, but there, all of you, reflecting properly at merely half a second's delay. It says something about this train that 'everyone still has a reflection' now counts among you as excellent news, worth a round of weak laughter."}
-             ]},
-            {"type": "heal", "who": "party", "amount": 1},
-            {"type": "composure", "who": "party", "delta": 1},
-            {"type": "rule", "id": "no_reflection_sleep"},
-            {"type": "journal", "text": "Washed. Checked reflections, all present. Learned why one checks: the reflectionless must not be allowed to sleep."}
+            {
+              "type": "text",
+              "text": [
+                {
+                  "if": {
+                    "any_party": true,
+                    "condition": "dead_but_moving"
+                  },
+                  "text": "Hot water, soap, the animal comfort of being briefly clean — and then the ritual nobody names: one by one, each of you before the shaving glass. One of you casts no reflection at all. The glass shows the basin, the taps, the towel moving — and no hands moving it. Nobody says the old rule aloud. Everybody thinks it: a passenger without a reflection must not be allowed to sleep."
+                },
+                {
+                  "text": "Hot water, soap, the animal comfort of being briefly clean. One by one you check yourselves in the shaving glasses — hollow-cheeked, older, but there, all of you, reflecting properly at merely half a second's delay. It says something about this train that 'everyone still has a reflection' now counts among you as excellent news, worth a round of weak laughter."
+                }
+              ]
+            },
+            {
+              "type": "heal",
+              "who": "party",
+              "amount": 1
+            },
+            {
+              "type": "composure",
+              "who": "party",
+              "delta": 1
+            },
+            {
+              "type": "rule",
+              "id": "no_reflection_sleep"
+            },
+            {
+              "type": "journal",
+              "text": "Washed. Checked reflections, all present. Learned why one checks: the reflectionless must not be allowed to sleep."
+            }
           ]
         }
       ]
@@ -97,23 +192,60 @@
     {
       "id": "maintenance_hatch",
       "name": "A maintenance hatch between the mirrors",
-      "visible_if": {"any": [{"not_visited": "hospital_car"}, {"not_visited": "chapel_car"}]},
+      "visible_if": {
+        "any": [
+          {
+            "not_visited": "hospital_car"
+          },
+          {
+            "not_visited": "chapel_car"
+          }
+        ]
+      },
       "description": [
-        {"text": "Between two mirror panels, nearly seamless, a crew hatch with a recessed square-shank lock — a crawl-passage running back along the train's spine. Chalked beside it in a worker's hand: TO THE CAR YOU DIDN'T PICK. Below that, older, fainter: 'they always want the other one eventually.'"}
+        {
+          "text": "Between two mirror panels, nearly seamless, a crew hatch with a recessed square-shank lock — a crawl-passage running back along the train's spine. Chalked beside it in a worker's hand: TO THE CAR YOU DIDN'T PICK. Below that, older, fainter: 'they always want the other one eventually.'"
+        }
       ],
       "actions": [
         {
           "id": "open_hatch",
           "label": "Open the maintenance hatch",
           "time": 4,
-          "tags": ["mechanical", "crawl"],
-          "requires": {"any": [{"item": "railway_key"}, {"skill_min": {"mechanics": 1}}, {"any_party": true, "scar": "marked_by_conductor"}]},
+          "tags": [
+            "mechanical",
+            "crawl"
+          ],
+          "requires": {
+            "any": [
+              {
+                "item": "railway_key"
+              },
+              {
+                "skill_min": {
+                  "mechanics": 1
+                }
+              },
+              {
+                "any_party": true,
+                "scar": "marked_by_conductor"
+              }
+            ]
+          },
           "requires_text": "The recessed lock wants a railway key, a mechanic's touch, or the Conductor's own mark.",
           "effects": [
-            {"type": "text",
-             "text": "The hatch swings inward on a crawlway smelling of cold steel and incense-and-carbolic mixed — the two cars' airs meeting in the dark between. It is passable. Barely, breathlessly, on hands and knees, with the wheels hammering an arm's length beneath the whole way."},
-            {"type": "unlock_exit", "id": "hatch_to_hospital"},
-            {"type": "unlock_exit", "id": "hatch_to_chapel"}
+            {
+              "type": "text",
+              "text": "The hatch swings inward on a crawlway smelling of cold steel and incense-and-carbolic mixed — the two cars' airs meeting in the dark between. It is passable. Barely, breathlessly, on hands and knees, with the wheels hammering an arm's length beneath the whole way."
+            },
+            {
+              "type": "unlock_exit",
+              "id": "hatch_to_hospital"
+            },
+            {
+              "type": "unlock_exit",
+              "id": "hatch_to_chapel"
+            }
           ]
         }
       ]
@@ -123,7 +255,13 @@
     {
       "at_time": 25,
       "text": "The lag is growing. Raise a hand now and the reflections take a full second to follow — and in that widening gap they have begun fitting in small movements of their own: a head turned to consult a neighbor, a step nearer the glass, a palm laid flat against the inside of the mirror, testing.",
-      "effects": [{"type": "composure", "who": "party", "delta": -1}]
+      "effects": [
+        {
+          "type": "composure",
+          "who": "party",
+          "delta": -1
+        }
+      ]
     }
   ],
   "exits": [
@@ -139,7 +277,9 @@
       "to": "hospital_car",
       "label": "Maintenance crawlway — back to the white car",
       "locked": true,
-      "visible_if": {"not_visited": "hospital_car"},
+      "visible_if": {
+        "not_visited": "hospital_car"
+      },
       "locked_text": "The crew hatch is locked. A railway key, a mechanic, or the Conductor's mark could open it.",
       "time": 6,
       "travel_text": "Hands and knees, cold steel, the wheels hammering inches below — and then a push-panel opens into white light and carbolic. You have crawled back along the train's spine to the car you didn't pick. The doctors look up, entirely unsurprised. Your beds, of course, are ready."
@@ -149,10 +289,13 @@
       "to": "chapel_car",
       "label": "Maintenance crawlway — back to the colored-glass car",
       "locked": true,
-      "visible_if": {"not_visited": "chapel_car"},
+      "visible_if": {
+        "not_visited": "chapel_car"
+      },
       "locked_text": "The crew hatch is locked. A railway key, a mechanic, or the Conductor's mark could open it.",
       "time": 6,
       "travel_text": "Hands and knees, cold steel, the wheels hammering inches below — and then a push-panel opens into candlelight and incense. You have crawled back along the train's spine to the car you didn't pick. The congregation is mid-prayer. The celebrant, without turning, moves one hand in welcome: latecomers are, it seems, expected."
     }
-  ]
+  ],
+  "objective": "Do not linger among the reflections — they grow bolder the longer you stand still. The basins offer a wash and a vital ritual; a shard of glass may prove useful; and the crew hatch between the panels can crawl back to the car you didn't choose. The plain far door leads on."
 }

@@ -4,54 +4,112 @@
   "index": 4,
   "transitional": true,
   "arrival": [
-    {"text": "After the dining car's glare, the lounge is a mercy: deep leather armchairs, green-shaded lamps, panelled walnut, and a haze of pipe smoke that hangs in flat blue strata. It is quiet here — genuinely quiet, the rails muffled to a heartbeat. A single passenger occupies the far chair: an elderly gentleman in a travelling suit, holding a lit cigar he never draws on, watching the smoke rise. He nods to you the way one nods to expected guests."}
+    {
+      "text": "After the dining car's glare, the lounge is a mercy: deep leather armchairs, green-shaded lamps, panelled walnut, and a haze of pipe smoke that hangs in flat blue strata. It is quiet here — genuinely quiet, the rails muffled to a heartbeat. A single passenger occupies the far chair: an elderly gentleman in a travelling suit, holding a lit cigar he never draws on, watching the smoke rise. He nods to you the way one nods to expected guests."
+    }
   ],
   "on_enter": [
-    {"type": "journal", "text": "Smoking lounge. Quiet. Restful, allegedly. One resident: a gentleman whose cigar never shortens."}
+    {
+      "type": "journal",
+      "text": "Smoking lounge. Quiet. Restful, allegedly. One resident: a gentleman whose cigar never shortens."
+    }
   ],
   "nodes": [
     {
       "id": "armchairs",
       "name": "The deep armchairs",
       "description": [
-        {"text": "Leather the color of old brandy, worn to comfort by a century of sitters. Your bodies, which have been running on fear since the rear carriage, notice them the way the drowning notice driftwood."}
+        {
+          "text": "Leather the color of old brandy, worn to comfort by a century of sitters. Your bodies, which have been running on fear since the rear carriage, notice them the way the drowning notice driftwood."
+        }
       ],
       "actions": [
         {
           "id": "rest_here",
           "label": "Rest — truly rest, for a while",
           "time": 15,
-          "cost": {"food": 1, "water": 1},
-          "tags": ["care"],
+          "cost": {
+            "food": 1,
+            "water": 1
+          },
+          "tags": [
+            "care"
+          ],
           "effects": [
-            {"type": "text",
-             "text": "You eat your own plain food — which after the dining car feels like an act of allegiance — post a watch, and let the chairs have you, one by one. Nobody quite sleeps. But shoulders come down from ears; hands stop shaking; someone laughs at something, briefly, and the sound is so foreign you all join in. It costs time. It buys you back yourselves."},
-            {"type": "heal", "who": "party", "amount": 2},
-            {"type": "composure", "who": "party", "delta": 2},
-            {"type": "condition", "who": "party", "remove": "exhausted"},
-            {"type": "relationship", "a": "active", "b": "others", "trust": 1, "silent": true}
+            {
+              "type": "text",
+              "text": "You eat your own plain food — which after the dining car feels like an act of allegiance — post a watch, and let the chairs have you, one by one. Nobody quite sleeps. But shoulders come down from ears; hands stop shaking; someone laughs at something, briefly, and the sound is so foreign you all join in. It costs time. It buys you back yourselves."
+            },
+            {
+              "type": "heal",
+              "who": "party",
+              "amount": 2
+            },
+            {
+              "type": "composure",
+              "who": "party",
+              "delta": 2
+            },
+            {
+              "type": "condition",
+              "who": "party",
+              "remove": "exhausted"
+            },
+            {
+              "type": "relationship",
+              "a": "active",
+              "b": "others",
+              "trust": 1,
+              "silent": true
+            }
           ]
         },
         {
           "id": "share_secret",
           "label": "Use the quiet — someone unburdens a secret",
           "time": 6,
-          "tags": ["social", "care", "testimony"],
+          "tags": [
+            "social",
+            "care",
+            "testimony"
+          ],
           "effects": [
-            {"type": "choose_character",
-             "prompt": "Who speaks their secret aloud, here in the quiet?",
-             "optional": true,
-             "skip_effects": [
-               {"type": "text", "text": "The moment opens — and closes. Nobody speaks. The smoke keeps its own counsel."}
-             ],
-             "effects": [
-               {"type": "text",
-                "text": "In the green lamplight, with no interrogation and no music, one of you tells the others the thing they carried aboard. It lands the way heavy truth lands — a silence, a shifting, someone's hand briefly on a shoulder. The train, for once, does not comment. It feels, dangerously, like being people again."},
-               {"type": "flag", "set": "secret_shared"},
-               {"type": "composure", "who": "chosen", "delta": 2},
-               {"type": "relationship", "a": "chosen", "b": "others", "trust": 1, "strain": -1},
-               {"type": "journal", "text": "A secret was spoken aloud in the smoking lounge. The train did not comment. That we noticed this says everything."}
-             ]
+            {
+              "type": "choose_character",
+              "prompt": "Who speaks their secret aloud, here in the quiet?",
+              "optional": true,
+              "skip_effects": [
+                {
+                  "type": "text",
+                  "text": "The moment opens — and closes. Nobody speaks. The smoke keeps its own counsel."
+                }
+              ],
+              "effects": [
+                {
+                  "type": "text",
+                  "text": "In the green lamplight, with no interrogation and no music, one of you tells the others the thing they carried aboard. It lands the way heavy truth lands — a silence, a shifting, someone's hand briefly on a shoulder. The train, for once, does not comment. It feels, dangerously, like being people again."
+                },
+                {
+                  "type": "flag",
+                  "set": "secret_shared"
+                },
+                {
+                  "type": "composure",
+                  "who": "chosen",
+                  "delta": 2
+                },
+                {
+                  "type": "relationship",
+                  "a": "chosen",
+                  "b": "others",
+                  "trust": 1,
+                  "strain": -1
+                },
+                {
+                  "type": "journal",
+                  "text": "A secret was spoken aloud in the smoking lounge. The train did not comment. That we noticed this says everything."
+                }
+              ]
             }
           ]
         }
@@ -62,30 +120,64 @@
       "name": "The smoke above the lamps",
       "low_composure_name": "The writing in the air",
       "description": [
-        {"if": {"skill_min": {"occult": 1}},
-         "text": "The smoke is not drifting. It is circulating — slow, deliberate, maintaining forms just below the threshold of recognition. You have seen séance-room tricks that imitate this badly. Whatever is writing in the air here is not a trick, and it is not finished with the sentence."},
-        {"text": "The pipe smoke hangs in flat blue layers that the train's motion never disturbs. Stare long enough and the strata seem to organize — coastlines, or timetables, or the roofline of some long building seen from an arriving window."}
+        {
+          "if": {
+            "skill_min": {
+              "occult": 1
+            }
+          },
+          "text": "The smoke is not drifting. It is circulating — slow, deliberate, maintaining forms just below the threshold of recognition. You have seen séance-room tricks that imitate this badly. Whatever is writing in the air here is not a trick, and it is not finished with the sentence."
+        },
+        {
+          "text": "The pipe smoke hangs in flat blue layers that the train's motion never disturbs. Stare long enough and the strata seem to organize — coastlines, or timetables, or the roofline of some long building seen from an arriving window."
+        }
       ],
       "actions": [
         {
           "id": "read_smoke",
           "label": "Read the shapes in the smoke",
           "time": 5,
-          "tags": ["occult", "eyes"],
-          "check": {"attr": "reason", "skill": "occult", "dc": "normal"},
+          "tags": [
+            "occult",
+            "eyes"
+          ],
+          "check": {
+            "attr": "reason",
+            "skill": "occult",
+            "dc": "normal"
+          },
           "on_success": [
-            {"type": "text",
-             "text": "You let your eyes unfocus and the smoke resolves, courteously, as if it had been waiting for a competent reader. It is a station. Vast — a terminus roof of iron ribs and black glass, platforms beyond counting, and on the platforms a crowd, motionless, faces upturned toward an arrivals board you cannot read from here. The image holds one heartbeat too long to be accident. Then the gentleman in the far chair clears his throat, and the smoke scatters like startled birds. 'I'd not look at that too closely,' he says mildly. 'And if you saw it — don't describe it. Speaking it aloud is how it gets confirmed.'"},
-            {"type": "evidence", "id": "station_in_smoke", "category": "observation",
-             "title": "The station in the smoke",
-             "text": "The lounge's smoke holds the image of a vast terminus with crowded, motionless platforms. The gentleman warned: anyone who sees the final station must not describe it aloud."},
-            {"type": "rule", "id": "final_station"},
-            {"type": "composure", "who": "actor", "delta": -1}
+            {
+              "type": "text",
+              "text": "You let your eyes unfocus and the smoke resolves, courteously, as if it had been waiting for a competent reader. It is a station. Vast — a terminus roof of iron ribs and black glass, platforms beyond counting, and on the platforms a crowd, motionless, faces upturned toward an arrivals board you cannot read from here. The image holds one heartbeat too long to be accident. Then the gentleman in the far chair clears his throat, and the smoke scatters like startled birds. 'I'd not look at that too closely,' he says mildly. 'And if you saw it — don't describe it. Speaking it aloud is how it gets confirmed.'"
+            },
+            {
+              "type": "evidence",
+              "id": "station_in_smoke",
+              "category": "observation",
+              "title": "The station in the smoke",
+              "text": "The lounge's smoke holds the image of a vast terminus with crowded, motionless platforms. The gentleman warned: anyone who sees the final station must not describe it aloud."
+            },
+            {
+              "type": "rule",
+              "id": "final_station"
+            },
+            {
+              "type": "composure",
+              "who": "actor",
+              "delta": -1
+            }
           ],
           "on_fail": [
-            {"type": "text",
-             "text": "The shapes stay just below sense, like a word on the tongue's tip, and chasing them gives you a headache that sits behind one eye like a splinter. The gentleman watches you try, with sympathy."},
-            {"type": "composure", "who": "actor", "delta": -1}
+            {
+              "type": "text",
+              "text": "The shapes stay just below sense, like a word on the tongue's tip, and chasing them gives you a headache that sits behind one eye like a splinter. The gentleman watches you try, with sympathy."
+            },
+            {
+              "type": "composure",
+              "who": "actor",
+              "delta": -1
+            }
           ]
         }
       ]
@@ -95,52 +187,103 @@
       "name": "The gentleman with the everlasting cigar",
       "low_composure_name": "The man made of sitting still",
       "description": [
-        {"text": "Up close, his travelling suit is decades out of fashion in a way you cannot place — or rather, in several ways at once, as if assembled from different decades. The cigar burns without shortening. The ash never falls. 'First class was livelier once,' he offers. 'I found I preferred the smoke. It's honest about what it is.'"}
+        {
+          "text": "Up close, his travelling suit is decades out of fashion in a way you cannot place — or rather, in several ways at once, as if assembled from different decades. The cigar burns without shortening. The ash never falls. 'First class was livelier once,' he offers. 'I found I preferred the smoke. It's honest about what it is.'"
+        }
       ],
       "actions": [
         {
           "id": "ask_about_train",
           "label": "Ask him what he knows about this train",
           "time": 5,
-          "tags": ["social", "testimony", "train_folk"],
-          "check": {"attr": "presence", "skill": "persuasion", "dc": "normal"},
+          "tags": [
+            "social",
+            "testimony",
+            "train_folk"
+          ],
+          "check": {
+            "attr": "presence",
+            "skill": "persuasion",
+            "dc": "normal"
+          },
           "on_success": [
-            {"type": "text",
-             "text": [
-               {"if": {"mystery": "sleeper_below"},
-                "text": "He considers you through the smoke for a long moment, then leans forward. 'Do this, later, somewhere quiet. Kneel. Put your ear to the floor — past the wheels, past the rails. There's a rhythm under the rhythm. In-breath, out-breath. Long as a tide.' He sits back. 'This train doesn't run on coal, friend. It runs the way a cradle runs. And nobody rocks a cradle for the cradle's sake.'"},
-               {"if": {"mystery": "ferry_of_the_dead"},
-                "text": "He studies you for a long moment, then draws a folded newspaper from beside his chair and passes it over without a word. It is yellowed, undated, and open to the obituary column. You read. The others crowd in. The column is long, and orderly, and every name in it is a name belonging to someone in this party — with kind words, surviving relatives, and dates that sit in your memories like stones dropped in wells. 'I kept it,' he says gently, 'because I'm in the next column over. We all board somehow, friend.'"}
-             ]},
-            {"type": "evidence", "id": "gentlemans_hint", "category": "testimony",
-             "title": [
-               {"if": {"mystery": "sleeper_below"}, "text": "The rhythm under the rails"},
-               {"text": "The obituary column"}
-             ],
-             "text": [
-               {"if": {"mystery": "sleeper_below"},
-                "text": "The gentleman in the lounge: beneath the wheel-rhythm there is a slower rhythm, like tidal breathing. 'This train runs the way a cradle runs.'"},
-               {"text": "The gentleman's kept newspaper carries obituaries for every member of the party, with dates that feel terribly familiar."}
-             ]},
-            {"type": "journal", "text": "The gentleman in the lounge knows more than any passenger should. He was kind about it, which was worse."}
+            {
+              "type": "text",
+              "text": [
+                {
+                  "if": {
+                    "mystery": "sleeper_below"
+                  },
+                  "text": "He considers you through the smoke for a long moment, then leans forward.\n\n'Do this, later, somewhere quiet. Kneel. Put your ear to the floor — past the wheels, past the rails. There's a rhythm under the rhythm. In-breath, out-breath. Long as a tide.'\n\nHe sits back. 'This train doesn't run on coal, friend. It runs the way a cradle runs. And nobody rocks a cradle for the cradle's sake.'"
+                },
+                {
+                  "text": "He studies you for a long moment, then draws a folded newspaper from beside his chair and passes it over without a word.\n\nIt is yellowed, undated, and open to the obituary column. You read. The others crowd in. Every name in the column belongs to someone in this party — with kind words, surviving relatives, and dates that sit in your memories like stones dropped in wells.\n\n'I kept it,' he says gently, 'because I'm in the next column over. We all board somehow, friend.'"
+                }
+              ]
+            },
+            {
+              "type": "evidence",
+              "id": "gentlemans_hint",
+              "category": "testimony",
+              "title": [
+                {
+                  "if": {
+                    "mystery": "sleeper_below"
+                  },
+                  "text": "The rhythm under the rails"
+                },
+                {
+                  "text": "The obituary column"
+                }
+              ],
+              "text": [
+                {
+                  "if": {
+                    "mystery": "sleeper_below"
+                  },
+                  "text": "The gentleman in the lounge: beneath the wheel-rhythm there is a slower rhythm, like tidal breathing. 'This train runs the way a cradle runs.'"
+                },
+                {
+                  "text": "The gentleman's kept newspaper carries obituaries for every member of the party, with dates that feel terribly familiar."
+                }
+              ]
+            },
+            {
+              "type": "journal",
+              "text": "The gentleman in the lounge knows more than any passenger should. He was kind about it, which was worse."
+            }
           ],
           "on_fail": [
-            {"type": "text",
-             "text": "'Knowledge,' he says pleasantly, 'is a fare, and I don't believe you can afford this particular journey yet.' He returns his attention to the smoke. The interview, you understand, is over — not from rudeness, but the way a bank window closes."}
+            {
+              "type": "text",
+              "text": "'Knowledge,' he says pleasantly, 'is a fare, and I don't believe you can afford this particular journey yet.' He returns his attention to the smoke. The interview, you understand, is over — not from rudeness, but the way a bank window closes."
+            }
           ]
         },
         {
           "id": "ask_about_conductor",
           "label": "Ask him about the Conductor",
           "time": 4,
-          "tags": ["social", "testimony"],
+          "tags": [
+            "social",
+            "testimony"
+          ],
           "effects": [
-            {"type": "text",
-             "text": "The cigar pauses on its way to the mouth that never uses it. 'You'll meet him near the front. Some advice, gratis.' He counts on gloved fingers. 'One: he is politer than he is safe. Two: he can refuse you nothing if you quote the regulations correctly — the Company binds him more tightly than it binds you. Three.' The finger wags. 'Whatever he asks — however small, however courteous — do not tell him your true name. Names are how he files people.'"},
-            {"type": "rule", "id": "true_name"},
-            {"type": "evidence", "id": "conductor_warning", "category": "testimony",
-             "title": "Warnings about the Conductor",
-             "text": "The gentleman's advice: the Conductor is politer than he is safe; he cannot refuse correctly-quoted regulations; and he must never be given a true name — names are how he files people."}
+            {
+              "type": "text",
+              "text": "The cigar pauses on its way to the mouth that never uses it. 'You'll meet him near the front. Some advice, gratis.' He counts on gloved fingers. 'One: he is politer than he is safe. Two: he can refuse you nothing if you quote the regulations correctly — the Company binds him more tightly than it binds you. Three.' The finger wags. 'Whatever he asks — however small, however courteous — do not tell him your true name. Names are how he files people.'"
+            },
+            {
+              "type": "rule",
+              "id": "true_name"
+            },
+            {
+              "type": "evidence",
+              "id": "conductor_warning",
+              "category": "testimony",
+              "title": "Warnings about the Conductor",
+              "text": "The gentleman's advice: the Conductor is politer than he is safe; he cannot refuse correctly-quoted regulations; and he must never be given a true name — names are how he files people."
+            }
           ]
         }
       ]
@@ -150,7 +293,13 @@
     {
       "at_time": 30,
       "text": "The green lamps dim by a shade, all together, like an auditorium before curtain. The gentleman checks a watch he does not carry — pats the pocket, finds nothing, nods as if it told him the time anyway. 'You'll want to keep moving,' he says, not unkindly. 'This carriage is comfortable because it is a spider's parlor. I'd know.'",
-      "effects": [{"type": "composure", "who": "party", "delta": -1}]
+      "effects": [
+        {
+          "type": "composure",
+          "who": "party",
+          "delta": -1
+        }
+      ]
     }
   ],
   "exits": [
@@ -161,5 +310,6 @@
       "time": 3,
       "travel_text": "As you file past his chair, the gentleman raises the everlasting cigar in salute. 'Mind the child,' he says. You stop. He does not elaborate. The gangway's cold swallows the questions you should have asked."
     }
-  ]
+  ],
+  "objective": "A rare mercy: nothing here hunts you. Rest and recover if you can spare the time, hear what the gentleman knows — he speaks freely about the Conductor — and move on before comfort becomes its own trap."
 }

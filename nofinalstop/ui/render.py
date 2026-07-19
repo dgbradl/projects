@@ -172,6 +172,17 @@ class Renderer:
             t2.append(f" {res_str} ", style=f"{DIM_IVORY} on grey15")
             self.console.print(t2)
 
+    def objective(self, text):
+        if not text:
+            return
+        if self.plain:
+            print(f"► The way forward: {text}")
+        else:
+            t = Text()
+            t.append(" ► ", style=f"bold {BRASS}")
+            t.append(text, style=DIM_IVORY)
+            self.console.print(t)
+
     # ---------------------------------------------------------------- menus
     def menu(self, title, options):
         self.line()

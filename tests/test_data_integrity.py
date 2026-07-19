@@ -22,6 +22,7 @@ def test_all_carriages_have_required_fields(registry):
         assert car["id"] == cid
         assert "name" in car and "index" in car and "arrival" in car
         assert isinstance(car.get("nodes", []), list)
+        assert car.get("objective"), f"{cid}: every carriage needs a player-facing objective"
 
 
 def test_exits_point_to_real_carriages(registry):

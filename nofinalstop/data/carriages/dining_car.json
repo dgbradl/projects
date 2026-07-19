@@ -3,13 +3,22 @@
   "name": "The Dining Car",
   "index": 3,
   "arrival": [
-    {"if": {"composure_max": 3},
-     "text": "The dining car is full of people pretending very hard, and what they are pretending is chewing. The music is a recording of music. The candle flames do not move at all, not even when the diners lean through them. At the far end, a tall figure in white gloves has already turned to face you, because it heard your stomachs from two carriages away."},
-    {"text": "Warmth, light, music. The dining car glows — white linen, silver service, a string trio playing at the far end, and perhaps thirty elegant passengers dining in full evening dress as if the world were not ending two carriages back. The feast is staggering: tureens, roasts, towers of fruit, wine like garnet. A maître d'hôtel in immaculate white gloves glides toward you, menus in hand, smiling with professional completeness. 'At last,' he says. 'Your table has been waiting. All travelers dine before proceeding — the Company insists. You will find you are hungrier than you know.'"}
+    {
+      "if": {
+        "composure_max": 3
+      },
+      "text": "The dining car is full of people pretending very hard, and what they are pretending is chewing. The music is a recording of music. The candle flames do not move at all, not even when the diners lean through them. At the far end, a tall figure in white gloves has already turned to face you, because it heard your stomachs from two carriages away."
+    },
+    {
+      "text": "Warmth, light, music. The dining car glows — white linen, silver service, a string trio playing at the far end, and perhaps thirty elegant passengers dining in full evening dress as if the world were not ending two carriages back. The feast is staggering: tureens, roasts, towers of fruit, wine like garnet. A maître d'hôtel in immaculate white gloves glides toward you, menus in hand, smiling with professional completeness. 'At last,' he says. 'Your table has been waiting. All travelers dine before proceeding — the Company insists. You will find you are hungrier than you know.'"
+    }
   ],
   "return_text": "The music stops the instant you re-enter. Thirty diners set down their forks in unison and turn. The maître d's smile is gone. 'No passenger,' he says quietly, 'enters the dining car twice.'",
   "on_enter": [
-    {"type": "journal", "text": "Dining car: a feast, elegant diners, a maître d' who insists all travelers must eat before proceeding."}
+    {
+      "type": "journal",
+      "text": "Dining car: a feast, elegant diners, a maître d' who insists all travelers must eat before proceeding."
+    }
   ],
   "nodes": [
     {
@@ -17,33 +26,75 @@
       "name": "The feast",
       "low_composure_name": "The service",
       "description": [
-        {"if": {"profession": ["physician", "nurse", "undertaker"]},
-         "text": "You look at the roast the way you have looked at a thousand opened bodies, and your training files its report before you can stop it: that is not any animal on any menu. The muscle grain is wrong. The bone you can see in the carving dish has been broken and healed, twice, in life. And the smell beneath the rosemary is one you know from theatres and mortuaries, not kitchens."},
-        {"if": {"profession": ["cook"]},
-         "text": "You have dressed every bird and beast a kitchen can lawfully buy and several it cannot, and whatever is on these salvers, you never butchered its like. The cuts imitate saddle and shank the way a mask imitates a face. And no kitchen plates food this hot without one clatter, one shout, one smell of the stove. This food was not cooked. It was provided."},
-        {"if": {"composure_max": 3},
-         "text": "The food is perfectly still in the way that things are still when they have just stopped moving. The fruit in the towers is arranged faces-inward. The wine holds its meniscus against the train's sway, level as a spirit-gauge, watching you decide."},
-        {"text": "Close up, the feast is magnificent — game birds glazed amber, a crown roast, cream in silver boats, pears in wine. Each of you, oddly, is most drawn to a different dish; each of you, asked to name the centerpiece, would name a different thing. The diners eat steadily, gracefully, without once looking at their plates."}
+        {
+          "if": {
+            "profession": [
+              "physician",
+              "nurse",
+              "undertaker"
+            ]
+          },
+          "text": "You look at the roast the way you have looked at a thousand opened bodies, and your training files its report before you can stop it: that is not any animal on any menu. The muscle grain is wrong. The bone you can see in the carving dish has been broken and healed, twice, in life. And the smell beneath the rosemary is one you know from theatres and mortuaries, not kitchens."
+        },
+        {
+          "if": {
+            "profession": [
+              "cook"
+            ]
+          },
+          "text": "You have dressed every bird and beast a kitchen can lawfully buy and several it cannot, and whatever is on these salvers, you never butchered its like. The cuts imitate saddle and shank the way a mask imitates a face. And no kitchen plates food this hot without one clatter, one shout, one smell of the stove. This food was not cooked. It was provided."
+        },
+        {
+          "if": {
+            "composure_max": 3
+          },
+          "text": "The food is perfectly still in the way that things are still when they have just stopped moving. The fruit in the towers is arranged faces-inward. The wine holds its meniscus against the train's sway, level as a spirit-gauge, watching you decide."
+        },
+        {
+          "text": "Close up, the feast is magnificent — game birds glazed amber, a crown roast, cream in silver boats, pears in wine. Each of you, oddly, is most drawn to a different dish; each of you, asked to name the centerpiece, would name a different thing. The diners eat steadily, gracefully, without once looking at their plates."
+        }
       ],
       "actions": [
         {
           "id": "compare_observations",
           "label": "Compare what each of you sees on the plates",
           "time": 5,
-          "tags": ["investigation", "illusion"],
-          "check": {"attr": "awareness", "skill": "investigation", "dc": "normal"},
+          "tags": [
+            "investigation",
+            "illusion"
+          ],
+          "check": {
+            "attr": "awareness",
+            "skill": "investigation",
+            "dc": "normal"
+          },
           "on_success": [
-            {"type": "text",
-             "text": "You do it quietly, over an untouched place setting: each of you describes the same dish. One sees pheasant. One sees a pale roast that turns their stomach. One sees, and will not elaborate, 'the christening dinner.' The plate is the same plate. The feast is shown to each eater as whatever will make that eater eat — which means the question 'what is it really?' has an answer, and the answer is: whatever needs this many disguises."},
-            {"type": "evidence", "id": "feast_untrue", "category": "observation",
-             "title": "The feast wears disguises",
-             "text": "Every observer sees different food on the same plates — each shown whatever would most persuade them to eat. The meal's true nature is concealed per-diner."},
-            {"type": "journal", "text": "The feast appears different to each of us. Catalogued the differences. They do not reconcile."}
+            {
+              "type": "text",
+              "text": "You do it quietly, over an untouched place setting: each of you describes the same dish. One sees pheasant. One sees a pale roast that turns their stomach. One sees, and will not elaborate, 'the christening dinner.' The plate is the same plate. The feast is shown to each eater as whatever will make that eater eat — which means the question 'what is it really?' has an answer, and the answer is: whatever needs this many disguises."
+            },
+            {
+              "type": "evidence",
+              "id": "feast_untrue",
+              "category": "observation",
+              "title": "The feast wears disguises",
+              "text": "Every observer sees different food on the same plates — each shown whatever would most persuade them to eat. The meal's true nature is concealed per-diner."
+            },
+            {
+              "type": "journal",
+              "text": "The feast appears different to each of us. Catalogued the differences. They do not reconcile."
+            }
           ],
           "on_fail": [
-            {"type": "text",
-             "text": "You try to compare notes, but describing the food makes you hungry — savagely, obliteratingly hungry, hungrier with each word, until all of you are standing over the plates breathing like runners, and someone's hand is already on a fork. You stop the conversation instead of the hand. It is close."},
-            {"type": "composure", "who": "party", "delta": -1}
+            {
+              "type": "text",
+              "text": "You try to compare notes, but describing the food makes you hungry — savagely, obliteratingly hungry, hungrier with each word, until all of you are standing over the plates breathing like runners, and someone's hand is already on a fork. You stop the conversation instead of the hand. It is close."
+            },
+            {
+              "type": "composure",
+              "who": "party",
+              "delta": -1
+            }
           ]
         }
       ]
@@ -53,7 +104,9 @@
       "name": "The maître d'hôtel",
       "low_composure_name": "The headwaiter of the hungry house",
       "description": [
-        {"text": "Tall, silver-templed, white-gloved, with the posture of a man who has never once been contradicted successfully. His smile is impeccable and does not involve his eyes, which are the flat attentive brown of a bird considering a worm. His name-plate is blank. It gleams as if polished hourly."}
+        {
+          "text": "Tall, silver-templed, white-gloved, with the posture of a man who has never once been contradicted successfully. His smile is impeccable and does not involve his eyes, which are the flat attentive brown of a bird considering a worm. His name-plate is blank. It gleams as if polished hourly."
+        }
       ],
       "actions": [
         {
@@ -61,30 +114,65 @@
           "label": "Ask about the dining requirement",
           "time": 3,
           "once": false,
-          "tags": ["social", "train_folk"],
+          "tags": [
+            "social",
+            "train_folk"
+          ],
           "effects": [
-            {"type": "text",
-             "text": "'All travelers dine before proceeding,' he repeats, gently, as to a slow child. 'The Company insists. The meal is complimentary.' A pause, and something that is almost sympathy crosses the smile. 'I would advise against attempting the forward vestibule unfed. The door is aware of appetites. And might I remind sir and madam — one seating only. No passenger enters the dining car twice.'"},
-            {"type": "rule", "id": "dining_once"}
+            {
+              "type": "text",
+              "text": "'All travelers dine before proceeding,' he repeats, gently, as to a slow child. 'The Company insists. The meal is complimentary.' A pause, and something that is almost sympathy crosses the smile. 'I would advise against attempting the forward vestibule unfed. The door is aware of appetites. And might I remind sir and madam — one seating only. No passenger enters the dining car twice.'"
+            },
+            {
+              "type": "rule",
+              "id": "dining_once"
+            }
           ]
         },
         {
           "id": "negotiate_maitre",
           "label": "Negotiate: one may eat on behalf of all",
           "time": 5,
-          "tags": ["social", "train_folk"],
-          "check": {"attr": "presence", "skill": "persuasion", "dc": "hard"},
+          "tags": [
+            "social",
+            "train_folk"
+          ],
+          "check": {
+            "attr": "presence",
+            "skill": "persuasion",
+            "dc": "hard"
+          },
           "on_success": [
-            {"type": "text",
-             "text": "You argue precedent, ceremony, the ancient logic of proxy — a taster for a king, a communion for a congregation. Something old in him responds to the shape of the argument. 'A representative seating,' he says at last, savoring the phrase like a vintage. 'Irregular. But the forms permit it. ONE of you will dine — fully, and to conclusion. The rest may merely attend.' He snaps his fingers, and a single place is laid at the head of an empty table."},
-            {"type": "flag", "set": "dining_negotiated"},
-            {"type": "journal", "text": "Negotiated a 'representative seating' — one diner may eat on behalf of the party."}
+            {
+              "type": "text",
+              "text": "You argue precedent, ceremony, the ancient logic of proxy — a taster for a king, a communion for a congregation. Something old in him responds to the shape of the argument. 'A representative seating,' he says at last, savoring the phrase like a vintage. 'Irregular. But the forms permit it. ONE of you will dine — fully, and to conclusion. The rest may merely attend.' He snaps his fingers, and a single place is laid at the head of an empty table."
+            },
+            {
+              "type": "flag",
+              "set": "dining_negotiated"
+            },
+            {
+              "type": "journal",
+              "text": "Negotiated a 'representative seating' — one diner may eat on behalf of the party."
+            }
           ],
           "on_fail": [
-            {"type": "text",
-             "text": "'The Company,' he says, and his voice drops the temperature of the nearest candles, 'does not negotiate portions.' Around the car, thirty diners pause mid-motion — forks lifted, glasses tilted — until he resumes his smile, and the room resumes its meal."},
-            {"type": "composure", "who": "actor", "delta": -1},
-            {"type": "relationship", "a": "actor", "b": "others", "strain": 1, "silent": true}
+            {
+              "type": "text",
+              "text": "'The Company,' he says, and his voice drops the temperature of the nearest candles, 'does not negotiate portions.' Around the car, thirty diners pause mid-motion — forks lifted, glasses tilted — until he resumes his smile, and the room resumes its meal."
+            },
+            {
+              "type": "composure",
+              "who": "actor",
+              "delta": -1
+            },
+            {
+              "type": "relationship",
+              "a": "actor",
+              "b": "others",
+              "strain": 1,
+              "silent": true
+            }
           ]
         }
       ]
@@ -93,33 +181,67 @@
       "id": "the_table",
       "name": "Your waiting table",
       "description": [
-        {"text": "A table for exactly your number, regardless of your number — count the places twice and it is right both times, even if someone has joined you since the last count. The linen bears your initials, freshly monogrammed. The chairs are pulled back at hospitable angles."}
+        {
+          "text": "A table for exactly your number, regardless of your number — count the places twice and it is right both times, even if someone has joined you since the last count. The linen bears your initials, freshly monogrammed. The chairs are pulled back at hospitable angles."
+        }
       ],
       "actions": [
         {
           "id": "communion_meal",
           "label": "Hold the representative seating — one eats for all",
           "time": 8,
-          "visible_if": {"flag": "dining_negotiated"},
-          "tags": ["endure"],
+          "visible_if": {
+            "flag": "dining_negotiated"
+          },
+          "tags": [
+            "endure"
+          ],
           "effects": [
-            {"type": "choose_character",
-             "prompt": "Who will eat on behalf of the party — fully, and to conclusion?",
-             "chosen_text": "{name} sits. The car goes reverent. Even the trio softens to a hymn tempo.",
-             "effects": [
-               {"type": "text",
-                "text": "The chosen one eats. Course after course arrives, and with each the body strengthens and the borders of things soften — the food is genuinely, unforgivably restorative, and it is also unmistakably changing the eater: partway through the fish course they briefly cannot remember which side of the table they sit on; by the trifle they are weeping without sadness. The maître d' presents the cleared plate like a diploma. 'The Company thanks you,' he says, to the eater alone, 'for your custom. It will not forget the flavor.'"},
-               {"type": "heal", "who": "chosen", "amount": 4},
-               {"type": "composure", "who": "chosen", "delta": 2},
-               {"type": "condition", "who": "chosen", "add": "train_fed"},
-               {"type": "evidence", "id": "the_meal_taken", "category": "observation",
-                "title": "The meal changes its eaters",
-                "text": "Eating the dining car's feast genuinely restores body and mind — and leaves something of the train inside the eater. The staff spoke of remembering the eater's flavor."},
-               {"type": "flag", "set": "dining_resolved"},
-               {"type": "unlock_exit", "id": "to_smoking"},
-               {"type": "text", "style": "gain",
-                "text": "The maître d' unlocks the forward vestibule personally, with a small bow. 'The Company wishes you a pleasant onward journey.'"}
-             ]
+            {
+              "type": "choose_character",
+              "prompt": "Who will eat on behalf of the party — fully, and to conclusion?",
+              "chosen_text": "{name} sits. The car goes reverent. Even the trio softens to a hymn tempo.",
+              "effects": [
+                {
+                  "type": "text",
+                  "text": "The chosen one eats. Course after course arrives, and with each the body strengthens and the borders of things soften — the food is genuinely, unforgivably restorative, and it is also unmistakably changing the eater: partway through the fish course they briefly cannot remember which side of the table they sit on; by the trifle they are weeping without sadness. The maître d' presents the cleared plate like a diploma. 'The Company thanks you,' he says, to the eater alone, 'for your custom. It will not forget the flavor.'"
+                },
+                {
+                  "type": "heal",
+                  "who": "chosen",
+                  "amount": 4
+                },
+                {
+                  "type": "composure",
+                  "who": "chosen",
+                  "delta": 2
+                },
+                {
+                  "type": "condition",
+                  "who": "chosen",
+                  "add": "train_fed"
+                },
+                {
+                  "type": "evidence",
+                  "id": "the_meal_taken",
+                  "category": "observation",
+                  "title": "The meal changes its eaters",
+                  "text": "Eating the dining car's feast genuinely restores body and mind — and leaves something of the train inside the eater. The staff spoke of remembering the eater's flavor."
+                },
+                {
+                  "type": "flag",
+                  "set": "dining_resolved"
+                },
+                {
+                  "type": "unlock_exit",
+                  "id": "to_smoking"
+                },
+                {
+                  "type": "text",
+                  "style": "gain",
+                  "text": "The maître d' unlocks the forward vestibule personally, with a small bow. 'The Company wishes you a pleasant onward journey.'"
+                }
+              ]
             }
           ]
         },
@@ -127,67 +249,167 @@
           "id": "feast_for_all",
           "label": "Sit down and eat — all of you",
           "time": 10,
-          "tags": ["endure", "crowds"],
+          "tags": [
+            "endure",
+            "crowds"
+          ],
           "effects": [
-            {"type": "text",
-             "text": "You are so hungry, and it is so warm, and the music is so kind. You eat. All of you. It is the finest meal any of you has ever tasted, and you know — each privately, each around the third course — that you will spend the rest of your lives failing to stop comparing every other food to this. Strength pours back into your bodies. Something pours the other way, too; the diners around you nod welcome, as to new members."},
-            {"type": "heal", "who": "party", "amount": 3},
-            {"type": "composure", "who": "party", "delta": 1},
-            {"type": "condition", "who": "random", "add": "train_fed"},
-            {"type": "evidence", "id": "the_meal_taken", "category": "observation",
-             "title": "The meal changes its eaters",
-             "text": "Eating the dining car's feast genuinely restores body and mind — and leaves something of the train inside the eater. The staff spoke of remembering the eater's flavor."},
-            {"type": "flag", "set": "dining_resolved"},
-            {"type": "unlock_exit", "id": "to_smoking"},
-            {"type": "text", "style": "gain",
-             "text": "The maître d' unlocks the forward vestibule with ceremony. 'The Company wishes you a pleasant onward journey. It has so enjoyed having you.'"}
+            {
+              "type": "text",
+              "text": "You are so hungry, and it is so warm, and the music is so kind. You eat. All of you. It is the finest meal any of you has ever tasted, and you know — each privately, each around the third course — that you will spend the rest of your lives failing to stop comparing every other food to this. Strength pours back into your bodies. Something pours the other way, too; the diners around you nod welcome, as to new members."
+            },
+            {
+              "type": "heal",
+              "who": "party",
+              "amount": 3
+            },
+            {
+              "type": "composure",
+              "who": "party",
+              "delta": 1
+            },
+            {
+              "type": "condition",
+              "who": "random",
+              "add": "train_fed"
+            },
+            {
+              "type": "evidence",
+              "id": "the_meal_taken",
+              "category": "observation",
+              "title": "The meal changes its eaters",
+              "text": "Eating the dining car's feast genuinely restores body and mind — and leaves something of the train inside the eater. The staff spoke of remembering the eater's flavor."
+            },
+            {
+              "type": "flag",
+              "set": "dining_resolved"
+            },
+            {
+              "type": "unlock_exit",
+              "id": "to_smoking"
+            },
+            {
+              "type": "text",
+              "style": "gain",
+              "text": "The maître d' unlocks the forward vestibule with ceremony. 'The Company wishes you a pleasant onward journey. It has so enjoyed having you.'"
+            }
           ]
         },
         {
           "id": "deceive_staff",
           "label": "Fake the meal — palm, pocket, and pantomime",
           "time": 7,
-          "tags": ["testimony", "social"],
-          "check": {"attr": "presence", "skill": "deception", "dc": "hard"},
+          "tags": [
+            "testimony",
+            "social"
+          ],
+          "check": {
+            "attr": "presence",
+            "skill": "deception",
+            "dc": "hard"
+          },
           "on_success": [
-            {"type": "text",
-             "text": "It is the performance of your lives. Napkins conjured across plates, forkfuls vanished into sleeves and boots, appreciative noises orchestrated in rounds. The maître d' patrols; you escalate — one of you fakes seconds. At the end he inspects your ruined plates, and for one long moment his flat brown eyes know everything. Then professional courtesy wins. 'The Company,' he says smoothly, 'thanks you for dining.' Rules are rules: the plates are empty."},
-            {"type": "flag", "set": "dining_resolved"},
-            {"type": "unlock_exit", "id": "to_smoking"},
-            {"type": "composure", "who": "party", "delta": 1},
-            {"type": "journal", "text": "Out-formalized the maître d'. The plates were empty; the rules were satisfied; nobody ate."}
+            {
+              "type": "text",
+              "text": "It is the performance of your lives. Napkins conjured across plates. Forkfuls vanished into sleeves and boots. Appreciative noises, orchestrated in rounds. One of you, magnificently, fakes seconds.\n\nAt the end the maître d' inspects your ruined plates, and for one long moment his flat brown eyes know everything. Then professional courtesy wins. 'The Company,' he says smoothly, 'thanks you for dining.' Rules are rules: the plates are empty."
+            },
+            {
+              "type": "flag",
+              "set": "dining_resolved"
+            },
+            {
+              "type": "unlock_exit",
+              "id": "to_smoking"
+            },
+            {
+              "type": "composure",
+              "who": "party",
+              "delta": 1
+            },
+            {
+              "type": "journal",
+              "text": "Out-formalized the maître d'. The plates were empty; the rules were satisfied; nobody ate."
+            }
           ],
           "on_fail": [
-            {"type": "text",
-             "text": "A game bird slides from a sleeve and hits the parquet with a wet slap that stops the trio mid-bar. The silence is total. Thirty diners turn. The maître d' crosses the car unhurried, retrieves the bird, and sets it back on the plate. 'Sir will finish,' he says, and it is not grammar that makes it not a question. The vestibule stays locked. You will need another way."},
-            {"type": "composure", "who": "party", "delta": -1},
-            {"type": "flag", "set": "deception_failed"}
+            {
+              "type": "text",
+              "text": "A game bird slides from a sleeve and hits the parquet with a wet slap that stops the trio mid-bar. The silence is total. Thirty diners turn. The maître d' crosses the car unhurried, retrieves the bird, and sets it back on the plate. 'Sir will finish,' he says, and it is not grammar that makes it not a question. The vestibule stays locked. You will need another way."
+            },
+            {
+              "type": "composure",
+              "who": "party",
+              "delta": -1
+            },
+            {
+              "type": "flag",
+              "set": "deception_failed"
+            }
           ]
         },
         {
           "id": "expose_meal",
           "label": "Stand and expose the meal for what it is",
           "time": 6,
-          "tags": ["social", "leadership", "illusion", "crowds"],
-          "requires": {"evidence": "feast_untrue"},
+          "tags": [
+            "social",
+            "leadership",
+            "illusion",
+            "crowds"
+          ],
+          "requires": {
+            "evidence": "feast_untrue"
+          },
           "requires_text": "You would be shouting an accusation you cannot yet prove — you need evidence of what the feast really is.",
-          "check": {"attr": "presence", "skill": "leadership", "dc": "hard"},
+          "check": {
+            "attr": "presence",
+            "skill": "leadership",
+            "dc": "hard"
+          },
           "on_success": [
-            {"type": "text",
-             "text": "You stand, and you do it properly: witness by witness, plate by plate, you make the room describe its own dinner — and the descriptions do not match, and the diners hear them not matching, and the first fork goes down like a gunshot. Then a dowager looks — really looks — at her plate, and begins to scream. The room comes apart. Diners bolt for the vestibules; the trio plays grimly on; the maître d' stands amid the ruin of the service with his gloves folded, watching you with what is unmistakably respect. 'Sixty years of service,' he says, 'undone by comparing notes.' He unlocks the forward door. 'The Company will want to meet you.'"},
-            {"type": "flag", "set": "dining_resolved"},
-            {"type": "flag", "set": "dining_exposed"},
-            {"type": "unlock_exit", "id": "to_smoking"},
-            {"type": "evidence", "id": "diners_freed", "category": "testimony",
-             "title": "The diners could be woken",
-             "text": "Confronted with their own contradicting descriptions, the enchanted diners saw the feast truly and revolted. The illusion requires its victims not to compare notes."},
-            {"type": "composure", "who": "party", "delta": -1},
-            {"type": "journal", "text": "Broke the feast's illusion in front of the whole car. The screaming was worse than the silence. The door is open."}
+            {
+              "type": "text",
+              "text": "You stand, and you do it properly: witness by witness, plate by plate, you make the room describe its own dinner. The descriptions do not match. The diners hear them not matching. The first fork goes down like a gunshot.\n\nThen a dowager looks — really looks — at her plate, and begins to scream. The room comes apart. Diners bolt for the vestibules; the trio plays grimly on.\n\nThe maître d' stands amid the ruin of the service with his gloves folded, watching you with what is unmistakably respect. 'Sixty years of service,' he says, 'undone by comparing notes.' He unlocks the forward door. 'The Company will want to meet you.'"
+            },
+            {
+              "type": "flag",
+              "set": "dining_resolved"
+            },
+            {
+              "type": "flag",
+              "set": "dining_exposed"
+            },
+            {
+              "type": "unlock_exit",
+              "id": "to_smoking"
+            },
+            {
+              "type": "evidence",
+              "id": "diners_freed",
+              "category": "testimony",
+              "title": "The diners could be woken",
+              "text": "Confronted with their own contradicting descriptions, the enchanted diners saw the feast truly and revolted. The illusion requires its victims not to compare notes."
+            },
+            {
+              "type": "composure",
+              "who": "party",
+              "delta": -1
+            },
+            {
+              "type": "journal",
+              "text": "Broke the feast's illusion in front of the whole car. The screaming was worse than the silence. The door is open."
+            }
           ],
           "on_fail": [
-            {"type": "text",
-             "text": "You stand and accuse — and the room turns to you with mild, well-fed pity, the way a congregation regards a drunk at a wedding. 'The palate,' the maître d' announces to general nodding, 'is personal.' Somewhere behind you a diner murmurs that some people simply cannot be taken anywhere. The moment passes. The trap resets. You sit down with your face burning."},
-            {"type": "composure", "who": "actor", "delta": -2}
+            {
+              "type": "text",
+              "text": "You stand and accuse — and the room turns to you with mild, well-fed pity, the way a congregation regards a drunk at a wedding. 'The palate,' the maître d' announces to general nodding, 'is personal.' Somewhere behind you a diner murmurs that some people simply cannot be taken anywhere. The moment passes. The trap resets. You sit down with your face burning."
+            },
+            {
+              "type": "composure",
+              "who": "actor",
+              "delta": -2
+            }
           ]
         }
       ]
@@ -196,28 +418,66 @@
       "id": "string_trio",
       "name": "The string trio",
       "description": [
-        {"text": "Three musicians in evening black, playing without sheet music, without pause, without sweat. Their bowing arms move in perfect unison. The cellist's eyes are closed and have been closed, you gradually realize, since you entered."}
+        {
+          "text": "Three musicians in evening black, playing without sheet music, without pause, without sweat. Their bowing arms move in perfect unison. The cellist's eyes are closed and have been closed, you gradually realize, since you entered."
+        }
       ],
       "actions": [
         {
           "id": "sit_in",
           "label": "Sit in with the trio and turn the room",
           "time": 5,
-          "tags": ["social", "crowds"],
-          "requires": {"any": [{"skill_min": {"performance": 1}}, {"item": "musical_instrument"}]},
+          "tags": [
+            "social",
+            "crowds"
+          ],
+          "requires": {
+            "any": [
+              {
+                "skill_min": {
+                  "performance": 1
+                }
+              },
+              {
+                "item": "musical_instrument"
+              }
+            ]
+          },
           "requires_text": "Without an instrument or performer's training, the trio ignores you.",
-          "check": {"attr": "presence", "skill": "performance", "dc": "normal"},
+          "check": {
+            "attr": "presence",
+            "skill": "performance",
+            "dc": "normal"
+          },
           "on_success": [
-            {"type": "text",
-             "text": "You join on the next phrase, and the trio makes room the way water makes room. Then, gently, you take the lead — you bend the tempo, brighten the key, and the whole car leans toward the music like plants toward sun. Every eye in the room, staff included, is on the performance. Nobody is watching the kitchen door at all."},
-            {"type": "flag", "set": "orchestra_distraction"},
-            {"type": "composure", "who": "party", "delta": 1},
-            {"type": "journal", "text": "Played with the trio. Held the whole dining car's attention. The kitchen door went unwatched."}
+            {
+              "type": "text",
+              "text": "You join on the next phrase, and the trio makes room the way water makes room. Then, gently, you take the lead — you bend the tempo, brighten the key, and the whole car leans toward the music like plants toward sun. Every eye in the room, staff included, is on the performance. Nobody is watching the kitchen door at all."
+            },
+            {
+              "type": "flag",
+              "set": "orchestra_distraction"
+            },
+            {
+              "type": "composure",
+              "who": "party",
+              "delta": 1
+            },
+            {
+              "type": "journal",
+              "text": "Played with the trio. Held the whole dining car's attention. The kitchen door went unwatched."
+            }
           ],
           "on_fail": [
-            {"type": "text",
-             "text": "You join in — and the trio absorbs your playing seamlessly, correcting your tempo, quieting your flourishes, folding you into the endless piece. It takes real effort to stop, more to lower the instrument, and a moment more to remember why you wanted to. The cellist, eyes still closed, smiles."},
-            {"type": "composure", "who": "actor", "delta": -1}
+            {
+              "type": "text",
+              "text": "You join in — and the trio absorbs your playing seamlessly, correcting your tempo, quieting your flourishes, folding you into the endless piece. It takes real effort to stop, more to lower the instrument, and a moment more to remember why you wanted to. The cellist, eyes still closed, smiles."
+            },
+            {
+              "type": "composure",
+              "who": "actor",
+              "delta": -1
+            }
           ]
         }
       ]
@@ -227,37 +487,70 @@
       "name": "The kitchen door",
       "low_composure_name": "The door the smells come through",
       "description": [
-        {"text": "A swing door with a porthole window, from which waiters emerge with laden trays at intervals no kitchen could actually sustain. Through the porthole: white tile, steam, and a corridor that goes back much, much farther than the outside of the train permits."}
+        {
+          "text": "A swing door with a porthole window, from which waiters emerge with laden trays at intervals no kitchen could actually sustain. Through the porthole: white tile, steam, and a corridor that goes back much, much farther than the outside of the train permits."
+        }
       ],
       "actions": [
         {
           "id": "slip_into_kitchen",
           "label": "Slip through the kitchen door",
           "time": 5,
-          "tags": ["stealth", "crowds"],
-          "check": {"attr": "agility", "skill": "stealth", "dc": "normal"},
+          "tags": [
+            "stealth",
+            "crowds"
+          ],
+          "check": {
+            "attr": "agility",
+            "skill": "stealth",
+            "dc": "normal"
+          },
           "on_success": [
-            {"type": "text",
-             "text": "You time it between waiters and ghost through the swing door into billowing steam. White tile, copper pans in racks to the ceiling, faceless cooks working with their backs to you — none turn. Along the near wall, a service passage runs forward, marked STAFF ONLY, breathing cool air that smells of coal and night."},
-            {"type": "flag", "set": "kitchen_open"},
-            {"type": "unlock_exit", "id": "kitchen_passage"}
+            {
+              "type": "text",
+              "text": "You time it between waiters and ghost through the swing door into billowing steam. White tile, copper pans in racks to the ceiling, faceless cooks working with their backs to you — none turn. Along the near wall, a service passage runs forward, marked STAFF ONLY, breathing cool air that smells of coal and night."
+            },
+            {
+              "type": "flag",
+              "set": "kitchen_open"
+            },
+            {
+              "type": "unlock_exit",
+              "id": "kitchen_passage"
+            }
           ],
           "on_fail": [
-            {"type": "text",
-             "text": "The door swings open against you — a waiter, tray high, who regards you with a smooth white face that has no features and yet manages disapproval. Gloved hands turn you around, firmly, and propel you back into the music. The maître d', across the car, makes a small note in a small book."},
-            {"type": "composure", "who": "actor", "delta": -1}
+            {
+              "type": "text",
+              "text": "The door swings open against you — a waiter, tray high, who regards you with a smooth white face that has no features and yet manages disapproval. Gloved hands turn you around, firmly, and propel you back into the music. The maître d', across the car, makes a small note in a small book."
+            },
+            {
+              "type": "composure",
+              "who": "actor",
+              "delta": -1
+            }
           ]
         },
         {
           "id": "walk_in_during_music",
           "label": "Walk into the kitchen while the room watches the trio",
           "time": 3,
-          "visible_if": {"flag": "orchestra_distraction"},
+          "visible_if": {
+            "flag": "orchestra_distraction"
+          },
           "effects": [
-            {"type": "text",
-             "text": "With every eye on the performance, you simply walk through the swing door like staff. Steam, tile, copper — and a forward service passage marked STAFF ONLY, unguarded."},
-            {"type": "flag", "set": "kitchen_open"},
-            {"type": "unlock_exit", "id": "kitchen_passage"}
+            {
+              "type": "text",
+              "text": "With every eye on the performance, you simply walk through the swing door like staff. Steam, tile, copper — and a forward service passage marked STAFF ONLY, unguarded."
+            },
+            {
+              "type": "flag",
+              "set": "kitchen_open"
+            },
+            {
+              "type": "unlock_exit",
+              "id": "kitchen_passage"
+            }
           ]
         }
       ]
@@ -265,41 +558,79 @@
     {
       "id": "petra_in_passage",
       "name": "A cook in the service passage",
-      "visible_if": {"flag": "kitchen_open"},
+      "visible_if": {
+        "flag": "kitchen_open"
+      },
       "description": [
-        {"text": "Halfway down the service passage, a woman in grey-white kitchen dress sits on an upturned stockpot, sharpening a knife she clearly has no intention of using on food. She watches you come with the specific wariness of staff toward diners. 'You came through the kitchen,' she says. 'Good. Means you didn't eat. I'm Petra. I cooked here forty years, right up until I looked in the pantry.' She will not say what she saw. She will say, flatly, that she has not entered the dining car since, and never will again."}
+        {
+          "text": "Halfway down the service passage, a woman in grey-white kitchen dress sits on an upturned stockpot, sharpening a knife she clearly has no intention of using on food. She watches you come with the specific wariness of staff toward diners. 'You came through the kitchen,' she says. 'Good. Means you didn't eat. I'm Petra. I cooked here forty years, right up until I looked in the pantry.' She will not say what she saw. She will say, flatly, that she has not entered the dining car since, and never will again."
+        }
       ],
       "actions": [
         {
           "id": "ask_petra_pantry",
           "label": "Ask Petra what the kitchen really serves",
           "time": 4,
-          "tags": ["testimony", "social"],
-          "check": {"attr": "presence", "skill": "psychology", "dc": "normal"},
+          "tags": [
+            "testimony",
+            "social"
+          ],
+          "check": {
+            "attr": "presence",
+            "skill": "psychology",
+            "dc": "normal"
+          },
           "on_success": [
-            {"type": "text",
-             "text": "She tests the knife's edge on her thumbnail for a long moment. 'What I'll say is this. In forty years, no provisions ever came aboard. No stops, no sidings, no stores. And the dining car served four hundred covers a day.' She looks up. 'The train has one thing in quantity. Work it out on your own time. And don't eat anything you didn't watch cooked.'"},
-            {"type": "evidence", "id": "no_provisions", "category": "testimony",
-             "title": "No provisions ever come aboard",
-             "text": "Petra, forty years the train's cook: no supplies were ever loaded, yet the dining car served hundreds daily. The train has only one thing in quantity."},
-            {"type": "journal", "text": "Petra's arithmetic: no provisions aboard, four hundred covers a day. The remainder is passengers."}
+            {
+              "type": "text",
+              "text": "She tests the knife's edge on her thumbnail for a long moment. 'What I'll say is this. In forty years, no provisions ever came aboard. No stops, no sidings, no stores. And the dining car served four hundred covers a day.' She looks up. 'The train has one thing in quantity. Work it out on your own time. And don't eat anything you didn't watch cooked.'"
+            },
+            {
+              "type": "evidence",
+              "id": "no_provisions",
+              "category": "testimony",
+              "title": "No provisions ever come aboard",
+              "text": "Petra, forty years the train's cook: no supplies were ever loaded, yet the dining car served hundreds daily. The train has only one thing in quantity."
+            },
+            {
+              "type": "journal",
+              "text": "Petra's arithmetic: no provisions aboard, four hundred covers a day. The remainder is passengers."
+            }
           ],
           "on_fail": [
-            {"type": "text",
-             "text": "The shutters come down. 'You'll have come from the dining car,' she says, 'so you'll be the maître's people or you'll be dessert. Either way we're done talking.' She goes back to the whetstone."},
-            {"type": "relationship", "a": "actor", "b": "others", "strain": 0, "silent": true}
+            {
+              "type": "text",
+              "text": "The shutters come down. 'You'll have come from the dining car,' she says, 'so you'll be the maître's people or you'll be dessert. Either way we're done talking.' She goes back to the whetstone."
+            },
+            {
+              "type": "relationship",
+              "a": "actor",
+              "b": "others",
+              "strain": 0,
+              "silent": true
+            }
           ]
         },
         {
           "id": "recruit_petra",
           "label": "Ask Petra to come forward with you",
           "time": 3,
-          "tags": ["social"],
+          "tags": [
+            "social"
+          ],
           "effects": [
-            {"type": "text",
-             "text": "'Forward.' She weighs the word like a cut of meat. 'Forty years I've kept to the staff passages, minding my own soul.' She stands, sheathes the knife in her apron string, and picks up a canvas sack already packed — has been packed, you suspect, for forty years. 'The kitchen can cook for itself. It always could.'"},
-            {"type": "recruit", "id": "petra_cook"},
-            {"type": "journal", "text": "Petra Illes, the kitchen's conscience, joined the party."}
+            {
+              "type": "text",
+              "text": "'Forward.' She weighs the word like a cut of meat. 'Forty years I've kept to the staff passages, minding my own soul.' She stands, sheathes the knife in her apron string, and picks up a canvas sack already packed — has been packed, you suspect, for forty years. 'The kitchen can cook for itself. It always could.'"
+            },
+            {
+              "type": "recruit",
+              "id": "petra_cook"
+            },
+            {
+              "type": "journal",
+              "text": "Petra Illes, the kitchen's conscience, joined the party."
+            }
           ]
         }
       ]
@@ -309,15 +640,30 @@
     {
       "at_time": 28,
       "text": "Between one bar of music and the next, every diner stops — forks poised, jaws mid-motion — and the whole car turns its heads to look at your unfinished business. The pause lasts three full wheel-clacks. Then the music resumes, and so do they, as if nothing happened. The maître d' consults his watch.",
-      "effects": [{"type": "composure", "who": "party", "delta": -1}]
+      "effects": [
+        {
+          "type": "composure",
+          "who": "party",
+          "delta": -1
+        }
+      ]
     },
     {
       "at_time": 48,
-      "if": {"not_flag": "dining_resolved"},
+      "if": {
+        "not_flag": "dining_resolved"
+      },
       "text": "A bell rings from the kitchen — once, twice. The waiters begin clearing the untouched places at YOUR table with funereal ceremony. 'The kitchen,' the maître d' announces, to the room at large, 'is preparing the next service.' The diners applaud softly. Some of them look at you the way the hungry look at a laden platter coming down the aisle.",
       "effects": [
-        {"type": "blackout", "minutes": 10},
-        {"type": "composure", "who": "party", "delta": -1}
+        {
+          "type": "blackout",
+          "minutes": 10
+        },
+        {
+          "type": "composure",
+          "who": "party",
+          "delta": -1
+        }
       ]
     }
   ],
@@ -327,7 +673,7 @@
       "to": "smoking_lounge",
       "label": "Forward vestibule — the official way onward",
       "locked": true,
-      "locked_text": "The forward vestibule door has no visible lock, yet it will not move. The maître d', watching, taps his own lips: all travelers dine before proceeding. There may be other ways — the kitchen, the staff, or the rules themselves.",
+      "locked_text": "The forward vestibule will not move until the maître d' is satisfied. Four ways are known: dine (all of you — or one for all, if negotiated first); fake the meal convincingly; expose the feast for what it is, with evidence; or find another way through the kitchen.",
       "time": 3,
       "travel_text": "The vestibule door opens onto blessedly cold, plain air. As you file out of the warmth, the music behind you finishes its endless piece — finally, after who knows how many years — and thirty diners applaud, politely, forever."
     },
@@ -339,6 +685,29 @@
       "locked_text": "The staff passage lies beyond the kitchen door. You'd have to get into the kitchen first.",
       "time": 4,
       "travel_text": "The service passage runs forward past small metal hatches in the tiled wall — each stenciled with the name of a different carriage, some of which you have not reached, one of which is dark and hums. You do not open any of them. The passage ends at a plain door, and beyond it: leather, smoke, and quiet."
+    }
+  ],
+  "objective": [
+    {
+      "if": {
+        "flag": "dining_resolved"
+      },
+      "text": "The maître d' is satisfied and the forward vestibule is open. Take what you still need — the kitchen passage, the cook who waits in it — and go."
+    },
+    {
+      "if": {
+        "flag": "kitchen_open"
+      },
+      "text": "The staff passage through the kitchen is open — a way forward that skips the meal entirely. Or satisfy the maître d' at the table instead. A cook in the passage is worth talking to."
+    },
+    {
+      "if": {
+        "flag": "dining_negotiated"
+      },
+      "text": "The bargain is struck: ONE of you may eat on behalf of all, at the table now laid. Or abandon the bargain and try deception, exposure, or the kitchen door instead."
+    },
+    {
+      "text": "The maître d' will not open the forward vestibule until travelers dine. Four ways forward are possible: eat (everyone — or one for all, if you can negotiate it); fake the meal with sleight of hand; expose the feast — with evidence of what it really is; or slip through the kitchen door and take the staff passage."
     }
   ]
 }

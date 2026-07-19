@@ -71,6 +71,11 @@ class GameState:
     def blackout_distance(self):
         return self.carriage_index() - self.blackout_index
 
+    def current_objective(self):
+        """The carriage's data-declared 'way forward', resolved against current
+        flags/items/evidence so it updates as the situation changes."""
+        return resolve_text(self, self.carriage().get("objective"))
+
     def carriage_state(self, cid=None):
         cid = cid or self.position
         st = self.carriage_states.get(cid)

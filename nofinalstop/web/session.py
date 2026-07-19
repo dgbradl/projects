@@ -101,6 +101,11 @@ class Session:
         self.log = []
         self.pending = None
         self.open_node = None
+        self._log([{"kind": "check",
+                    "text": "How to survive: inspect what the carriage offers and act on it. Every "
+                            "action costs minutes, and the minutes feed the darkness behind the train. "
+                            "Find and open each forward door. Reach the engine. Click a companion's "
+                            "card to see the train through their eyes."}])
         self._log(events)
         self.phase = "play"
         self._autosave()
@@ -391,6 +396,7 @@ class Session:
                 "low_composure": low,
                 "observer": active.name if active else None,
                 "observer_tint": observer_tint(active),
+                "objective": g.current_objective(),
             },
             "nodes": nodes,
             "exits": exits,
