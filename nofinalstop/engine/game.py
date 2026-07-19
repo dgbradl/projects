@@ -336,6 +336,8 @@ class GameState:
                                                 "You have been here before. It has not improved."))})
         if first:
             apply_effects(self, car.get("on_enter", []), None, events)
+        else:
+            apply_effects(self, car.get("on_return", []), None, events)
 
     # ------------------------------------------------------------ death & endings
     def on_death(self, dead, events):

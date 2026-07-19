@@ -262,6 +262,21 @@
           "delta": -1
         }
       ]
+    },
+    {
+      "at_time": 38,
+      "text": "The wheel-rhythm deepens, doubles — and every window goes blind at once. A tunnel. In the mirrors, the reflections do not go dark: they remain lit by some other light, and all of them, yours included, turn to look at the connecting doors with naked, identical hunger. Chalked beside the crew hatch, you notice now, in the same worker's hand as before: NEVER OPEN A CONNECTING DOOR IN A TUNNEL. The doors' handles rattle, gently, from no draft, until the windows fill with night again.",
+      "effects": [
+        {
+          "type": "rule",
+          "id": "tunnel_doors"
+        },
+        {
+          "type": "composure",
+          "who": "party",
+          "delta": -1
+        }
+      ]
     }
   ],
   "exits": [

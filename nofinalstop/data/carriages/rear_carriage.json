@@ -114,6 +114,10 @@
               "text": "Every ticket is identical: heavy cream stock, no date, no price, no origin. One word is printed where a destination should be, in letters that seem slightly too dark for the ink around them:\n\nTERMINUS.\n\nYou check your own pockets. Each of you is carrying one too."
             },
             {
+              "type": "item",
+              "add": "unmarked_ticket"
+            },
+            {
               "type": "evidence",
               "id": "tickets_terminus",
               "category": "physical",
@@ -270,6 +274,10 @@
               "type": "composure",
               "who": "actor",
               "delta": -1
+            },
+            {
+              "type": "flag",
+              "set": "found_mitten"
             }
           ]
         }

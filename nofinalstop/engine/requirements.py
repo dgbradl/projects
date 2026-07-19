@@ -78,6 +78,10 @@ def check_requirements(game, req, focus=None):
         return False
     if "rule_known" in req and not all(r in game.rules_known for r in _as_list(req["rule_known"])):
         return False
+    if "party_member" in req:
+        ids = _as_list(req["party_member"])
+        if not any(c.id in ids for c in party.living):
+            return False
     if "visited" in req and not all(c in game.visited for c in _as_list(req["visited"])):
         return False
     if "not_visited" in req and any(c in game.visited for c in _as_list(req["not_visited"])):

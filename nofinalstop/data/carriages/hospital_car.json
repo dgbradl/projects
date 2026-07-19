@@ -108,14 +108,19 @@
           "on_success": [
             {
               "type": "text",
-              "text": "You take your own hand — there is no other way to say it — and your double's eyes open. It looks at you without surprise, the way you look in mirrors. 'They can't hear us,' it says, in your voice, quickly. 'Listen. I'm the version they admitted. I remember everything you've forgotten — that's what they took from me to build the file.' Its grip tightens. 'You want the name. The real one. The one from before.' And it pulls you down and whispers — and the name goes through you like cold water, because it is true, and it is yours, and you had lost it without ever noticing the loss."
+              "text": "You take your own hand — there is no other way to say it — and your double's eyes open. It looks at you without surprise, the way you look in mirrors.\n\n'They can't hear us,' it says, in your voice, quickly. 'Listen. I'm the version they admitted. I remember everything you've forgotten — that's what they took from me to build the file.' Its grip tightens. 'You want the name. The real one. The one from before.'\n\nAnd it pulls you down and whispers — and the name goes through you like cold water, because it is true, and it is yours, and you had lost it without ever noticing the loss.\n\nBut the ledgers balance. As the name comes back to you, something else is signed over: across the ward, your chart stops tracking your bed, and the doctors' eyes begin to slide off you the way eyes slide off staff. The train has started to forget the version of you standing up."
             },
             {
               "type": "evidence",
               "id": "remembered_name",
               "category": "identity",
               "title": "A remembered true name",
-              "text": "A party member's hospital double — built, it claims, from their confiscated memories — whispered back their true name. A remembered name is one of the engine's three authorizations."
+              "text": "A party member's hospital double — built, it claims, from their confiscated memories — whispered back their true name. The ledgers balanced: the train has begun to forget the one who reclaimed it."
+            },
+            {
+              "type": "condition",
+              "who": "actor",
+              "add": "partially_forgotten"
             },
             {
               "type": "composure",

@@ -1,72 +1,207 @@
 [
-  {"id": "bruised", "name": "Bruised", "kind": "physical",
-   "desc": "Deep contusions. Everything costs a little more.",
-   "attr_penalty": {"body": -1}},
-  {"id": "bleeding", "name": "Bleeding", "kind": "physical",
-   "desc": "A wound that will not close on its own. Travel worsens it.",
-   "on_travel": [{"type": "harm", "who": "actor", "amount": 1,
-                  "if": {"not": {"scar": "bloodless"}},
-                  "fate": "bled out between carriages"},
-                 {"type": "text", "text": "Blood drips along the gangway plates.", "style": "harm"}]},
-  {"id": "burned", "name": "Burned", "kind": "physical",
-   "desc": "Blistered skin, stiff and weeping.",
-   "attr_penalty": {"agility": -1}},
-  {"id": "broken_limb", "name": "Broken Limb", "kind": "physical",
-   "desc": "Splinted or not, the bone grinds.",
-   "attr_penalty": {"body": -1, "agility": -1}},
-  {"id": "poisoned", "name": "Poisoned", "kind": "physical",
-   "desc": "Something is working through the blood.",
-   "check_penalty": -1,
-   "on_travel": [{"type": "harm", "who": "actor", "amount": 1,
-                  "if": {"not": {"scar": "bloodless"}},
-                  "fate": "succumbed to poison"}]},
-  {"id": "infected", "name": "Infected", "kind": "physical",
-   "desc": "The wound has gone hot and sweet-smelling.",
-   "on_travel": [{"type": "harm", "who": "actor", "amount": 1, "chance": 0.5,
-                  "fate": "lost to fever"}]},
-  {"id": "exhausted", "name": "Exhausted", "kind": "physical",
-   "desc": "Running on fumes and fear.",
-   "check_penalty": -1},
-  {"id": "starving", "name": "Starving", "kind": "physical",
-   "desc": "Hunger has moved from the stomach into the judgment.",
-   "check_penalty": -1},
-  {"id": "dying", "name": "Dying", "kind": "physical",
-   "desc": "Without help, soon, this ends one way.",
-   "check_penalty": -2,
-   "on_travel": [{"type": "harm", "who": "actor", "amount": 1, "fate": "slipped away in transit"}]},
-
-  {"id": "shaken", "name": "Shaken", "kind": "mental",
-   "desc": "Hands not quite steady. Voice not quite level.",
-   "attr_penalty": {"will": -1}},
-  {"id": "panicked", "name": "Panicked", "kind": "mental",
-   "desc": "Reason has left the building and taken the luggage.",
-   "check_penalty": -2},
-  {"id": "paranoid", "name": "Paranoid", "kind": "mental",
-   "desc": "Everyone is lying. The walls are listening. Both of these may be true.",
-   "attr_penalty": {"presence": -1}},
-  {"id": "dissociated", "name": "Dissociated", "kind": "mental",
-   "desc": "Watching themselves from a seat two rows back.",
-   "attr_penalty": {"awareness": -2}},
-  {"id": "obsessed", "name": "Obsessed", "kind": "mental",
-   "desc": "One question has eaten all the others.",
-   "attr_penalty": {"awareness": -1}},
-  {"id": "despairing", "name": "Despairing", "kind": "mental",
-   "desc": "Believes the train has already won.",
-   "check_penalty": -1},
-
-  {"id": "train_fed", "name": "Fed by the Train", "kind": "reality",
-   "desc": "They have eaten what the train serves. Ordinary food now tastes of ash, and the train remembers their flavor.",
-   "check_penalty": 0},
-  {"id": "partially_forgotten", "name": "Partially Forgotten", "kind": "reality",
-   "desc": "People's eyes slide off them. Records omit them. The engine cannot hear them.",
-   "attr_penalty": {"presence": -2}},
-  {"id": "seen_by_engine", "name": "Seen by the Engine", "kind": "reality",
-   "desc": "Something at the front of the train has taken a personal interest.",
-   "check_penalty": 0},
-  {"id": "echoing", "name": "Echoing", "kind": "reality",
-   "desc": "Their words arrive twice, a half-second apart. Not everyone hears both copies say the same thing.",
-   "attr_penalty": {"presence": -1}},
-  {"id": "dead_but_moving", "name": "Dead but Moving", "kind": "reality",
-   "desc": "No pulse, no breath, no warmth. Still walking. The dead may travel forward, never backward.",
-   "check_penalty": 0}
+  {
+    "id": "bruised",
+    "name": "Bruised",
+    "kind": "physical",
+    "desc": "Deep contusions. Everything costs a little more.",
+    "attr_penalty": {
+      "body": -1
+    }
+  },
+  {
+    "id": "bleeding",
+    "name": "Bleeding",
+    "kind": "physical",
+    "desc": "A wound that will not close on its own. Travel worsens it.",
+    "on_travel": [
+      {
+        "type": "harm",
+        "who": "actor",
+        "amount": 1,
+        "if": {
+          "not": {
+            "scar": "bloodless"
+          }
+        },
+        "fate": "bled out between carriages"
+      },
+      {
+        "type": "text",
+        "text": "Blood drips along the gangway plates.",
+        "style": "harm"
+      }
+    ]
+  },
+  {
+    "id": "burned",
+    "name": "Burned",
+    "kind": "physical",
+    "desc": "Blistered skin, stiff and weeping.",
+    "attr_penalty": {
+      "agility": -1
+    }
+  },
+  {
+    "id": "broken_limb",
+    "name": "Broken Limb",
+    "kind": "physical",
+    "desc": "Splinted or not, the bone grinds.",
+    "attr_penalty": {
+      "body": -1,
+      "agility": -1
+    }
+  },
+  {
+    "id": "poisoned",
+    "name": "Poisoned",
+    "kind": "physical",
+    "desc": "Something is working through the blood.",
+    "check_penalty": -1,
+    "on_travel": [
+      {
+        "type": "harm",
+        "who": "actor",
+        "amount": 1,
+        "if": {
+          "not": {
+            "scar": "bloodless"
+          }
+        },
+        "fate": "succumbed to poison"
+      }
+    ]
+  },
+  {
+    "id": "infected",
+    "name": "Infected",
+    "kind": "physical",
+    "desc": "The wound has gone hot and sweet-smelling.",
+    "on_travel": [
+      {
+        "type": "harm",
+        "who": "actor",
+        "amount": 1,
+        "chance": 0.5,
+        "fate": "lost to fever"
+      }
+    ]
+  },
+  {
+    "id": "exhausted",
+    "name": "Exhausted",
+    "kind": "physical",
+    "desc": "Worn past the marrow; fear is doing the walking.",
+    "check_penalty": -1
+  },
+  {
+    "id": "starving",
+    "name": "Starving",
+    "kind": "physical",
+    "desc": "Hunger has moved from the stomach into the judgment.",
+    "check_penalty": -1
+  },
+  {
+    "id": "dying",
+    "name": "Dying",
+    "kind": "physical",
+    "desc": "Without help, soon, this ends one way.",
+    "check_penalty": -2,
+    "on_travel": [
+      {
+        "type": "harm",
+        "who": "actor",
+        "amount": 1,
+        "fate": "slipped away in transit"
+      }
+    ]
+  },
+  {
+    "id": "shaken",
+    "name": "Shaken",
+    "kind": "mental",
+    "desc": "Hands not quite steady. Voice not quite level.",
+    "attr_penalty": {
+      "will": -1
+    }
+  },
+  {
+    "id": "panicked",
+    "name": "Panicked",
+    "kind": "mental",
+    "desc": "Reason has quit the carriage and taken the luggage.",
+    "check_penalty": -2
+  },
+  {
+    "id": "paranoid",
+    "name": "Paranoid",
+    "kind": "mental",
+    "desc": "Everyone is lying. The walls are listening. Both of these may be true.",
+    "attr_penalty": {
+      "presence": -1
+    }
+  },
+  {
+    "id": "dissociated",
+    "name": "Dissociated",
+    "kind": "mental",
+    "desc": "Watching themselves from a seat two rows back.",
+    "attr_penalty": {
+      "awareness": -2
+    }
+  },
+  {
+    "id": "obsessed",
+    "name": "Obsessed",
+    "kind": "mental",
+    "desc": "One question has eaten all the others.",
+    "attr_penalty": {
+      "awareness": -1
+    }
+  },
+  {
+    "id": "despairing",
+    "name": "Despairing",
+    "kind": "mental",
+    "desc": "Believes the train has already won.",
+    "check_penalty": -1
+  },
+  {
+    "id": "train_fed",
+    "name": "Fed by the Train",
+    "kind": "reality",
+    "desc": "They have eaten what the train serves. Ordinary food now tastes of ash, and the train remembers their flavor.",
+    "check_penalty": 0
+  },
+  {
+    "id": "partially_forgotten",
+    "name": "Partially Forgotten",
+    "kind": "reality",
+    "desc": "People's eyes slide off them. Records omit them. The engine cannot hear them.",
+    "attr_penalty": {
+      "presence": -2
+    }
+  },
+  {
+    "id": "seen_by_engine",
+    "name": "Seen by the Engine",
+    "kind": "reality",
+    "desc": "Something at the front of the train has taken a personal interest.",
+    "check_penalty": 0
+  },
+  {
+    "id": "echoing",
+    "name": "Echoing",
+    "kind": "reality",
+    "desc": "Their words arrive twice, a half-second apart. Not everyone hears both copies say the same thing.",
+    "attr_penalty": {
+      "presence": -1
+    }
+  },
+  {
+    "id": "dead_but_moving",
+    "name": "Dead but Moving",
+    "kind": "reality",
+    "desc": "No pulse, no breath, no warmth. Still walking. The dead may travel forward, never backward.",
+    "check_penalty": 0
+  }
 ]

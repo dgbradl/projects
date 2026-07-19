@@ -56,7 +56,7 @@
     {
       "id": "compartments",
       "name": "The compartment doors",
-      "low_composure_name": "The advent calendar",
+      "low_composure_name": "The row of little doors",
       "description": [
         {
           "text": "Twelve varnished doors, or thereabouts — the number resists settling. Behind the first door you try: a sleeping child, perhaps four years old, curled around a wooden horse. Behind the second: the same child, perhaps nine, arms crossed even in sleep. Behind the third: the same child at thirteen, frowning at a dream. The same face. The same breath-rhythm. The night-lamps tint them all blue."
@@ -167,12 +167,27 @@
                   "text": "Every berth holds the same crayon drawing: the train, and at its head a tall doorway full of scribbled black, with a crowd of stick figures queued at it, holding hands. The crayon tore the paper doing it."
                 }
               ]
+            },
+            {
+              "type": "resource",
+              "id": "ritual_materials",
+              "delta": 1
             }
           ],
           "on_fail": [
             {
               "type": "text",
-              "text": "Under the four-year-old's pillow your fingers close on something soft — a mitten. A child's mitten, damp, that matches exactly the flattened one someone found under the trunks in the rear carriage. You put it back. You say nothing. The child sighs in its sleep, contented, as if a question had been answered."
+              "text": [
+                {
+                  "if": {
+                    "flag": "found_mitten"
+                  },
+                  "text": "Under the four-year-old's pillow your fingers close on something soft — a mitten. A child's mitten, damp, that matches exactly the flattened one you found under the trunks in the rear carriage. You put it back. You say nothing. The child sighs in its sleep, contented, as if a question had been answered."
+                },
+                {
+                  "text": "Under the four-year-old's pillow your fingers close on something soft — a mitten. A child's mitten, damp, with no partner anywhere in the world. You put it back. You say nothing. The child sighs in its sleep, contented, as if a question had been answered."
+                }
+              ]
             },
             {
               "type": "composure",
@@ -212,7 +227,7 @@
               "id": "remembered_name",
               "category": "identity",
               "title": "A remembered true name",
-              "text": "A berth ticket in compartment seven bears the true, almost-forgotten name of one of the party — written in the Conductor's own hand. A remembered name is one of the engine's three authorizations."
+              "text": "A berth ticket in compartment seven bears the true, almost-forgotten name of one of the party — written in the Conductor's own hand. The train hoards true names; carrying one home again may matter at the front."
             },
             {
               "type": "composure",
@@ -253,7 +268,7 @@
               "id": "remembered_name",
               "category": "identity",
               "title": "A remembered true name",
-              "text": "A berth ticket in compartment seven bears the true, almost-forgotten name of one of the party — written in the Conductor's own hand. A remembered name is one of the engine's three authorizations."
+              "text": "A berth ticket in compartment seven bears the true, almost-forgotten name of one of the party — written in the Conductor's own hand. The train hoards true names; carrying one home again may matter at the front."
             },
             {
               "type": "composure",
@@ -404,7 +419,7 @@
               "id": "remembered_name",
               "category": "identity",
               "title": "A remembered true name",
-              "text": "The child whispered back the true name of one of the party — the name from before, learned from talking in sleep. A remembered name is one of the engine's three authorizations."
+              "text": "The child whispered back the true name of one of the party — the name from before, learned from talking in sleep. The train hoards true names; carrying one home again may matter at the front."
             },
             {
               "type": "composure",
@@ -420,6 +435,38 @@
             {
               "type": "text",
               "text": "It considers the request from a long way away. 'Names aren't sweets,' it says finally. 'You get a name back when you remember what you did to lose it.' It turns and walks into compartment four, where it is already asleep, aged four, and the door closes with a click that ends the conversation on the child's terms."
+            }
+          ]
+        },
+        {
+          "id": "promise_again",
+          "label": "Promise again — and mean it this time",
+          "time": 4,
+          "once": true,
+          "tags": [
+            "children",
+            "care"
+          ],
+          "visible_if": {
+            "evidence": "child_promise"
+          },
+          "effects": [
+            {
+              "type": "text",
+              "text": "One of you kneels — the one it looked at, or the one who cannot bear that it looked at anyone — and makes the promise again, with the years attached this time. The child studies the promiser for a long, appraising moment.\n\n'Everyone means it when they say it,' it says at last. 'That's not when meaning it counts.' It smooths its nightgown. 'Mean it at the engine. That's where the train checks.'"
+            },
+            {
+              "type": "flag",
+              "set": "promised_child"
+            },
+            {
+              "type": "composure",
+              "who": "actor",
+              "delta": 1
+            },
+            {
+              "type": "journal",
+              "text": "The promise was made again. The child says the train checks at the engine. We will find out what that costs."
             }
           ]
         }
@@ -539,7 +586,7 @@
       "text": "A true name has been recovered — guard it; the engine will demand one. Nothing else holds you here. Two doors lead forward: the white car of the doctors, or the colored-glass car of the faithful. You may only walk one road at a time."
     },
     {
-      "text": "The child in this carriage knows your real names, and one of you once made it a promise. Be gentle and honest with it — it punishes the grown-up voice. Somewhere here a TRUE NAME can be recovered, and the engine far ahead will demand one. When you are done, two doors lead forward: the white car or the colored-glass car. Choose."
+      "text": "The child in this carriage knows your real names, and one of you once made it a promise. Be gentle and honest with it — it punishes the grown-up voice. Somewhere here a TRUE NAME can be recovered, and names are currency at the front of the train. When you are done, two doors lead forward: the white car or the colored-glass car. Choose."
     }
   ],
   "scene": {

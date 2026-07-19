@@ -22,6 +22,19 @@
     {
       "type": "text",
       "style": "alert",
+      "if": {
+        "flag": "entered_unheard"
+      },
+      "text": "The iron is silent. No voice greets you. Wherever the grille's attention lives, you are not in it: NO AUTHORIZATIONS RECORDED. NO ARRIVAL RECORDED. The Company commends no one. And yet — beneath the iron, at the very bottom of hearing — something that is not the Company shifts its weight toward you, interested."
+    },
+    {
+      "type": "text",
+      "style": "alert",
+      "if": {
+        "not": {
+          "flag": "entered_unheard"
+        }
+      },
       "text": "A voice — the grille's many-voiced voice — speaks from everywhere in the iron: 'TWO AUTHORIZATIONS RECORDED. THE THIRD IS TENDERED AT THE THRESHOLD. THE THRESHOLD IS AHEAD. THE COMPANY COMMENDS YOUR PUNCTUALITY.'"
     }
   ],
@@ -45,18 +58,61 @@
             "testimony"
           ],
           "requires": {
-            "any_party": true,
-            "secret": "died_before_boarding"
+            "any": [
+              {
+                "any_party": true,
+                "secret": "died_before_boarding"
+              },
+              {
+                "all": [
+                  {
+                    "mystery": "ferry_of_the_dead"
+                  },
+                  {
+                    "any": [
+                      {
+                        "evidence": "theatre_records"
+                      },
+                      {
+                        "evidence": "gentlemans_hint"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
           },
-          "requires_text": "This door would accept a life already given — but only from someone who has one to declare.",
+          "requires_text": "This door would accept a life already given — but only from someone with a death to declare, or proof of one.",
           "effects": [
             {
               "type": "text",
-              "text": "One of you steps to the grille — the one who has carried it the whole way. The cold water. The hospital ceiling. The memory that ends, and then continues.\n\nAnd they declare it. Aloud. To the door, and therefore to the party, and therefore at last to themselves: 'I died before I boarded. My life was already given. I tender it.'\n\nThe silence behind the bulkhead becomes attentive. Ledger-sounds. Page-sounds. The dry arithmetic of an ancient accounting. Then the grille, almost gently: 'THE SACRIFICE IS FOUND TO PREDATE THE JOURNEY. THE COMPANY HONORS PAID FARES. AUTHORIZATION THREE: RECORDED.'\n\nThe bulkhead's seals begin to open. The one who died stands very straight, being looked at, being finally known — and finds, in the train's last surprise for them, that being known feels like the opposite of dying."
+              "text": [
+                {
+                  "if": {
+                    "any_party": true,
+                    "secret": "died_before_boarding"
+                  },
+                  "text": "One of you steps to the grille — the one who has carried it the whole way. The cold water. The hospital ceiling. The memory that ends, and then continues.\n\nAnd they declare it. Aloud. To the door, and therefore to the party, and therefore at last to themselves: 'I died before I boarded. My life was already given. I tender it.'\n\nThe silence behind the bulkhead becomes attentive. Ledger-sounds. Page-sounds. The dry arithmetic of an ancient accounting. Then the grille, almost gently: 'THE SACRIFICE IS FOUND TO PREDATE THE JOURNEY. THE COMPANY HONORS PAID FARES. AUTHORIZATION THREE: RECORDED.'\n\nThe bulkhead's seals begin to open. The one who died stands very straight, being looked at, being finally known — and finds, in the train's last surprise for them, that being known feels like the opposite of dying."
+                },
+                {
+                  "text": "None of you remembers dying. But you hold the paper: the post-mortem admissions, the obituary column, dates sitting in your memories like stones in wells. One of you steps to the grille, holds the proof to the hatch, and says the terrible sentence out loud, on behalf of everyone: 'We died before we boarded. Our lives were already given. We tender them.'\n\nSaying it makes it true. That is the cost — you feel the fact settle over the whole party like snow, cold and permanent and yours now.\n\nThe silence behind the bulkhead becomes attentive. Ledger-sounds. Page-sounds. Then the grille, almost gently: 'THE SACRIFICE IS FOUND TO PREDATE THE JOURNEY. THE COMPANY HONORS PAID FARES. AUTHORIZATION THREE: RECORDED.'"
+                }
+              ]
             },
             {
               "type": "flag",
               "set": "sacrifice_given"
+            },
+            {
+              "type": "composure",
+              "who": "party",
+              "delta": -1,
+              "if": {
+                "not": {
+                  "any_party": true,
+                  "secret": "died_before_boarding"
+                }
+              }
             },
             {
               "type": "composure",
@@ -73,6 +129,44 @@
             {
               "type": "journal",
               "text": "The threshold accepted a death that had already happened. The Company honors paid fares. Our friend stood very straight."
+            }
+          ]
+        },
+        {
+          "id": "anselm_lamp",
+          "label": "Let Anselm hand in his lamp — as he always meant to",
+          "time": 5,
+          "tags": [
+            "death",
+            "care"
+          ],
+          "visible_if": {
+            "party_member": "anselm_guard"
+          },
+          "requires": {
+            "party_member": "anselm_guard"
+          },
+          "effects": [
+            {
+              "type": "text",
+              "text": "Anselm steps past all of you before anyone can argue, unhooking the signal lamp from his belt with the ease of a man ending a shift.\n\n'Walked this train longer than I can count,' he says, to the bulkhead, conversationally. 'Never once seen you. Always meant to hand this in personally.' He sets the lamp on the offering shelf, in the worn hollow, and its light turns from white to red as it touches — a signal, given and understood.\n\n'It never quite let me finish,' he tells you, rolling down his sleeve over the old repeating wound, and for the first time since the baggage car he smiles all the way. 'It's letting me finish.'\n\nWhat happens is not violent. He is simply, gently, concluded — shift's end, lamp handed in, signed for. The grille says: 'AUTHORIZATION THREE: RECORDED. LONG SERVICE ACKNOWLEDGED. THE COMPANY, FOR ONCE, THANKS ITS STAFF.'"
+            },
+            {
+              "type": "item",
+              "remove": "guard_lamp"
+            },
+            {
+              "type": "kill",
+              "who": "char:anselm_guard",
+              "fate": "handed in his lamp at the engine, and was accepted"
+            },
+            {
+              "type": "flag",
+              "set": "sacrifice_given"
+            },
+            {
+              "type": "journal",
+              "text": "Anselm handed in his lamp. The train let him finish. The Company thanked its staff, once, in all its history."
             }
           ]
         },
@@ -221,7 +315,7 @@
           "effects": [
             {
               "type": "text",
-              "text": "You understand the machine now — chapel, ward, feast, all of it: the train is a lullaby with rolling stock. So you sing it properly, just once, from the source: candles at the meridian-chains, the old words from every tradition at once, fear folded politely into peace and poured down into the vast sleeping attention. The eyelids, those landscapes, settle by a degree no instrument could measure and every instrument in the room records. The sleep deepens past dreaming — past the NEED to dream carriages and trials and parties of frightened passengers."
+              "text": "You understand the machine now — however much of it the train let you see: the prayers piped forward, the fear harvested and refined, all of it a lullaby with rolling stock.\n\nSo you sing it properly, just once, from the source: candles at the meridian-chains, the old words from every tradition at once, fear folded politely into peace and poured down into the vast sleeping attention.\n\nThe eyelids, those landscapes, settle by a degree no instrument could measure and every instrument in the room records. The sleep deepens past dreaming — past the NEED to dream carriages and trials and parties of frightened passengers."
             },
             {
               "type": "ending",
@@ -262,7 +356,7 @@
           "effects": [
             {
               "type": "text",
-              "text": "You approach the laboring heart with your evidence held out like lanterns — the obituaries, the post-mortem admissions, the route that circles a terminus inked out of existence — and you do the kindest, hardest thing that can be done for the faithful: you tell it the truth in its own language. The route is a circle. The terminus is gone. The manifest — you show it — is COMPLETE: every name accounted for, every passenger carried, every duty done. Nothing was ever failed. There is simply, finally, nothing left to deliver. The heart reads. The heart believes you."
+              "text": "You approach the laboring heart with your evidence held out like lanterns — everything the train let you read, everything you carried forward — and you do the kindest, hardest thing that can be done for the faithful: you tell it the truth in its own language.\n\nThe route is a circle. The terminus is gone. The manifest — you show it — is COMPLETE: every name accounted for, every passenger carried, every duty done. Nothing was ever failed. There is simply, finally, nothing left to deliver.\n\nThe heart reads. The heart believes you."
             },
             {
               "type": "ending",

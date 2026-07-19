@@ -47,18 +47,38 @@
           "on_success": [
             {
               "type": "text",
-              "text": "You trace the mainline junction by junction — and find the truth hiding in plain professional sight. The route never terminates. It CIRCLES: an immense loop through every mapped territory, rejoining itself at the rear. The inked-out terminus is not ahead of the train at all; the word beneath the ink, read at an angle in the lamplight, is TERMINUS — and it sits on the loop BEHIND the train, in territory shaded solid black. The train is not traveling toward its destination. It is traveling away from it, around and around, and the Blackout is the destination, patiently keeping its appointment."
+              "text": [
+                {
+                  "if": {
+                    "mystery": "ferry_of_the_dead"
+                  },
+                  "text": "You trace the mainline junction by junction — and find the truth hiding in plain professional sight. The route never terminates. It CIRCLES: an immense loop through every mapped territory, rejoining itself at the rear.\n\nThe inked-out terminus is not ahead of the train at all; the word beneath the ink, read at an angle in the lamplight, is TERMINUS — and it sits on the loop BEHIND the train, in territory shaded solid black.\n\nThe train is not traveling toward its destination. It is traveling away from it, around and around, and the Blackout is the destination, patiently keeping its appointment."
+                },
+                {
+                  "text": "You trace the mainline junction by junction — and find the truth hiding in plain professional sight. The route never terminates. It CIRCLES: an immense loop through every mapped territory, rejoining itself at the rear — because a circle is the shape of never stopping, and this train exists to never stop.\n\nThe inked-out word at the map's edge, read at an angle in the lamplight, is TERMINUS. It sits on no line. No line has ever run to it.\n\nIt was never a place. It is the lie the Company prints on the tickets — a destination to keep the passengers facing forward, while the train circles its sleeping cargo forever."
+                }
+              ]
             },
             {
               "type": "evidence",
               "id": "route_is_a_loop",
               "category": "physical",
               "title": "The route is a circle",
-              "text": "The mainline never ends: it loops through every territory and rejoins itself. TERMINUS lies BEHIND the train, inked out, in the blacked-out section. The train is circling away from its own destination — and the Blackout keeps the appointment."
+              "text": [
+                {
+                  "if": {
+                    "mystery": "ferry_of_the_dead"
+                  },
+                  "text": "The mainline never ends: it loops through every territory and rejoins itself. TERMINUS lies BEHIND the train, inked out, in the blacked-out section. The train is circling away from its own destination — and the Blackout keeps the appointment."
+                },
+                {
+                  "text": "The mainline never ends: it loops and rejoins itself, because a circle is the shape of never stopping. TERMINUS connects to no line and never has. The destination on every ticket is the Company's lie."
+                }
+              ]
             },
             {
               "type": "journal",
-              "text": "Traced the mainline. We are not headed to TERMINUS. We are orbiting it. The dark behind us is not pursuit. It is the station."
+              "text": "Traced the mainline. It is a circle. Whatever TERMINUS is, no rail has ever run to it."
             }
           ],
           "on_fail": [
@@ -159,7 +179,7 @@
           "on_success": [
             {
               "type": "text",
-              "text": "You turn the great pages with a fingertip. Names, thousands upon thousands, and every single one struck through with one clean line — every name in the book, page after page, struck through in the same unwearying hand. Except, on the last written page, a short column of names not yet struck: yours. All of yours. And beneath the entries, in the margin, two notations in the Conductor's smallest writing: 'Bell: three rings = replacement effected. Do not unmuffle.' And: 'N.B. — the engine cannot hear a person who has been completely forgotten. This is the only mercy I have found in the regulations. — C.'"
+              "text": "You turn the great pages with a fingertip. Names, thousands upon thousands, and every single one struck through with one clean line — every name in the book, page after page, struck through in the same unwearying hand.\n\nExcept, on the last written page, a short column of names not yet struck: yours. All of yours.\n\nAnd one more thing, pages back, that stops your breath: a struck-through name that has been scratched at — gouged, worked at with a blade, someone trying to strike the strike itself, to un-cancel a cancellation. The gouging failed. The margin beside it holds a single pencilled initial: G.\n\nBeneath your own entries, two notations in the Conductor's smallest writing: 'Bell: three rings = replacement effected. Do not unmuffle.' And: 'N.B. — the engine cannot hear a person who has been completely forgotten. This is the only mercy I have found in the regulations. — C.'"
             },
             {
               "type": "rule",
@@ -261,10 +281,10 @@
                   "if": {
                     "mystery": "sleeper_below"
                   },
-                  "text": "The question lands somewhere unarmored. He is quiet a long moment. 'There was a party,' he says at last, 'that reached the engine. As you may. The engine requires tending — the sleep requires tending — and the party understood, as you may, what would happen if the tending stopped. A volunteer was called for.' He straightens a stack that was already straight. 'I have worn the uniform since. I no longer remember my name — that is not poetry, you understand; surrendering it is part of the fitting. Should you reach the threshold, and should a volunteer be called for—' the tired eyes come up '—consider whether you like the fit of silver buttons. Someone must. Someone always must.'"
+                  "text": "The question lands somewhere unarmored. He is quiet a long moment.\n\n'There was a party,' he says at last, 'that reached the engine. As you may. The engine requires tending — the sleep requires tending — and the party understood, as you may, what would happen if the tending stopped. A volunteer was called for.'\n\nHe straightens a stack that was already straight. 'I have worn the uniform since. I no longer remember my name — that is not poetry, you understand; surrendering it is part of the fitting. Should you pass the threshold, and find the controls waiting for a living hand—' the tired eyes come up '—consider whether you like the fit of silver buttons. Someone must. Someone always must.'"
                 },
                 {
-                  "text": "The question lands somewhere unarmored. He is quiet a long moment. 'I was the ferryman,' he says simply. 'This route ran to a terminus, once — a real one. I delivered every manifest, on time, for longer than empires. And then one crossing, the terminus was not there. No closure notice. No amended orders. Simply — not there.' He squares the ledger. 'I have kept to the timetable since. The dead deserve a punctual service even where no destination remains — ESPECIALLY where none remains. If you reach the engine, you will find it agrees with me. That is the trouble. It agrees with me completely.'"
+                  "text": "The question lands somewhere unarmored. He is quiet a long moment.\n\n'I was the ferryman,' he says simply. 'This route ran to a terminus, once — a real one. I delivered every manifest, on time, for longer than empires. And then one crossing, the terminus was not there. No closure notice. No amended orders. Simply — not there.'\n\nHe squares the ledger. 'I have kept to the timetable since. The dead deserve a punctual service even where no destination remains — ESPECIALLY where none remains. If you reach the engine, you will find it agrees with me. That is the trouble. It agrees with me completely.' He looks, once, at each of you in turn. 'The timetable will outlast me. It outlasts everyone but itself. If one of you has the constitution for punctuality — the uniform has always known how to fit itself.'"
                 }
               ]
             },
@@ -342,7 +362,17 @@
               "effects": [
                 {
                   "type": "text",
-                  "text": "The name is spoken. The Conductor writes it into the ledger with terrible care, letter by letter.\n\nAs the ink dries, the seller feels it leave — not the sound of the name but the OWNERSHIP of it, the way it used to sit in the mouths of people who loved them. The others find, testing quietly, that they can no longer quite fix the seller's face when they look away.\n\nThe punch closes on the blank ticket with a sound like a small door. 'The Company,' says the Conductor, handing it over, 'thanks you for your custom.' He does not meet anyone's eyes. He sold the same thing once, for less."
+                  "text": [
+                    {
+                      "if": {
+                        "mystery": "sleeper_below"
+                      },
+                      "text": "The name is spoken. The Conductor writes it into the ledger with terrible care, letter by letter.\n\nAs the ink dries, the seller feels it leave — not the sound of the name but the OWNERSHIP of it, the way it used to sit in the mouths of people who loved them. The others find, testing quietly, that they can no longer quite fix the seller's face when they look away.\n\nThe punch closes on the blank ticket with a sound like a small door. 'The Company,' says the Conductor, handing it over, 'thanks you for your custom.' He does not meet anyone's eyes. He sold the same thing once, for less."
+                    },
+                    {
+                      "text": "The name is spoken. The Conductor writes it into the ledger with terrible care, letter by letter.\n\nAs the ink dries, the seller feels it leave — not the sound of the name but the OWNERSHIP of it, the way it used to sit in the mouths of people who loved them. The others find, testing quietly, that they can no longer quite fix the seller's face when they look away.\n\nThe punch closes on the blank ticket with a sound like a small door. 'The Company,' says the Conductor, handing it over, 'thanks you for your custom.' He does not meet anyone's eyes. Ferrymen were paid in coin laid on tongues, once. He knows better than anyone what it is to be the fare."
+                    }
+                  ]
                 },
                 {
                   "type": "condition",
@@ -523,9 +553,15 @@
           }
         ]
       },
-      "locked_text": "The iron door has no handle — only a ticket-slot and a speaking-grille. It requires the first two authorizations: a PUNCHED TICKET (the Conductor's punch, or blood-franking in the mail car), and a REMEMBERED NAME (recovered from the train's depths, or sold into the ledger). The third — a voluntary sacrifice — is tendered at the threshold beyond.",
+      "locked_text": "The iron door has no handle — only a ticket-slot and a speaking-grille. It requires the first two authorizations: a PUNCHED TICKET (the Conductor can supply one here — at prices) and a REMEMBERED NAME (recovered from the train's depths, or sold into the ledger). The third — a voluntary sacrifice — is tendered at the threshold beyond.",
       "time": 4,
-      "travel_text": "The ticket goes into the slot. A pause — a long, considering pause — and then a voice from the grille, which is not the Conductor's voice and is not one voice, speaks a name. The remembered name. Correctly. Gently. The way it used to be spoken.\n\nThe iron door unrivets itself along its seams and swings open onto heat and enormous sound.\n\nThe Conductor stands and removes his cap — the first time you have seen his bare head — and holds it to his chest until the last of you has passed through. 'Mind the threshold,' he says. It is what he has instead of goodbye."
+      "travel_text": "The ticket goes into the slot. A pause — a long, considering pause — and then a voice from the grille, which is not the Conductor's voice and is not one voice, speaks a name. The remembered name. Correctly. Gently. The way it used to be spoken.\n\nThe iron door unrivets itself along its seams and swings open onto heat and enormous sound.\n\nThe Conductor stands and removes his cap — the first time you have seen his bare head — and holds it to his chest until the last of you has passed through. 'Mind the threshold,' he says. It is what he has instead of goodbye.",
+      "effects": [
+        {
+          "type": "flag",
+          "set": "entered_by_door"
+        }
+      ]
     },
     {
       "id": "unheard_walk",
@@ -544,7 +580,13 @@
       },
       "locked_text": "The margin-note's mercy requires someone the train has partly forgotten, and the knowledge of the rule itself.",
       "time": 4,
-      "travel_text": "The one the train has begun to forget walks to the iron door — and the door, which admits no anonymous callers, does not notice the caller at all. Their half-erased hand works the bolts from the inside of the door's attention, unseen, unheard, unfiled; the seams part around a person the regulations can no longer perceive. The rest of you slip through the gap in the engine's noticing, pressed close behind your vanishing friend like travelers sheltering behind a gravestone from wind. The Conductor watches the door stand open with no recorded cause. He writes nothing. For one entire minute, deliberately, he writes nothing at all."
+      "travel_text": "The one the train has begun to forget walks to the iron door — and the door, which admits no anonymous callers, does not notice the caller at all. Their half-erased hand works the bolts from the inside of the door's attention, unseen, unheard, unfiled; the seams part around a person the regulations can no longer perceive. The rest of you slip through the gap in the engine's noticing, pressed close behind your vanishing friend like travelers sheltering behind a gravestone from wind. The Conductor watches the door stand open with no recorded cause. He writes nothing. For one entire minute, deliberately, he writes nothing at all.",
+      "effects": [
+        {
+          "type": "flag",
+          "set": "entered_unheard"
+        }
+      ]
     }
   ],
   "objective": [

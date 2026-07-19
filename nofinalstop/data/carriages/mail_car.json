@@ -101,7 +101,17 @@
           "on_success": [
             {
               "type": "text",
-              "text": "Among the thousands of envelopes you find a bundle tied in black ribbon — every letter addressed to one of you, by name, in different hands. Condolence letters. All of them are condolence letters, dated after dates that mean nothing to you yet. There are also, practically speaking, a parcel of tinned rations and a sender's flask of brandy."
+              "text": [
+                {
+                  "if": {
+                    "mystery": "ferry_of_the_dead"
+                  },
+                  "text": "Among the thousands of envelopes you find a bundle tied in black ribbon — every letter addressed to one of you, by name, in different hands. Condolence letters. All of them are condolence letters, dated after dates that mean nothing to you yet. There are also, practically speaking, a parcel of tinned rations and a sender's flask of brandy."
+                },
+                {
+                  "text": "Among the thousands of envelopes you find a bundle tied in black ribbon — every letter addressed to one of you, by name, in hands you almost know. Condolence letters, mourning each of you in warm, specific, entirely wrong detail — grief manufactured to fit, the way the packed cases in the baggage car were lives manufactured to fit, waiting for their wearers. There are also, practically speaking, a parcel of tinned rations and a sender's flask of brandy."
+                }
+              ]
             },
             {
               "type": "item",
@@ -117,7 +127,17 @@
               "id": "condolence_letters",
               "category": "physical",
               "title": "Condolence letters addressed to the party",
-              "text": "The inbound mail includes bundled condolence letters for each party member — mourning them — dated after dates that have not yet happened. Or have they?"
+              "text": [
+                {
+                  "if": {
+                    "mystery": "ferry_of_the_dead"
+                  },
+                  "text": "The inbound mail includes bundled condolence letters for each party member — mourning them — dated after dates that have not yet happened. Or have they?"
+                },
+                {
+                  "text": "The inbound mail includes condolence letters for each party member, mourning them in convincing, fabricated detail — grief prepared in advance, like the packed cases. The train expected you, and prepared your absences."
+                }
+              ]
             }
           ],
           "on_fail": [
@@ -153,7 +173,7 @@
           "effects": [
             {
               "type": "text",
-              "text": "The black-bordered circular reads: 'Staff are reminded that a ticket punched with blood permits passage through locked doors. Staff are reminded that this is not a benefit. Staff are reminded not to test this. The Company does not replace what the doors keep.' Beneath it, someone has pencilled: 'it works. — G.'"
+              "text": "The black-bordered circular reads: 'Staff are reminded that a ticket punched with blood permits passage through the doors the Company itself has sealed, at the train's head. Staff are reminded that this is not a benefit. Staff are reminded not to test this. The Company does not replace what the doors keep.' Beneath it, someone has pencilled: 'it works. — G.'"
             },
             {
               "type": "rule",
@@ -283,7 +303,7 @@
       "text": "You hold a ticket punched in blood — locked doors ahead must honor it. Take anything else worth taking and move forward."
     },
     {
-      "text": "A short sorting car — take what it offers. The staff notices teach a rule about tickets and blood, and somewhere in the pigeonholes is a blank ticket. Far ahead, the engine will demand a punched ticket from anyone who knocks. Leave this car carrying more than you brought in."
+      "text": "A short sorting car — take what it offers. The staff notices teach a rule about tickets and blood, and somewhere in the pigeonholes is a blank ticket. If the circulars are to be believed, the sealed doors at the train's head honor a punched ticket. Leave this car carrying more than you brought in."
     }
   ],
   "scene": {

@@ -54,7 +54,7 @@
           "on_success": [
             {
               "type": "text",
-              "text": "A provisions hamper — some emigrant family's whole careful larder: tinned meat, hard bread, a bottle of spirits. And wedged behind it, a tin of lamp oil and a coil of sound rope."
+              "text": "A provisions hamper — some emigrant family's whole careful larder: tinned meat, hard bread, a bottle of spirits. And wedged behind it, a tin of lamp oil and a coil of good rope."
             },
             {
               "type": "resource",
@@ -145,6 +145,10 @@
               "category": "physical",
               "title": "Cases packed with unlived lives",
               "text": "The baggage car holds a case for each party member, packed with letters, photographs, and belongings from lives they do not remember living — and each contains a worn article of train staff uniform, in their size."
+            },
+            {
+              "type": "rule",
+              "id": "abandoned_belongs"
             },
             {
               "type": "composure",
@@ -324,6 +328,10 @@
             {
               "type": "recruit",
               "id": "anselm_guard"
+            },
+            {
+              "type": "item",
+              "add": "guard_lamp"
             },
             {
               "type": "condition",

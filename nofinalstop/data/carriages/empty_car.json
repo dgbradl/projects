@@ -141,7 +141,17 @@
           "effects": [
             {
               "type": "text",
-              "text": "You kneel where some earlier passenger lay, and read what they bought with the time it takes to scratch board with a belt buckle: 'IT ONLY STOPS FOR SOMEONE WHO MEANS TO LEAVE. Not wants. MEANS. I have been trying to mean it for years. The wanting keeps getting in the way. If you can mean it, mean it at the engine, and get off this train, and unscratch my name from the manifest. — G.' The same G, you are certain, who tested the blood-punched ticket."
+              "text": [
+                {
+                  "if": {
+                    "rule_known": "blood_ticket"
+                  },
+                  "text": "You kneel where some earlier passenger lay, and read what they bought with the time it takes to scratch board with a belt buckle: 'IT ONLY STOPS FOR SOMEONE WHO MEANS TO LEAVE. Not wants. MEANS. I have been trying to mean it for years. The wanting keeps getting in the way. If you can mean it, mean it at the engine, and get off this train, and unscratch my name from the manifest. — G.' The same G, you are certain, who tested the blood-punched ticket in the mail car."
+                },
+                {
+                  "text": "You kneel where some earlier passenger lay, and read what they bought with the time it takes to scratch board with a belt buckle: 'IT ONLY STOPS FOR SOMEONE WHO MEANS TO LEAVE. Not wants. MEANS. I have been trying to mean it for years. The wanting keeps getting in the way. If you can mean it, mean it at the engine, and get off this train, and unscratch my name from the manifest. — G.'"
+                }
+              ]
             },
             {
               "type": "rule",
@@ -156,7 +166,7 @@
             },
             {
               "type": "journal",
-              "text": "G again. G experiments, G documents, G has never gotten off. We are following G's homework."
+              "text": "G again. G experiments, G documents, G has never gotten off. We are following G's workings."
             }
           ]
         }

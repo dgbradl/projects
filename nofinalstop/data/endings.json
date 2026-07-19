@@ -4,16 +4,51 @@
     "name": "ENDING — The Last Stop",
     "victory": true,
     "text": [
-      {"if": {"mystery": "ferry_of_the_dead"},
-       "text": "The brakes engage for the first time in centuries. Outside the windows a station assembles itself out of fog and lamplight, and its sign says nothing at all, because it does not need to. The doors open. Warm air. A smell like a remembered kitchen. Only those who still carry their real lives — a name, a debt, a promise, a grief with edges — feel their feet touch the platform. The others remain in the doorway, translucent as breath, waving without sorrow. The train waits until the last true passenger steps down. Then it moves on, lighter, to gather the rest of its manifest. You were dead when you boarded. You are not entirely sure that's still true."},
-      {"text": "The brakes engage, screaming, and for the first time the wheels' rhythm slows, stutters, stops. A station platform waits outside — ordinary, gaslit, smelling of rain. The doors open only for those who genuinely intend to leave, and only those who still remember who they were can hold that intention long enough to cross the threshold. You step down. The boards are solid. Somewhere behind you the train exhales and begins, very slowly, to move again — because it must, because it always must — and you do not look back at the faces in the windows. The ones who leave carry what they carried. The ones who stay become what stays."}
+      {
+        "if": {
+          "all": [
+            {
+              "mystery": "ferry_of_the_dead"
+            },
+            {
+              "flag": "promised_child"
+            }
+          ]
+        },
+        "text": "The brakes engage for the first time in centuries. Outside the windows a station assembles itself out of fog and lamplight, and its sign says nothing at all, because it does not need to. The doors open. Warm air. A smell like a remembered kitchen. Only those who still carry their real lives — a name, a debt, a promise, a grief with edges — feel their feet touch the platform. The others remain in the doorway, translucent as breath, waving without sorrow. The train waits until the last true passenger steps down. Then it moves on, lighter, to gather the rest of its manifest. You were dead when you boarded. You are not entirely sure that's still true. And at the platform's edge, small and patient, a child in one mitten raises a hand — not waving. Checking. That you meant it. You did."
+      },
+      {
+        "if": {
+          "flag": "promised_child"
+        },
+        "text": "The brakes engage, screaming, and for the first time the wheels' rhythm slows, stutters, stops. A station platform waits outside — ordinary, gaslit, smelling of rain. The doors open only for those who genuinely intend to leave, and only those who still remember who they were can hold that intention long enough to cross the threshold. You step down. The boards are solid. Somewhere behind you the train exhales and begins, very slowly, to move again — because it must, because it always must — and you do not look back at the faces in the windows. The ones who leave carry what they carried. The ones who stay become what stays. And at the platform's edge, small and patient, a child in one mitten raises a hand — not waving. Checking. That you meant it. You did."
+      },
+      {
+        "if": {
+          "mystery": "ferry_of_the_dead"
+        },
+        "text": "The brakes engage for the first time in centuries. Outside the windows a station assembles itself out of fog and lamplight, and its sign says nothing at all, because it does not need to. The doors open. Warm air. A smell like a remembered kitchen. Only those who still carry their real lives — a name, a debt, a promise, a grief with edges — feel their feet touch the platform. The others remain in the doorway, translucent as breath, waving without sorrow. The train waits until the last true passenger steps down. Then it moves on, lighter, to gather the rest of its manifest. You were dead when you boarded. You are not entirely sure that's still true."
+      },
+      {
+        "text": "The brakes engage, screaming, and for the first time the wheels' rhythm slows, stutters, stops. A station platform waits outside — ordinary, gaslit, smelling of rain. The doors open only for those who genuinely intend to leave, and only those who still remember who they were can hold that intention long enough to cross the threshold. You step down. The boards are solid. Somewhere behind you the train exhales and begins, very slowly, to move again — because it must, because it always must — and you do not look back at the faces in the windows. The ones who leave carry what they carried. The ones who stay become what stays."
+      }
     ]
   },
   {
     "id": "new_conductor",
     "name": "ENDING — New Conductor",
     "victory": true,
-    "text": "The uniform fits. That is the terrible part — it fits perfectly, instantly, the brass buttons closing themselves. The punch settles into the pocket over the heart. The train's long body flexes ahead and behind, attentive, obedient, hungry, and the timetable unrolls in a new Conductor's mind like a language they have always known. The others are given seats in first class, or set down gently at stations that exist for exactly as long as the disembarking takes. The train needs a will to steer it between the world's cracks. It has one. Where it goes now — which sleepers it gathers, which doors it opens, whether it is kinder under new management — is a question for the next frightened party to wake in the rear carriage and answer."
+    "text": [
+      {
+        "if": {
+          "evidence": "packed_lives"
+        },
+        "text": "The uniform fits. That is the terrible part — it fits perfectly, instantly, the brass buttons closing themselves. The punch settles into the pocket over the heart. The train's long body flexes ahead and behind, attentive, obedient, hungry, and the timetable unrolls in a new Conductor's mind like a language they have always known. The others are given seats in first class, or set down gently at stations that exist for exactly as long as the disembarking takes. The train needs a will to steer it between the world's cracks. It has one. Where it goes now — which sleepers it gathers, which doors it opens, whether it is kinder under new management — is a question for the next frightened party to wake in the rear carriage and answer. In the baggage car, miles behind, a packed case with a worn staff uniform in exactly this size stands empty at last. It was never a threat. It was a fitting."
+      },
+      {
+        "text": "The uniform fits. That is the terrible part — it fits perfectly, instantly, the brass buttons closing themselves. The punch settles into the pocket over the heart. The train's long body flexes ahead and behind, attentive, obedient, hungry, and the timetable unrolls in a new Conductor's mind like a language they have always known. The others are given seats in first class, or set down gently at stations that exist for exactly as long as the disembarking takes. The train needs a will to steer it between the world's cracks. It has one. Where it goes now — which sleepers it gathers, which doors it opens, whether it is kinder under new management — is a question for the next frightened party to wake in the rear carriage and answer."
+      }
+    ]
   },
   {
     "id": "containment",
@@ -37,7 +72,17 @@
     "id": "the_blackout",
     "name": "ENDING — The Blackout",
     "victory": false,
-    "text": "You stop running. You open the engine's rear doors, throw the couplings, and let the darkness that has eaten every mile of the journey come forward to take the last of it. The Blackout pours over the engine like a tide over a sandcastle — and then, in the last second, you finally see it clearly. It was never pursuing the train. It was cleaning up after it: unmaking the nightmare mile by mile, erasing the impossible corridors, releasing what the train had swallowed back into whatever true night waits outside. The engine goes out like a coal in water. And behind the train — behind everything — you see at last what has been walking there the whole time, patient as a shepherd at the end of the day, holding open a door made of dark. You step through."
+    "text": [
+      {
+        "if": {
+          "mystery": "ferry_of_the_dead"
+        },
+        "text": "You stop running. You open the engine's rear doors, throw the couplings, and let the darkness that has eaten every mile of the journey come forward to take the last of it. The Blackout pours over the engine like a tide over a sandcastle — and then, in the last second, you finally see it clearly. It was never pursuing the train. It was cleaning up after it: unmaking the nightmare mile by mile, erasing the impossible corridors, releasing what the train had swallowed back into whatever true night waits outside. The engine goes out like a coal in water. And behind the train — behind everything — you see at last what has been walking there the whole time, patient as a shepherd at the end of the day, holding open a door made of dark. You step through."
+      },
+      {
+        "text": "You stop running. You open the engine's rear doors, throw the couplings, and let the darkness that has eaten every mile of the journey pour forward over the last of it.\n\nAnd as it closes over the engine, you finally understand what you are standing in. This dark is not a pursuer and never was. It is the dream, spent: every nightmare the sleeper ever exhaled, every fear the carriages harvested and burned, pooled and following its own warmth home. You have not let something catch the train. You have let the dream flow back into its dreamer.\n\nThe engine goes out like a coal in water. The eyelids beneath the iron flutter — the sleep, unfed now, thinning toward morning — and the last thing the dark shows you, gently, is that you were part of the dream too. You step back into the sleeper's waking, and are unwritten, and it feels — this is the mercy no one promised — like being remembered by something enormous, fondly, at the moment of waking up."
+      }
+    ]
   },
   {
     "id": "consumed",

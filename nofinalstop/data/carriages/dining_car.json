@@ -328,7 +328,7 @@
             },
             {
               "type": "journal",
-              "text": "Out-formalized the maître d'. The plates were empty; the rules were satisfied; nobody ate."
+              "text": "Beat the maître d' at his own ceremony. The plates were empty; the rules were satisfied; nobody ate."
             }
           ],
           "on_fail": [
@@ -684,7 +684,17 @@
       "locked": true,
       "locked_text": "The staff passage lies beyond the kitchen door. You'd have to get into the kitchen first.",
       "time": 4,
-      "travel_text": "The service passage runs forward past small metal hatches in the tiled wall — each stenciled with the name of a different carriage, some of which you have not reached, one of which is dark and hums. You do not open any of them. The passage ends at a plain door, and beyond it: leather, smoke, and quiet."
+      "travel_text": [
+        {
+          "if": {
+            "party_member": "petra_cook"
+          },
+          "text": "The service passage runs forward past small metal hatches in the tiled wall — each stenciled with the name of a different carriage, some of which you have not reached, one of which is dark and hums. Midway along, a door stands ajar on a darkness that smells of nothing at all. The stencil reads PANTRY. Petra walks the whole length of the passage with her eyes fixed on the forward door, and without discussing it, you all do the same. The passage ends at a plain door, and beyond it: leather, smoke, and quiet."
+        },
+        {
+          "text": "The service passage runs forward past small metal hatches in the tiled wall — each stenciled with the name of a different carriage, some of which you have not reached, one of which is dark and hums. Midway along, a door stands ajar on a darkness that smells of nothing at all. The stencil reads PANTRY. You do not open it any further. Something inside is breathing, slowly, at the pace of a thing that has learned patience in the dark. The passage ends at a plain door, and beyond it: leather, smoke, and quiet."
+        }
+      ]
     }
   ],
   "objective": [
@@ -747,5 +757,21 @@
       "kitchen_door": 0.94,
       "petra_in_passage": 0.97
     }
-  }
+  },
+  "on_return": [
+    {
+      "type": "composure",
+      "who": "party",
+      "delta": -1
+    },
+    {
+      "type": "blackout",
+      "minutes": 6
+    },
+    {
+      "type": "text",
+      "style": "alert",
+      "text": "Thirty diners rise from their tables in unison and remain standing, faces turned to you, until you are gone. The rule was not advice. Somewhere behind the train, the dark takes a longer stride."
+    }
+  ]
 }
