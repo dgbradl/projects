@@ -48,7 +48,6 @@ def test_browser_full_journey(tmp_path):
             page.click("#btn-quick")
             page.wait_for_selector(".topbar")
             assert "The Rear Carriage" in page.text_content(".car-name")
-            assert len(page.query_selector_all(".party-card")) == 4
 
             # the scene shows the party in the carriage, with markers and doors
             page.wait_for_selector(".scene-band svg")
@@ -61,7 +60,7 @@ def test_browser_full_journey(tmp_path):
             assert "luggage" in page.text_content(".nd-name").lower()
             page.click("#nd-close")
 
-            # inspect and act — the narrative pane page-turns to the new events
+            # inspect and act — the narrative page-turns and the dice tumble
             page.click(".node-btn")
             page.wait_for_selector(".node-detail")
             log_before = page.text_content("#log")
@@ -69,16 +68,34 @@ def test_browser_full_journey(tmp_path):
             page.wait_for_function(
                 "prev => document.querySelector('#log').textContent !== prev",
                 arg=log_before)
+            if page.query_selector("#log .dice"):   # actions with checks roll dice
+                page.wait_for_selector("#log .dice.settled", timeout=5000)
             # the page itself must never scroll
             assert page.evaluate(
                 "document.documentElement.scrollHeight <= window.innerHeight + 1")
 
-            # observer switch from an expanded party card
-            cards = page.query_selector_all(".party-card")
+            # party lives in a drawer now; observer switch works from its cards
+            page.click('[data-dock="party"]')
+            page.wait_for_selector(".drawer .party-card")
+            assert len(page.query_selector_all(".drawer .party-card")) == 4
+            cards = page.query_selector_all(".drawer .party-card")
             cards[1].click()
-            page.wait_for_selector(".party-card.expanded .observe-btn")
-            page.click(".party-card.expanded .observe-btn")
-            page.wait_for_selector(".party-card:nth-child(2).observer")
+            page.wait_for_selector(".drawer .party-card.expanded .observe-btn")
+            page.click(".drawer .party-card.expanded .observe-btn")
+            page.wait_for_selector(".drawer .party-card:nth-child(2).observer")
+            page.keyboard.press("Escape")
+            page.wait_for_selector(".drawer", state="detached")
+
+            # ...and directly from a scene figure (force: figures may be
+            # mid-animation — trembling — which Playwright treats as unstable)
+            first_fig = page.query_selector(".scene-band .pcfig")
+            first_fig.click(force=True)
+            page.wait_for_selector(".scene-band .pcfig.obs")
+
+            # inventory drawer opens and lists supplies
+            page.click('[data-dock="inventory"]')
+            page.wait_for_selector(".drawer .res-chip")
+            page.click(".drawer-close")
 
             # drive the engine-side session to the Engine, then finish in-browser
             import sys

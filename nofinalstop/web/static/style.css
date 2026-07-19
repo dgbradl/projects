@@ -190,16 +190,18 @@ button:disabled { cursor: default; }
 .veil .tendril.t2 { animation-duration: 6s; animation-delay: 1s; }
 @keyframes tendrildrift { 0%,100% { transform: translateX(0); } 50% { transform: translateX(10px); } }
 
-/* the scene shrinks before it disappears */
-@media (max-height: 940px) { .scene-band svg { height: 138px; } }
-@media (max-height: 820px) { .scene-band svg { height: 116px; } }
-@media (max-height: 700px) { #scene-slot { display: none; } }
+/* the scene shrinks before it disappears; the party strip takes over */
+@media (max-height: 940px) { .scene-band svg { height: 148px; } }
+@media (max-height: 820px) { .scene-band svg { height: 126px; } }
+@media (max-height: 700px) {
+  #scene-slot { display: none; }
+  #party-strip { display: flex; }
+}
 
 /* ============================== layout ============================== */
-.play-grid {
+.paper-wrap {
   flex: 1 1 auto; min-height: 0;
-  display: grid; grid-template-columns: minmax(0, 1fr) 350px; gap: 14px;
-  align-items: stretch;
+  display: flex; justify-content: center;
 }
 
 /* ------------------------------ paper column ------------------------ */
@@ -211,6 +213,7 @@ button:disabled { cursor: default; }
   box-shadow: 0 24px 70px rgba(0,0,0,.75), inset 0 0 110px rgba(90, 66, 35, .22);
   position: relative;
   display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+  width: 100%; max-width: 960px;
 }
 .paper::after {
   content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .6;
@@ -326,19 +329,53 @@ button:disabled { cursor: default; }
 .ticket.unmet { background: #d9d0ba; color: #786a4e; border-style: dashed; }
 .ticket.unmet .t-note { display: block; font-size: 12.5px; font-style: italic; color: #8a6c37; }
 
-/* ------------------------------ right rail ------------------------- */
-.rail {
-  display: flex; flex-direction: column; gap: 8px;
-  min-height: 0; overflow: hidden;
+/* ------------------------- dock, drawers, party ---------------------- */
+#dock {
+  flex: none; display: flex; gap: 6px; align-items: stretch;
 }
-/* party takes only what it needs; the tab panel is guaranteed its space */
-.party-list {
-  display: flex; flex-direction: column; gap: 5px;
-  flex: 0 0 auto; max-height: 55%; min-height: 0;
-  overflow-y: auto; padding-right: 2px;
+#dock button {
+  padding: 7px 15px; font-variant: small-caps; letter-spacing: .14em; font-size: 12px;
+  color: var(--smoke); border: 1px solid #33291c; background: var(--panel);
+  transition: color .15s, border-color .15s;
 }
-.party-list::-webkit-scrollbar { width: 7px; }
-.party-list::-webkit-scrollbar-thumb { background: #33291c; border-radius: 6px; }
+#dock button:hover { color: var(--paper); border-color: #55432a; }
+#dock button.on { color: var(--paper); border-color: var(--brass-dim); box-shadow: inset 0 -2px 0 var(--brass-dim); }
+#dock .dk-count { margin-left: 7px; color: var(--brass); font-size: 10.5px; }
+#dock .dock-gap { flex: 1; }
+
+.drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; width: min(430px, 92vw); z-index: 55;
+  background: linear-gradient(180deg, #191512, #110d0a);
+  border-left: 1px solid #55432a;
+  box-shadow: -24px 0 70px rgba(0,0,0,.75);
+  display: flex; flex-direction: column;
+  animation: drawerin .22s ease both;
+}
+@keyframes drawerin { from { transform: translateX(36px); opacity: 0; } }
+.drawer-head {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 18px; border-bottom: 1px solid #33291c;
+  font-variant: small-caps; letter-spacing: .25em; color: var(--brass); font-size: 14px;
+}
+.drawer-close { color: var(--smoke); font-size: 15px; padding: 2px 6px; }
+.drawer-close:hover { color: var(--paper); }
+.drawer-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 14px 16px; font-size: 13.5px; }
+.drawer-body::-webkit-scrollbar { width: 8px; }
+.drawer-body::-webkit-scrollbar-thumb { background: #33291c; border-radius: 6px; }
+.drawer-body .party-card { margin-bottom: 7px; }
+
+#party-strip { display: none; gap: 6px; flex-wrap: wrap; flex: none; }
+.strip-chip {
+  display: flex; align-items: center; gap: 7px;
+  border: 1px solid #33291c; background: var(--panel);
+  padding: 3px 9px; color: var(--bone); font-size: 12px;
+}
+.strip-chip.obs { border-color: var(--brass-dim); color: var(--paper); }
+.sc-bars { display: inline-flex; flex-direction: column; gap: 2px; width: 34px; background: #241c14; }
+.sc-bars i { display: block; height: 3px; }
+.sc-bars .hp { background: #b13a34; }
+.sc-bars .cp { background: #8677ab; }
+
 .party-card {
   background: linear-gradient(180deg, var(--panel), #120e0b);
   border: 1px solid #33291c; border-left: 3px solid #33291c;
@@ -379,22 +416,7 @@ button:disabled { cursor: default; }
 }
 .observe-btn:hover { background: rgba(176, 141, 62, .18); }
 
-/* tabs */
-.tabbox {
-  background: var(--panel); border: 1px solid #33291c;
-  flex: 1 1 160px; min-height: 150px;
-  display: flex; flex-direction: column;
-}
-.tabs { display: flex; border-bottom: 1px solid #33291c; flex: none; }
-.tabs button {
-  flex: 1; padding: 8px 4px; font-size: 11.5px; letter-spacing: .14em; font-variant: small-caps;
-  color: var(--smoke); border-right: 1px solid #33291c;
-}
-.tabs button:last-child { border-right: none; }
-.tabs button.on { color: var(--paper); background: #221b13; box-shadow: inset 0 -2px 0 var(--brass-dim); }
-.tab-body { flex: 1 1 auto; min-height: 0; padding: 12px 14px; overflow-y: auto; font-size: 13.5px; }
-.tab-body::-webkit-scrollbar { width: 8px; }
-.tab-body::-webkit-scrollbar-thumb { background: #33291c; border-radius: 6px; }
+/* drawer content */
 .inv-item { margin-bottom: 8px; }
 .inv-item b { color: var(--paper); font-weight: 600; }
 .inv-item .i-desc { color: var(--smoke); font-size: 12.5px; font-style: italic; }
@@ -416,12 +438,31 @@ button:disabled { cursor: default; }
 .rel-line b { color: var(--bone); font-weight: 600; }
 .rel-meter { color: var(--brass-dim); letter-spacing: 2px; font-size: 11px; }
 
-.save-row { display: flex; gap: 8px; }
-.save-row button {
-  flex: 1; padding: 7px; font-size: 11.5px; letter-spacing: .15em; font-variant: small-caps;
-  border: 1px solid #33291c; color: var(--smoke); background: var(--panel);
+/* dice — the 2d6 made visible */
+.ev-check { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.dice { display: inline-flex; gap: 6px; flex: none; }
+.die {
+  width: 24px; height: 24px; background: #f2ead4;
+  border: 1.5px solid #3a2c14; border-radius: 4px;
+  display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
+  padding: 3px; gap: 1px;
+  box-shadow: 1px 2px 5px rgba(50, 35, 15, .45);
 }
-.save-row button:hover { color: var(--paper); border-color: #55432a; }
+.die i { border-radius: 50%; }
+.die i.pip { background: #241c14; }
+.dice.rolling .die { animation: tumble .14s linear infinite; }
+.dice.rolling .die:last-child { animation-delay: .07s; }
+@keyframes tumble {
+  0% { transform: rotate(-9deg) translateY(0); }
+  50% { transform: rotate(7deg) translateY(-3px); }
+  100% { transform: rotate(-9deg) translateY(0); }
+}
+.dice.settled .die { animation: dielanded .32s ease both; }
+@keyframes dielanded { 0% { transform: scale(1.3) rotate(4deg); } 100% { transform: scale(1); } }
+.dice.crit .die { border-color: var(--brass); box-shadow: 0 0 11px rgba(176, 141, 62, .8); }
+.dice.fumble .die { border-color: var(--blood-bright); box-shadow: 0 0 9px rgba(177, 58, 52, .6); }
+.ev-check .check-text { opacity: 0; transition: opacity .35s ease; }
+.ev-check.revealed .check-text { opacity: 1; }
 
 /* ============================== chargen ============================== */
 .dossier {
@@ -497,14 +538,12 @@ button:disabled { cursor: default; }
 .hist-ev.k-harm, .hist-ev.k-death, .hist-ev.k-escalation { color: #c17b72; }
 .hist-ev.k-blackout { color: var(--bone); background: #0a0808; padding: 3px 8px; }
 
-/* small screens: the fixed grid cannot fit — fall back to normal scrolling */
-@media (max-width: 980px), (max-height: 620px) {
+/* small screens: the fixed layout cannot fit — fall back to normal scrolling */
+@media (max-width: 900px), (max-height: 600px) {
   body { overflow: auto; }
   #app { height: auto; }
-  .play-grid { grid-template-columns: 1fr; }
   #log { max-height: 46vh; }
   #stage { max-height: none; }
-  .rail { overflow: visible; }
 }
 
 /* toast */

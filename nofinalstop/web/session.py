@@ -82,7 +82,12 @@ class Session:
     def _log(self, events):
         for e in events:
             if e.get("text") or e.get("kind") == "arrive":
-                self.log.append({"kind": e.get("kind", "text"), "text": e.get("text", "")})
+                entry = {"kind": e.get("kind", "text"), "text": e.get("text", "")}
+                r = e.get("result")
+                if e.get("kind") == "check" and r is not None:
+                    entry["check"] = {"dice": list(r.dice), "total": r.total,
+                                      "dc": r.dc, "tier": r.tier}
+                self.log.append(entry)
         del self.log[:-self.MAX_LOG]
 
     def _autosave(self):

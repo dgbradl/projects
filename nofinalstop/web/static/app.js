@@ -164,14 +164,15 @@ function renderPlay() {
       <div id="topbar-slot"></div>
       <div id="objective-slot"></div>
       <div id="scene-slot"></div>
-      <div class="play-grid">
+      <div id="party-strip"></div>
+      <div class="paper-wrap">
         <section class="paper">
           <div id="log"></div>
           <div id="tint" class="tint-note" hidden></div>
           <div id="stage"></div>
         </section>
-        <aside class="rail" id="rail"></aside>
-      </div>`;
+      </div>
+      <nav id="dock"></nav>`;
     ui.carriage = st.carriage;
     ui.lastLogLen = 0;
   }
@@ -188,8 +189,10 @@ function renderPlay() {
   }
   renderPage(newShell);
   renderScene();
+  renderPartyStrip();
   renderStage();
-  renderRail();
+  renderDock();
+  renderDrawer();
 }
 
 function topbarHTML(st) {
@@ -213,12 +216,48 @@ function topbarHTML(st) {
   </header>`;
 }
 
+const PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8],
+               5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
+
+function pipsInner(v) {
+  return [...Array(9)].map((_, i) => `<i class="${PIPS[v].includes(i) ? "pip" : ""}"></i>`).join("");
+}
+
 function evHTML(e, old, delayMs) {
   const k = e.kind || "text";
   const cls = `ev ev-${esc(k)}${old ? " old" : ""}`;
   const style = delayMs ? ` style="animation-delay:${delayMs}ms"` : "";
   if (k === "arrive") return `<div class="${cls} ev-arrive"${style}>${esc(e.text)}</div>`;
+  if (k === "check" && e.check) {
+    const [d1, d2] = e.check.dice;
+    if (old) {
+      return `<div class="${cls} revealed"${style}><span class="dice settled ${esc(e.check.tier)}">
+        <span class="die">${pipsInner(d1)}</span><span class="die">${pipsInner(d2)}</span></span>
+        <span class="check-text">${esc(e.text)}</span></div>`;
+    }
+    return `<div class="${cls}"${style}><span class="dice rolling" data-d1="${d1}" data-d2="${d2}"
+      data-tier="${esc(e.check.tier)}">
+      <span class="die">${pipsInner(3)}</span><span class="die">${pipsInner(5)}</span></span>
+      <span class="check-text">${esc(e.text)}</span></div>`;
+  }
   return `<div class="${cls}"${style}>${esc(e.text)}</div>`;
+}
+
+function animateDice(root) {
+  root.querySelectorAll(".dice.rolling").forEach((d, idx) => {
+    const dies = d.querySelectorAll(".die");
+    const spin = setInterval(() => {
+      dies.forEach((el) => { el.innerHTML = pipsInner(1 + Math.floor(Math.random() * 6)); });
+    }, 90);
+    setTimeout(() => {
+      clearInterval(spin);
+      dies[0].innerHTML = pipsInner(+d.dataset.d1);
+      dies[1].innerHTML = pipsInner(+d.dataset.d2);
+      d.classList.remove("rolling");
+      d.classList.add("settled", d.dataset.tier);
+      d.closest(".ev-check").classList.add("revealed");
+    }, 750 + idx * 300);
+  });
 }
 
 function renderPage(rebuilt) {
@@ -250,9 +289,14 @@ function renderPage(rebuilt) {
   } else {
     return; // page unchanged — leave the DOM alone
   }
-  el.innerHTML = ui.currentPage
-    .map((e, i) => evHTML(e, false, Math.min(i * 70, 490))).join("");
+  let extra = 0;   // entries after a dice roll wait for the dice to land
+  el.innerHTML = ui.currentPage.map((e, i) => {
+    const html = evHTML(e, booting, Math.min(i * 70, 490) + extra);
+    if (!booting && e.kind === "check" && e.check) extra += 800;
+    return html;
+  }).join("");
   el.scrollTop = 0;   // a fresh page reads from the top
+  animateDice(el);
 }
 
 function renderStage() {
@@ -332,7 +376,7 @@ function exitHTML(x) {
    night rushing past, lamps, per-carriage props from data, the party as
    silhouette figures, node markers, doors — and the Blackout pouring in. */
 
-const SCENE_W = 1400, SCENE_H = 190, FLOOR = 168;
+const SCENE_W = 1400, SCENE_H = 210, FLOOR = 168;
 const INK = "#d9cba9", DIMINK = "#8a7a5c", PANEL = "#241c12", DARK = "#0b0806";
 
 function fig(x, opts) {
@@ -432,16 +476,24 @@ function renderScene() {
   // the party, clustered mid-car; click a figure to switch observer
   const living = (view.party || []).filter((c) => c.alive);
   living.forEach((c, i) => {
-    const x = SCENE_W * 0.47 + (i - (living.length - 1) / 2) * 40;
+    const x = SCENE_W * 0.47 + (i - (living.length - 1) / 2) * 44;
     const hurt = c.health / c.max_health <= 0.4;
     const shaky = c.composure <= 3;
     const cls = ["pcfig", c.active ? "obs" : "", shaky ? "tremble" : ""].join(" ");
     const tilt = hurt ? `transform="rotate(6 ${x} ${FLOOR})"` : "";
+    // nameplate + vitals live under each figure — the scene IS the party panel
+    const hpw = 30 * (c.health / c.max_health);
+    const cpw = 30 * (c.composure / c.max_composure);
     parts.push(`<g class="${cls}" data-char="${esc(c.id)}" ${tilt}>
-      <title>${esc(c.name)} — ${esc(c.profession)}${c.active ? " (observer)" : " — look through their eyes"}</title>
+      <title>${esc(c.name)} — ${esc(c.profession)} — ${c.health}/${c.max_health} hp, ${c.composure}/${c.max_composure} composure${c.active ? " (observer)" : ". Click to look through their eyes"}</title>
       ${c.active ? `<ellipse cx="${x}" cy="${FLOOR + 6}" rx="24" ry="5" fill="#e8c56a" opacity="0.18"/>` : ""}
       ${fig(x, { hat: HAT_FOR[c.profession_id] || "none" })}
-      ${c.active ? `<text x="${x}" y="${SCENE_H - 4}" text-anchor="middle" font-size="11" fill="#b08d3e" letter-spacing="2">${esc(c.name.split(" ")[0].toUpperCase())}</text>` : ""}
+      <text x="${x}" y="${SCENE_H - 13}" text-anchor="middle" font-size="9.5"
+            fill="${c.active ? "#b08d3e" : "#8a7a5c"}" letter-spacing="1.5">${esc(c.name.split(" ")[0].toUpperCase())}</text>
+      <rect x="${x - 15}" y="${SCENE_H - 9}" width="30" height="2.6" fill="#241c14"/>
+      <rect x="${x - 15}" y="${SCENE_H - 9}" width="${hpw}" height="2.6" fill="#b13a34"/>
+      <rect x="${x - 15}" y="${SCENE_H - 5}" width="30" height="2.6" fill="#241c14"/>
+      <rect x="${x - 15}" y="${SCENE_H - 5}" width="${cpw}" height="2.6" fill="#8677ab"/>
     </g>`);
   });
 
@@ -510,41 +562,100 @@ function renderScene() {
   });
 }
 
-/* ------------------------------ rail ------------------------------- */
-function renderRail() {
-  const rail = $("#rail");
-  const cards = (view.party || []).map((c) => partyCardHTML(c)).join("");
-  rail.innerHTML = `
-    <div class="party-list">${cards}</div>
-    <div class="tabbox">
-      <div class="tabs">
-        ${["inventory", "evidence", "journal", "bonds", "history"].map((t) =>
-          `<button data-tab="${t}" class="${ui.tab === t ? "on" : ""}">${t}</button>`).join("")}
-      </div>
-      <div class="tab-body" id="tab-body"></div>
-    </div>
-    <div class="save-row">
-      <button id="btn-save">Save</button>
-      <button id="btn-menu">Leave the aisle (menu)</button>
-    </div>`;
-  rail.querySelectorAll("[data-tab]").forEach((b) => {
-    b.onclick = () => { ui.tab = b.dataset.tab; renderRail(); };
+/* ------------------------------ dock & drawers ---------------------- */
+function renderPartyStrip() {
+  // fallback party vitals for short viewports where the scene is hidden
+  const el = $("#party-strip");
+  if (!el) return;
+  el.innerHTML = (view.party || []).filter((c) => c.alive).map((c) => `
+    <button class="strip-chip${c.active ? " obs" : ""}" data-char="${esc(c.id)}"
+            title="${esc(c.name)} — ${esc(c.profession)}">
+      <span class="sc-name">${esc(c.name.split(" ")[0])}</span>
+      <span class="sc-bars"><i class="hp" style="width:${(100 * c.health) / c.max_health}%"></i>
+      <i class="cp" style="width:${(100 * c.composure) / c.max_composure}%"></i></span>
+    </button>`).join("");
+  el.querySelectorAll("[data-char]").forEach((b) => {
+    b.onclick = () => post("observer", { char: b.dataset.char });
   });
-  renderTab();
-  rail.querySelectorAll(".party-card").forEach((card) => {
+}
+
+const DOCK_TABS = ["party", "inventory", "evidence", "journal", "bonds", "history"];
+
+function renderDock() {
+  const dock = $("#dock");
+  if (!dock) return;
+  const counts = {
+    party: (view.party || []).filter((c) => c.alive).length,
+    inventory: (view.inventory || []).length,
+    evidence: (view.evidence || []).length,
+    journal: (view.rules || []).length,
+    bonds: (view.relationships || []).length,
+    history: null,
+  };
+  dock.innerHTML =
+    DOCK_TABS.map((t) =>
+      `<button data-dock="${t}" class="${ui.drawer === t ? "on" : ""}">${t}` +
+      (counts[t] != null ? `<span class="dk-count">${counts[t]}</span>` : "") +
+      `</button>`).join("") +
+    `<span class="dock-gap"></span>
+     <button id="btn-save">Save</button>
+     <button id="btn-menu">Menu</button>`;
+  dock.querySelectorAll("[data-dock]").forEach((b) => {
+    b.onclick = () => {
+      ui.drawer = ui.drawer === b.dataset.dock ? null : b.dataset.dock;
+      renderDock();
+      renderDrawer();
+    };
+  });
+  $("#btn-save").onclick = () => post("save");
+  $("#btn-menu").onclick = () => { ui.drawer = null; post("title"); };
+}
+
+function renderDrawer() {
+  const root = $("#drawer-root");
+  if (!root) return;
+  if (!ui.drawer || !view || view.phase !== "play") { root.innerHTML = ""; return; }
+  let body;
+  if (ui.drawer === "party") {
+    body = (view.party || []).map((c) => partyCardHTML(c)).join("");
+  } else {
+    body = tabBodyHTML(ui.drawer);
+  }
+  root.innerHTML = `
+  <aside class="drawer">
+    <header class="drawer-head">
+      <span>${ui.drawer}</span>
+      <button class="drawer-close" title="close">✕</button>
+    </header>
+    <div class="drawer-body" id="drawer-body">${body}</div>
+  </aside>`;
+  root.querySelector(".drawer-close").onclick = () => {
+    ui.drawer = null; renderDock(); renderDrawer();
+  };
+  if (ui.drawer === "history") {
+    const el = $("#drawer-body");
+    el.scrollTop = el.scrollHeight;
+  }
+  root.querySelectorAll(".party-card").forEach((card) => {
     card.onclick = (ev) => {
       if (ev.target.closest(".observe-btn")) return;
       const id = card.dataset.char;
       if (ui.expanded.has(id)) ui.expanded.delete(id); else ui.expanded.add(id);
-      renderRail();
+      renderDrawer();
     };
   });
-  rail.querySelectorAll(".observe-btn").forEach((b) => {
+  root.querySelectorAll(".observe-btn").forEach((b) => {
     b.onclick = () => post("observer", { char: b.dataset.char });
   });
-  $("#btn-save").onclick = () => post("save");
-  $("#btn-menu").onclick = () => post("title");
 }
+
+document.addEventListener("keydown", (ev) => {
+  if (ev.key === "Escape" && ui.drawer) {
+    ui.drawer = null;
+    if ($("#dock")) renderDock();
+    renderDrawer();
+  }
+});
 
 function partyCardHTML(c) {
   const expanded = ui.expanded.has(c.id);
@@ -584,40 +695,40 @@ function partyCardHTML(c) {
   </div>`;
 }
 
-function renderTab() {
-  const el = $("#tab-body");
-  if (ui.tab === "inventory") {
+function tabBodyHTML(tab) {
+  if (tab === "inventory") {
     const res = Object.entries(view.resources || {})
       .map(([k, v]) => `<span class="res-chip">${esc(k)} <b>${v}</b></span>`).join("");
-    el.innerHTML = `<div class="res-row">${res}</div>` +
+    return `<div class="res-row">${res}</div>` +
       ((view.inventory || []).map((i) =>
         `<div class="inv-item"><b>${esc(i.name)}</b>${i.count > 1 ? " ×" + i.count : ""}
          <div class="i-desc">${esc(i.desc)}</div></div>`).join("") ||
         '<em style="color:var(--smoke)">Empty pockets, empty hands.</em>');
-  } else if (ui.tab === "evidence") {
-    el.innerHTML = (view.evidence || []).map((e) =>
+  }
+  if (tab === "evidence") {
+    return (view.evidence || []).map((e) =>
       `<div class="evi-card"><div class="e-cat">${esc(e.category)}</div>
        <div class="e-title">${esc(e.title)}</div>
        <div class="e-text">${esc(e.text)}</div></div>`).join("") ||
       '<em style="color:var(--smoke)">Nothing pinned yet. The train is still all questions.</em>';
-  } else if (ui.tab === "journal") {
+  }
+  if (tab === "journal") {
     const rules = (view.rules || []).map((r) => `<div class="rule-line">${esc(r)}</div>`).join("");
     const jr = (view.journal || []).map((j) => `<div class="jr-line">${esc(j)}</div>`).join("");
-    el.innerHTML = (rules ? `<div style="margin-bottom:10px">${rules}</div>` : "") + jr ||
+    return ((rules ? `<div style="margin-bottom:10px">${rules}</div>` : "") + jr) ||
       '<em style="color:var(--smoke)">The journal is blank. So far.</em>';
-  } else if (ui.tab === "bonds") {
-    el.innerHTML = (view.relationships || []).map((r) =>
+  }
+  if (tab === "bonds") {
+    return (view.relationships || []).map((r) =>
       `<div class="rel-line"><b>${esc(r.a)}</b> &amp; <b>${esc(r.b)}</b> — ${esc(r.kind)}<br>
        <span class="rel-meter">trust ${"●".repeat(r.trust)}${"○".repeat(5 - r.trust)}
        &nbsp; strain ${"●".repeat(r.strain)}${"○".repeat(5 - r.strain)}</span></div>`).join("") ||
       '<em style="color:var(--smoke)">Strangers, so far.</em>';
-  } else {
-    // history — the complete narrative record of the run
-    el.innerHTML = (view.log || []).map((e) =>
-      `<div class="hist-ev k-${esc(e.kind || "text")}">${esc(e.text)}</div>`).join("") ||
-      '<em style="color:var(--smoke)">The journey has not begun.</em>';
-    el.scrollTop = el.scrollHeight;
   }
+  // history — the complete narrative record of the run
+  return (view.log || []).map((e) =>
+    `<div class="hist-ev k-${esc(e.kind || "text")}">${esc(e.text)}</div>`).join("") ||
+    '<em style="color:var(--smoke)">The journey has not begun.</em>';
 }
 
 /* ------------------------------ pending modal ----------------------- */
