@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Widget Works — Supply Chain Tycoon</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏭</text></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <header id="topbar">
+    <div class="brand">🏭 Widget Works</div>
+    <div class="stat" id="stat-cash" title="Cash on hand">$0</div>
+    <div class="stat" id="stat-day" title="Current day">Day 1</div>
+    <div class="stat" id="stat-net" title="Profit so far today">+$0 today</div>
+    <div class="spacer"></div>
+    <div class="speeds">
+      <button data-speed="0" title="Pause">⏸</button>
+      <button data-speed="1" class="active" title="Normal speed">1×</button>
+      <button data-speed="2" title="Double speed">2×</button>
+      <button data-speed="4" title="Quadruple speed">4×</button>
+    </div>
+    <button id="btn-reset" title="Wipe the save and start over">Reset</button>
+  </header>
+
+  <div id="main">
+    <div id="canvas-wrap">
+      <canvas id="game"></canvas>
+      <div id="hint">Click to build · <b>R</b> rotate · right-click or Demolish tool to remove · click a building with Select to inspect</div>
+      <div id="win-banner" class="hidden">
+        <h2>🎉 You built a real business!</h2>
+        <p>You reached <b>$10,000</b>. Keep scaling, or hit Reset for a fresh run.</p>
+        <button id="btn-win-close">Keep playing</button>
+      </div>
+    </div>
+
+    <aside id="sidebar">
+      <section class="panel">
+        <h3>Build</h3>
+        <div id="build-buttons"></div>
+      </section>
+
+      <section class="panel">
+        <h3>Market</h3>
+        <div id="market-list"></div>
+        <p class="fine">Flooding the market drops a product's price. Prices recover over time — diversify.</p>
+      </section>
+
+      <section class="panel">
+        <h3>Staff <span class="fine" id="staff-summary"></span></h3>
+        <div id="worker-list"></div>
+        <button id="btn-hire">Hire worker ($100 signing bonus)</button>
+        <p class="fine">Machines need one worker each. Wages are paid at the end of every day.</p>
+      </section>
+
+      <section class="panel" id="info-panel">
+        <h3>Inspector</h3>
+        <div id="info-body" class="fine">Select tool + click a building.</div>
+      </section>
+
+      <section class="panel">
+        <h3>How to play</h3>
+        <p class="fine">
+          Goal: reach <b>$10,000</b>.<br><br>
+          1. Place a <b>Parts Depot</b> — it imports raw parts (for a fee) onto the conveyor it faces.<br>
+          2. Run <b>conveyors</b> into an <b>Assembler</b> (2 parts → 1 widget). Face its output at more conveyors.<br>
+          3. End the line at a <b>Shipping Dock</b> to sell at market price.<br>
+          4. <b>Hire workers</b> to staff machines. Later, feed widgets + chips into a <b>Fabricator</b> for high-margin gadgets.
+        </p>
+      </section>
+    </aside>
+  </div>
+</div>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
