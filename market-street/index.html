@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Market Street — Grocery Chain Tycoon</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛒</text></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <header id="topbar">
+    <div class="brand">🛒 Market Street</div>
+    <div class="stat" id="stat-cash">$0</div>
+    <div class="stat" id="stat-day">Day 1</div>
+    <div class="stat" id="stat-stores">2 stores</div>
+    <div class="stat" id="stat-net">+$0 today</div>
+    <div class="spacer"></div>
+    <div class="speeds">
+      <button data-speed="0" title="Pause">⏸</button>
+      <button data-speed="1" class="active">1×</button>
+      <button data-speed="3">3×</button>
+      <button data-speed="8">8×</button>
+    </div>
+    <button id="btn-reset">Reset</button>
+  </header>
+
+  <div id="main">
+    <div id="canvas-wrap">
+      <canvas id="game"></canvas>
+      <div id="toast" class="hidden"></div>
+      <div id="hint">Click stores &amp; FOR SALE lots on the map · manage the chain from the panels on the right</div>
+      <div id="win-banner" class="hidden">
+        <h2>🏆 Regional powerhouse!</h2>
+        <p>Eight stores and a fat bank account — the board approves the <b>multi-state expansion</b>. That's the next prototype milestone. Keep playing or Reset for a fresh run.</p>
+        <button id="btn-win-close">Keep playing</button>
+      </div>
+    </div>
+
+    <aside id="sidebar">
+      <nav id="tabs">
+        <button data-tab="stores">Stores</button>
+        <button data-tab="supply">Supply</button>
+        <button data-tab="vendors">Vendors</button>
+        <button data-tab="hq">HQ</button>
+      </nav>
+
+      <div class="tab-page" id="tab-stores">
+        <div class="panel">
+          <h3>Your stores</h3>
+          <div id="store-list"></div>
+        </div>
+        <div class="panel" id="store-detail"></div>
+        <div class="panel">
+          <h3>How it works</h3>
+          <p class="fine">
+            Shoppers buy whatever's on the shelf; empty shelves lose customers and
+            reputation. Stock flows <b>vendors → warehouse → trucks → stores</b>.
+            Tune prices per store (cheaper = more traffic, thinner margins), keep
+            enough staff for the rush, and expand district by district.
+          </p>
+        </div>
+      </div>
+
+      <div class="tab-page hidden" id="tab-supply"></div>
+      <div class="tab-page hidden" id="tab-vendors"></div>
+      <div class="tab-page hidden" id="tab-hq"></div>
+    </aside>
+  </div>
+</div>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>

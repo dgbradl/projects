@@ -6,4 +6,5 @@ Learning to code
 
 ## Contents
 
-- [widget-works](widget-works/) — isometric supply-chain business management game (prototype)
+- [market-street](market-street/) — grocery chain management game: stores, vendors, warehouses & trucks (current direction)
+- [widget-works](widget-works/) — isometric supply-chain factory game (first prototype)
