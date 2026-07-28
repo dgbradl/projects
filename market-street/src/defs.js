@@ -97,6 +97,69 @@ export const ROLES = {
   },
 };
 
+export const MANAGER_SALARY = 45;  // per ★, per day
+
+// Random city events. Duration in days ([min,max]); instant events resolve on spawn.
+export const EVENTS = {
+  cold_snap: {
+    icon: '❄️', name: 'Cold snap', dur: [2, 4],
+    desc: 'Frozen +80%, dairy +30%, produce −15% demand while it lasts.',
+  },
+  heat_wave: {
+    icon: '🔥', name: 'Heat wave', dur: [2, 3],
+    desc: 'Frozen +60% demand, but perishables spoil twice as fast.',
+  },
+  strike: {
+    icon: '✊', name: 'Vendor strike', dur: [2, 4],
+    desc: 'This vendor ships nothing until it ends. Source elsewhere!',
+  },
+  roadworks: {
+    icon: '🚧', name: 'Road construction', dur: [2, 4],
+    desc: 'Trucks crawl at 60% speed citywide.',
+  },
+  festival: {
+    icon: '🎪', name: 'Street festival', dur: [1, 2],
+    desc: 'Stores in this district see +60% demand. Stock up!',
+  },
+  price_war: {
+    icon: '⚔️', name: 'Price war', dur: [3, 5],
+    desc: 'A discounter undercuts this district: demand −35% unless your prices are ≤ 90%.',
+  },
+  inspection: {
+    icon: '🧾', name: 'Health inspection', instant: true,
+    desc: 'A surprise inspection — well-run stores pass, understaffed ones get fined.',
+  },
+  fridge: {
+    icon: '🧊', name: 'Fridge breakdown', instant: true,
+    desc: 'A store loses half its dairy, meat, and frozen stock.',
+  },
+};
+
+// One trait per candidate, drawn from their role's list. Every trait has a
+// real mechanical effect (wired in game.js).
+export const TRAITS = {
+  buyer: [
+    { id: 'haggler', name: 'Haggler', desc: '+8% negotiation success' },
+    { id: 'pennypincher', name: 'Penny-pincher', desc: 'All goods cost 1.5% less' },
+    { id: 'connected', name: 'Well-connected', desc: 'All vendor relationships +1/day' },
+  ],
+  logistics: [
+    { id: 'speedster', name: 'Speed demon', desc: 'Trucks 10% faster' },
+    { id: 'tetris', name: 'Tetris master', desc: 'Trucks carry 10% more' },
+    { id: 'planner', name: 'Route planner', desc: 'Trucks 5% faster and 5% bigger' },
+  ],
+  marketing: [
+    { id: 'adwizard', name: 'Ad wizard', desc: 'Chain demand +3%' },
+    { id: 'localhero', name: 'Local hero', desc: 'Store reputations rise faster' },
+    { id: 'couponer', name: 'Couponer', desc: 'High prices scare off 20% fewer shoppers' },
+  ],
+  manager: [
+    { id: 'motivator', name: 'Motivator', desc: 'Team morale +8%' },
+    { id: 'shelfhawk', name: 'Shelf hawk', desc: 'Store spoilage −25%' },
+    { id: 'peopleperson', name: 'People person', desc: 'Reputation rises faster here' },
+  ],
+};
+
 export const PEOPLE_NAMES = [
   'Ada Okafor', 'Grace Lindqvist', 'Marge Devine', 'Hank Solano', 'Yuki Tanaka',
   'Priya Raman', 'Omar Haddad', 'Sofia Reyes', 'Dmitri Volkov', 'June Park',

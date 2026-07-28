@@ -1,15 +1,16 @@
 // Simulation: stores & customer demand, warehouse, truck logistics,
-// vendor relationships, HQ staff, expansion milestones, save/load.
+// vendor relationships, staff & managers, city events, P&L ledger, save/load.
 
 import {
   GRID, START_CASH, WIN_CASH, WIN_STORES, POP_FACTOR, SHELF_CAP, STAFF_WAGE,
   HIRE_ROLE_COST, TRUCK_COST, TRUCK_CAP, TRUCK_SPEED, WAREHOUSE_CAP,
-  WAREHOUSE_UPGRADE, WAREHOUSE, isRoad, PRODUCTS, VENDORS, DISTRICTS, SITES,
-  ROLES, PEOPLE_NAMES,
+  WAREHOUSE_UPGRADE, WAREHOUSE, MANAGER_SALARY, isRoad, PRODUCTS, VENDORS,
+  DISTRICTS, SITES, ROLES, EVENTS, TRAITS, PEOPLE_NAMES,
 } from './defs.js';
 
-const SAVE_KEY = 'market-street-save-v1';
+const SAVE_KEY = 'market-street-save-v2';
 const PROD_IDS = Object.keys(PRODUCTS);
+const PERISHABLE = PROD_IDS.filter((p) => PRODUCTS[p].spoil > 0);
 
 export class Game {
   constructor() { this.reset(); }
@@ -19,11 +20,18 @@ export class Game {
     this.peakCash = START_CASH;
     this.time = 0;              // in days (fractional)
     this.speed = 1;
-    this.todayRevenue = 0;
-    this.todayExpenses = 0;
     this.won = false;
     this.floaters = [];
-    this.nameCursor = 0;
+    this.nameCursor = Math.floor(Math.random() * PEOPLE_NAMES.length);
+
+    // Accrual ledger for the current day, plus daily history for the Books tab.
+    this.today = this.blankLedger();
+    this.history = [];          // [{day, revenue, cogs, rent, wages, salaries, fines, profit}]
+    this.logEntries = [];       // [{day, icon, text}]
+
+    // Weighted-average unit cost per product (for honest COGS).
+    this.avgCost = {};
+    for (const p of PROD_IDS) this.avgCost[p] = PRODUCTS[p].cost;
 
     this.stores = [];
     for (const site of SITES) {
@@ -34,51 +42,61 @@ export class Game {
     for (const p of PROD_IDS) this.warehouse.inv[p] = 100;
 
     this.trucks = [{ state: 'idle', path: null, pos: 0, cargo: null, storeId: null }];
-    this.orders = [];           // { vendor, product, qty, arriveDay, cost }
+    this.orders = [];           // { vendor, product, qty, arriveDay, unitCost }
 
     this.vendors = {};
     for (const v of Object.keys(VENDORS)) {
       this.vendors[v] = { rel: 30, discount: 0, lastNegDay: -1 };
     }
 
-    // Chain-wide purchasing policy per product.
     this.purchasing = {};
     for (const p of PROD_IDS) {
       this.purchasing[p] = {
         auto: true,
         vendor: this.cheapestVendor(p),
-        point: 180,             // reorder when warehouse + in-transit dips below this
+        point: 180,
         qty: 350,
       };
     }
 
     this.hq = { buyer: null, logistics: null, marketing: null };
+    this.candidates = {};       // role -> [candidate x3], generated on demand
+    this.activeEvents = [];     // [{type, daysLeft, vendor?, district?, siteId?}]
+  }
+
+  blankLedger() {
+    return { revenue: 0, cogs: 0, rent: 0, wages: 0, salaries: 0, fines: 0 };
   }
 
   addStore(siteId, seeded = false) {
-    const site = SITES.find((s) => s.id === siteId);
     const store = {
       siteId,
       name: `Market St. #${this.stores.length + 1}`,
-      inv: {}, staff: 2, markup: 1.0, rep: 0.5, avail: 1,
-      servedToday: 0, lostToday: 0, revenueToday: 0,
+      inv: {}, staff: 2, markup: 1.0, rep: 0.5, avail: 1, morale: 0.7,
+      manager: null,
+      today: { revenue: 0, cogs: 0 },
+      yesterday: { revenue: 0, cogs: 0, profit: 0 },
+      servedToday: 0, lostToday: 0,
+      stockoutLogged: {},
     };
     for (const p of PROD_IDS) store.inv[p] = seeded ? SHELF_CAP * 0.7 : 0;
     this.stores.push(store);
-    return { site, store };
+    return store;
   }
 
   // ---- lookups ----------------------------------------------------------
 
   day() { return Math.floor(this.time) + 1; }
+  dayFrac() { return this.time - Math.floor(this.time); }
   site(id) { return SITES.find((s) => s.id === id); }
   storeAt(siteId) { return this.stores.find((s) => s.siteId === siteId); }
   siteAtTile(x, y) { return SITES.find((s) => s.x === x && s.y === y); }
   district(id) { return DISTRICTS.find((d) => d.id === id); }
-
   districtUnlocked(id) { return this.peakCash >= this.district(id).unlock; }
 
   roleSkill(role) { return this.hq[role] ? this.hq[role].skill : 0; }
+  hasTrait(role, traitId) { return this.hq[role]?.trait?.id === traitId; }
+  managerTrait(store, traitId) { return store.manager?.trait?.id === traitId; }
 
   cheapestVendor(product) {
     let best = null, bestCost = Infinity;
@@ -93,7 +111,8 @@ export class Game {
     const v = VENDORS[vendorId];
     const disc = this.vendors[vendorId].discount;
     const buyer = 1 - 0.02 * this.roleSkill('buyer');
-    return PRODUCTS[product].cost * v.priceMult * (1 - disc) * buyer;
+    const trait = this.hasTrait('buyer', 'pennypincher') ? 0.985 : 1;
+    return PRODUCTS[product].cost * v.priceMult * (1 - disc) * buyer * trait;
   }
 
   chainQuality() {
@@ -112,6 +131,96 @@ export class Game {
       .reduce((s, o) => s + o.qty, 0);
   }
 
+  vendorStruck(vendorId) {
+    return this.activeEvents.some((e) => e.type === 'strike' && e.vendor === vendorId);
+  }
+
+  eventOfType(type) { return this.activeEvents.find((e) => e.type === type); }
+
+  // Daily fixed costs, for smooth "profit so far today" display.
+  dailyOpex() {
+    let c = 0;
+    for (const store of this.stores) {
+      c += this.site(store.siteId).rent + store.staff * STAFF_WAGE;
+      if (store.manager) c += store.manager.salary;
+    }
+    for (const role of Object.keys(ROLES)) {
+      if (this.hq[role]) c += this.hq[role].salary;
+    }
+    return c;
+  }
+
+  profitToday() {
+    const t = this.today;
+    return t.revenue - t.cogs - t.fines - this.dailyOpex() * this.dayFrac();
+  }
+
+  // ---- people -----------------------------------------------------------
+
+  nextName() {
+    const name = PEOPLE_NAMES[this.nameCursor % PEOPLE_NAMES.length];
+    this.nameCursor++;
+    return name;
+  }
+
+  makeCandidates(role) {
+    const traits = TRAITS[role];
+    const baseSalary = role === 'manager' ? MANAGER_SALARY : 60;
+    const out = [];
+    for (let i = 0; i < 3; i++) {
+      const skill = 1 + Math.floor(Math.random() * 3);
+      out.push({
+        name: this.nextName(),
+        skill,
+        salary: Math.round(baseSalary * skill * (0.9 + Math.random() * 0.25)),
+        trait: traits[Math.floor(Math.random() * traits.length)],
+      });
+    }
+    return out;
+  }
+
+  candidatesFor(role) {
+    if (!this.candidates[role]) this.candidates[role] = this.makeCandidates(role);
+    return this.candidates[role];
+  }
+
+  hireRole(role, index = 0) {
+    if (this.hq[role] || this.cash < HIRE_ROLE_COST) return false;
+    const pick = this.candidatesFor(role)[index];
+    if (!pick) return false;
+    this.hq[role] = pick;
+    this.candidates[role] = null;
+    this.cash -= HIRE_ROLE_COST;
+    this.log('🤝', `${pick.name} joined as ${ROLES[role].name} (${'★'.repeat(pick.skill)}, ${pick.trait.name}).`);
+    return true;
+  }
+
+  fireRole(role) {
+    if (this.hq[role]) this.log('👋', `${this.hq[role].name} left the ${ROLES[role].name} role.`);
+    this.hq[role] = null;
+  }
+
+  hireManager(siteId, index = 0) {
+    const store = this.storeAt(siteId);
+    if (!store || store.manager || this.cash < HIRE_ROLE_COST) return false;
+    const pick = this.candidatesFor('manager')[index];
+    if (!pick) return false;
+    store.manager = pick;
+    this.candidates.manager = null;
+    this.cash -= HIRE_ROLE_COST;
+    this.log('🤝', `${pick.name} now manages ${store.name} (${'★'.repeat(pick.skill)}, ${pick.trait.name}).`);
+    return true;
+  }
+
+  fireManager(siteId) {
+    const store = this.storeAt(siteId);
+    if (store?.manager) {
+      this.log('👋', `${store.manager.name} left ${store.name}.`);
+      store.manager = null;
+      store.morale = Math.max(0.2, store.morale - 0.15);
+    }
+  }
+
   // ---- player actions ---------------------------------------------------
 
   buyStore(siteId) {
@@ -120,9 +229,9 @@ export class Game {
     if (!this.districtUnlocked(site.district)) return false;
     if (this.cash < site.price) return false;
     this.cash -= site.price;
-    this.todayExpenses += site.price;
-    this.addStore(siteId);
+    const store = this.addStore(siteId);
     this.addFloater(site.x, site.y, 'Grand opening!', '#f2c14e');
+    this.log('🎉', `${store.name} opened in ${this.district(site.district).name}.`);
     return true;
   }
 
@@ -130,14 +239,14 @@ export class Game {
     const i = this.stores.findIndex((s) => s.siteId === siteId);
     if (i < 0) return false;
     const site = this.site(siteId);
+    const store = this.stores[i];
     const refund = Math.round(site.price * 0.6);
     this.stores.splice(i, 1);
     this.cash += refund;
-    // Any truck bound for this store turns around.
+    this.log('🏚️', `${store.name} closed. Recovered $${refund.toLocaleString()}.`);
     for (const t of this.trucks) {
       if (t.storeId === siteId && t.state !== 'idle') {
         if (t.cargo) {
-          // Returned cargo goes back to the warehouse (may briefly overfill).
           for (const [p, q] of Object.entries(t.cargo)) this.warehouse.inv[p] += q;
         }
         t.state = 'idle'; t.path = null; t.cargo = null; t.storeId = null;
@@ -146,19 +255,22 @@ export class Game {
     return true;
   }
 
-  placeOrder(product, vendorId, qty) {
+  placeOrder(product, vendorId, qty, quiet = false) {
     qty = Math.max(0, Math.round(qty));
     const v = VENDORS[vendorId];
     if (!v || !v.products.includes(product) || qty <= 0) return false;
-    const cost = Math.round(this.unitCost(product, vendorId) * qty);
+    if (this.vendorStruck(vendorId)) {
+      if (!quiet) this.log('✊', `${v.name} is on strike — order refused.`);
+      return false;
+    }
+    const unit = this.unitCost(product, vendorId);
+    const cost = Math.round(unit * qty);
     if (this.cash < cost) return false;
     this.cash -= cost;
-    this.todayExpenses += cost;
     this.orders.push({
       vendor: vendorId, product, qty,
-      arriveDay: this.day() + v.leadTime, cost,
+      arriveDay: this.day() + v.leadTime, unitCost: unit,
     });
-    // Doing business builds the relationship.
     const vs = this.vendors[vendorId];
     vs.rel = Math.min(100, vs.rel + Math.min(4, qty / 150));
     return true;
@@ -168,10 +280,12 @@ export class Game {
     const vs = this.vendors[vendorId];
     if (vs.lastNegDay === this.day()) return { done: true };
     vs.lastNegDay = this.day();
-    const chance = 0.25 + vs.rel / 200 + 0.12 * this.roleSkill('buyer');
+    let chance = 0.25 + vs.rel / 200 + 0.12 * this.roleSkill('buyer');
+    if (this.hasTrait('buyer', 'haggler')) chance += 0.08;
     if (Math.random() < chance) {
       vs.discount = Math.min(0.25, vs.discount + 0.05);
       vs.rel = Math.min(100, vs.rel + 8);
+      this.log('🤝', `${VENDORS[vendorId].name} agreed to ${Math.round(vs.discount * 100)}% off.`);
       return { success: true };
     }
     vs.rel = Math.max(0, vs.rel - 4);
@@ -181,40 +295,33 @@ export class Game {
   buyTruck() {
     if (this.cash < TRUCK_COST) return false;
     this.cash -= TRUCK_COST;
-    this.todayExpenses += TRUCK_COST;
     this.trucks.push({ state: 'idle', path: null, pos: 0, cargo: null, storeId: null });
+    this.log('🚚', `Truck #${this.trucks.length} joined the fleet.`);
     return true;
   }
 
   upgradeWarehouse() {
     if (this.cash < WAREHOUSE_UPGRADE.cost) return false;
     this.cash -= WAREHOUSE_UPGRADE.cost;
-    this.todayExpenses += WAREHOUSE_UPGRADE.cost;
     this.warehouse.cap += WAREHOUSE_UPGRADE.units;
+    this.log('🏗️', `Warehouse expanded to ${this.warehouse.cap.toLocaleString()} units.`);
     return true;
   }
 
-  hireRole(role) {
-    if (this.hq[role] || this.cash < HIRE_ROLE_COST) return false;
-    const skill = 1 + Math.floor(Math.random() * 3);
-    const name = PEOPLE_NAMES[this.nameCursor % PEOPLE_NAMES.length];
-    this.nameCursor++;
-    this.hq[role] = { name, skill, salary: 60 * skill };
-    this.cash -= HIRE_ROLE_COST;
-    this.todayExpenses += HIRE_ROLE_COST;
-    return true;
+  // ---- logging ----------------------------------------------------------
+
+  log(icon, text) {
+    this.logEntries.push({ day: this.day(), icon, text });
+    if (this.logEntries.length > 120) this.logEntries.shift();
   }
-
-  fireRole(role) { this.hq[role] = null; }
-
-  // ---- simulation -------------------------------------------------------
 
   addFloater(x, y, text, color) {
-    // Stack floaters spawned on the same tile so they don't overlap.
     const stack = this.floaters.filter((f) => f.x === x && f.y === y).length;
     this.floaters.push({ x, y, text, color, age: 0, stack });
     if (this.floaters.length > 30) this.floaters.shift();
   }
+
+  // ---- simulation -------------------------------------------------------
 
   tick(dt) {
     const prevDay = this.day();
@@ -233,49 +340,103 @@ export class Game {
     }
   }
 
+  // Event-driven demand multiplier for one product at one store.
+  demandMult(store, product) {
+    let m = 1;
+    const site = this.site(store.siteId);
+    for (const e of this.activeEvents) {
+      if (e.type === 'cold_snap') {
+        if (product === 'frozen') m *= 1.8;
+        else if (product === 'dairy') m *= 1.3;
+        else if (product === 'produce') m *= 0.85;
+      } else if (e.type === 'heat_wave') {
+        if (product === 'frozen') m *= 1.6;
+      } else if (e.type === 'festival' && e.district === site.district) {
+        m *= 1.6;
+      } else if (e.type === 'price_war' && e.district === site.district) {
+        if (store.markup > 0.92) m *= 0.65;
+      }
+    }
+    return m;
+  }
+
   tickStores(dt) {
-    const mkt = 1 + 0.06 * this.roleSkill('marketing');
+    let mkt = 1 + 0.06 * this.roleSkill('marketing');
+    if (this.hasTrait('marketing', 'adwizard')) mkt *= 1.03;
     const quality = this.chainQuality();
+    const heatWave = !!this.eventOfType('heat_wave');
+    const repTraitBonus = this.hasTrait('marketing', 'localhero') ? 0.03 : 0;
+
     for (const store of this.stores) {
       const site = this.site(store.siteId);
-      const elastic = Math.max(0.25, Math.min(1.5, 1 + (1 - store.markup) * 1.5));
+
+      // Price elasticity (Couponer softens the high-price penalty).
+      let elastic = 1 + (1 - store.markup) * 1.5;
+      if (store.markup > 1 && this.hasTrait('marketing', 'couponer')) {
+        elastic = 1 + (1 - store.markup) * 1.5 * 0.8;
+      }
+      elastic = Math.max(0.25, Math.min(1.5, elastic));
+
       const baseDaily = site.pop * POP_FACTOR;
+      const effStaff = store.staff + (store.manager ? 0.5 * store.manager.skill : 0);
       const staffNeeded = baseDaily / 55;
-      const staffRatio = Math.min(1, store.staff / staffNeeded);
-      const staffF = 0.55 + 0.45 * staffRatio;
+      const staffRatio = Math.min(1, effStaff / staffNeeded);
+      const moraleF = 0.75 + 0.35 * store.morale;
+      const staffF = (0.55 + 0.45 * staffRatio) * moraleF;
       const repF = 0.6 + 0.8 * store.rep;
+
+      let spoilMult = heatWave ? 2 : 1;
+      if (store.manager) spoilMult *= 1 - 0.12 * store.manager.skill * (this.managerTrait(store, 'shelfhawk') ? 2 : 1);
+      spoilMult = Math.max(0.2, spoilMult);
 
       let servedTick = 0, lostTick = 0;
       for (const p of PROD_IDS) {
-        const rate = baseDaily * PRODUCTS[p].weight * elastic * repF * staffF * mkt;
+        const rate = baseDaily * PRODUCTS[p].weight * elastic * repF * staffF * mkt
+          * this.demandMult(store, p);
         const want = rate * dt;
         const sold = Math.min(store.inv[p], want);
         store.inv[p] -= sold;
         const revenue = sold * PRODUCTS[p].retail * store.markup;
+        const cogs = sold * this.avgCost[p];
         this.cash += revenue;
-        this.todayRevenue += revenue;
-        store.revenueToday += revenue;
+        this.today.revenue += revenue;
+        this.today.cogs += cogs;
+        store.today.revenue += revenue;
+        store.today.cogs += cogs;
         servedTick += sold;
         lostTick += want - sold;
-        // Perishables spoil on the shelf.
-        if (PRODUCTS[p].spoil) store.inv[p] *= 1 - PRODUCTS[p].spoil * dt;
+        if (PRODUCTS[p].spoil) store.inv[p] *= 1 - PRODUCTS[p].spoil * spoilMult * dt;
+        // Log a stockout once per product per day.
+        if (store.inv[p] <= 0.01 && want > 0 && !store.stockoutLogged[p]) {
+          store.stockoutLogged[p] = true;
+          this.log('🫙', `${store.name} is out of ${PRODUCTS[p].name} — customers walking out.`);
+        }
       }
       store.servedToday += servedTick;
       store.lostToday += lostTick;
 
       const instAvail = servedTick + lostTick > 0 ? servedTick / (servedTick + lostTick) : 1;
       store.avail += (instAvail - store.avail) * Math.min(1, 2 * dt);
-      const repTarget = Math.max(0, Math.min(1,
-        0.45 * staffRatio + 0.35 * store.avail + 0.20 * Math.min(1, quality)));
-      store.rep += (repTarget - store.rep) * 0.6 * dt;
+
+      let repTarget = 0.45 * staffRatio + 0.35 * store.avail + 0.20 * Math.min(1, quality)
+        + repTraitBonus + (this.managerTrait(store, 'peopleperson') ? 0.04 : 0);
+      repTarget = Math.max(0, Math.min(1, repTarget));
+      const repRate = (repTraitBonus || this.managerTrait(store, 'peopleperson')) ? 0.8 : 0.6;
+      store.rep += (repTarget - store.rep) * repRate * dt;
+
+      // Morale: adequate staffing + a manager keep spirits up.
+      let moraleTarget = 0.45 + 0.35 * staffRatio
+        + (store.manager ? 0.05 + 0.05 * store.manager.skill : 0)
+        + (this.managerTrait(store, 'motivator') ? 0.08 : 0);
+      moraleTarget = Math.max(0.1, Math.min(1, moraleTarget));
+      store.morale += (moraleTarget - store.morale) * 0.4 * dt;
     }
   }
 
   // ---- trucks -----------------------------------------------------------
 
   doorTile(x, y) {
-    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-    for (const [dx, dy] of dirs) {
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const nx = x + dx, ny = y + dy;
       if (nx >= 0 && ny >= 0 && nx < GRID && ny < GRID && isRoad(nx, ny)) {
         return { x: nx, y: ny };
@@ -285,7 +446,6 @@ export class Game {
   }
 
   roadPath(from, to) {
-    // BFS over road tiles.
     const key = (x, y) => x * GRID + y;
     const prev = new Map([[key(from.x, from.y), null]]);
     const queue = [from];
@@ -315,7 +475,6 @@ export class Game {
   }
 
   storeDeficit(store) {
-    // What the store wants, minus what's already on a truck heading there.
     const enroute = {};
     for (const t of this.trucks) {
       if (t.cargo && t.storeId === store.siteId && t.state === 'toStore') {
@@ -334,13 +493,17 @@ export class Game {
 
   tickTrucks(dt) {
     const logi = this.roleSkill('logistics');
-    const speed = TRUCK_SPEED * (1 + 0.18 * logi);
-    const cap = Math.round(TRUCK_CAP * (1 + 0.18 * logi));
+    let speed = TRUCK_SPEED * (1 + 0.18 * logi);
+    let cap = TRUCK_CAP * (1 + 0.18 * logi);
+    if (this.hasTrait('logistics', 'speedster')) speed *= 1.10;
+    if (this.hasTrait('logistics', 'tetris')) cap *= 1.10;
+    if (this.hasTrait('logistics', 'planner')) { speed *= 1.05; cap *= 1.05; }
+    if (this.eventOfType('roadworks')) speed *= 0.6;
+    cap = Math.round(cap);
 
     for (const truck of this.trucks) {
       if (truck.state === 'idle') {
-        // Pick the store with the biggest fillable deficit.
-        let best = null, bestTotal = 24;   // don't bother with tiny runs
+        let best = null, bestTotal = 24;
         for (const store of this.stores) {
           const { total } = this.storeDeficit(store);
           if (total > bestTotal) { bestTotal = total; best = store; }
@@ -351,7 +514,6 @@ export class Game {
         const stDoor = this.doorTile(site.x, site.y);
         const path = whDoor && stDoor ? this.roadPath(whDoor, stDoor) : null;
         if (!path) continue;
-        // Load by biggest deficit first.
         const { def } = this.storeDeficit(best);
         const cargo = {};
         let space = cap;
@@ -381,7 +543,7 @@ export class Game {
               store.inv[p] += add;
               dropped += add;
               const back = q - add;
-              if (back > 0) this.warehouse.inv[p] += back; // returns leftovers later; simplified
+              if (back > 0) this.warehouse.inv[p] += back;
             }
             const site = this.site(truck.storeId);
             if (dropped > 0) this.addFloater(site.x, site.y, `+${Math.round(dropped)} stock`, '#9ec7ef');
@@ -401,57 +563,154 @@ export class Game {
     }
   }
 
+  // ---- events -----------------------------------------------------------
+
+  spawnEvent() {
+    const pool = Object.keys(EVENTS).filter((t) => {
+      if (t === 'strike') return this.day() >= 8;
+      return true;
+    });
+    const type = pool[Math.floor(Math.random() * pool.length)];
+    const def = EVENTS[type];
+
+    if (type === 'inspection') {
+      if (!this.stores.length) return;
+      const store = this.stores[Math.floor(Math.random() * this.stores.length)];
+      const site = this.site(store.siteId);
+      const effStaff = store.staff + (store.manager ? 0.5 * store.manager.skill : 0);
+      const ok = effStaff / (site.pop * POP_FACTOR / 55) >= 0.85;
+      if (ok) {
+        store.rep = Math.min(1, store.rep + 0.08);
+        this.log('🧾', `Health inspection at ${store.name}: passed with flying colors. Reputation up.`);
+      } else {
+        this.cash -= 500;
+        this.today.fines += 500;
+        store.rep = Math.max(0, store.rep - 0.1);
+        this.log('🧾', `Health inspection at ${store.name}: understaffed and sloppy. Fined $500.`);
+      }
+      return;
+    }
+
+    if (type === 'fridge') {
+      if (!this.stores.length) return;
+      const store = this.stores[Math.floor(Math.random() * this.stores.length)];
+      for (const p of ['dairy', 'meat', 'frozen']) store.inv[p] *= 0.5;
+      this.log('🧊', `Fridge breakdown at ${store.name} — half the dairy, meat, and frozen stock lost.`);
+      return;
+    }
+
+    const ev = {
+      type,
+      daysLeft: def.dur[0] + Math.floor(Math.random() * (def.dur[1] - def.dur[0] + 1)),
+    };
+    if (type === 'strike') {
+      ev.vendor = Object.keys(VENDORS)[Math.floor(Math.random() * 4)];
+      this.log(def.icon, `${VENDORS[ev.vendor].name} workers walked out — no deliveries until it's settled.`);
+    } else if (type === 'festival' || type === 'price_war') {
+      const open = DISTRICTS.filter((d) => this.districtUnlocked(d.id));
+      ev.district = open[Math.floor(Math.random() * open.length)].id;
+      this.log(def.icon, `${def.name} in ${this.district(ev.district).name}: ${def.desc}`);
+    } else {
+      this.log(def.icon, `${def.name}: ${def.desc}`);
+    }
+    this.activeEvents.push(ev);
+  }
+
   // ---- day boundary -----------------------------------------------------
 
   dayTick() {
     const day = this.day();
 
-    // Vendor deliveries arrive at the warehouse.
-    const arriving = this.orders.filter((o) => o.arriveDay <= day);
-    this.orders = this.orders.filter((o) => o.arriveDay > day);
+    // Close out yesterday's books first (opex accrues here for real).
+    let rent = 0, wages = 0, salaries = 0;
+    for (const store of this.stores) {
+      rent += this.site(store.siteId).rent;
+      wages += store.staff * STAFF_WAGE;
+      if (store.manager) salaries += store.manager.salary;
+    }
+    for (const role of Object.keys(ROLES)) {
+      if (this.hq[role]) salaries += this.hq[role].salary;
+    }
+    this.cash -= rent + wages + salaries;
+    this.today.rent = rent;
+    this.today.wages = wages;
+    this.today.salaries = salaries;
+    const t = this.today;
+    this.history.push({
+      day: day - 1,
+      revenue: t.revenue, cogs: t.cogs, rent, wages, salaries, fines: t.fines,
+      profit: t.revenue - t.cogs - rent - wages - salaries - t.fines,
+    });
+    if (this.history.length > 60) this.history.shift();
+    this.today = this.blankLedger();
+
+    for (const store of this.stores) {
+      store.yesterday = {
+        revenue: store.today.revenue,
+        cogs: store.today.cogs,
+        profit: store.today.revenue - store.today.cogs
+          - this.site(store.siteId).rent - store.staff * STAFF_WAGE
+          - (store.manager ? store.manager.salary : 0),
+      };
+      store.today = { revenue: 0, cogs: 0 };
+      store.servedToday = 0;
+      store.lostToday = 0;
+      store.stockoutLogged = {};
+    }
+
+    // Vendor deliveries (strikes hold shipments at the depot).
+    const arriving = [];
+    this.orders = this.orders.filter((o) => {
+      if (o.arriveDay > day) return true;
+      if (this.vendorStruck(o.vendor)) { o.arriveDay = day + 1; return true; }
+      arriving.push(o);
+      return false;
+    });
     for (const o of arriving) {
       const space = this.warehouse.cap - this.warehouseUsed();
       const accepted = Math.min(o.qty, Math.max(0, space));
+      // Update weighted-average cost with the accepted units.
+      const prevInv = this.warehouse.inv[o.product];
+      if (prevInv + accepted > 0) {
+        this.avgCost[o.product] =
+          (prevInv * this.avgCost[o.product] + accepted * o.unitCost) / (prevInv + accepted);
+      }
       this.warehouse.inv[o.product] += accepted;
-      this.addFloater(WAREHOUSE.x, WAREHOUSE.y,
-        accepted < o.qty
-          ? `+${accepted} ${PRODUCTS[o.product].name} (${o.qty - accepted} turned away!)`
-          : `+${accepted} ${PRODUCTS[o.product].name}`,
-        accepted < o.qty ? '#e8828c' : '#6fd08c');
+      if (accepted < o.qty) {
+        this.log('🏭', `Warehouse full — turned away ${o.qty - accepted} ${PRODUCTS[o.product].name}.`);
+      }
+      this.addFloater(WAREHOUSE.x, WAREHOUSE.y, `+${accepted} ${PRODUCTS[o.product].name}`, '#6fd08c');
     }
 
-    // Auto-reorder against warehouse + in-transit stock.
+    // Auto-reorder.
     for (const p of PROD_IDS) {
       const pol = this.purchasing[p];
       if (!pol.auto) continue;
       if (this.warehouse.inv[p] + this.inTransit(p) < pol.point) {
-        this.placeOrder(p, pol.vendor, pol.qty);
+        this.placeOrder(p, pol.vendor, pol.qty, true);
       }
     }
 
-    // Rent, wages, salaries.
-    let costs = 0;
-    for (const store of this.stores) {
-      costs += this.site(store.siteId).rent + store.staff * STAFF_WAGE;
-      store.servedToday = 0;
-      store.lostToday = 0;
-      store.revenueToday = 0;
-    }
-    for (const role of Object.keys(ROLES)) {
-      if (this.hq[role]) costs += this.hq[role].salary;
-    }
-    this.cash -= costs;
-    this.todayRevenue = 0;
-    this.todayExpenses = costs;
-
-    // Warehouse spoilage on perishables (cold storage halves it).
-    for (const p of PROD_IDS) {
-      if (PRODUCTS[p].spoil) this.warehouse.inv[p] *= 1 - PRODUCTS[p].spoil * 0.5;
+    // Warehouse spoilage (cold storage halves shelf rates).
+    for (const p of PERISHABLE) {
+      this.warehouse.inv[p] *= 1 - PRODUCTS[p].spoil * 0.5;
     }
 
-    // Vendor relationships drift slowly toward neutral.
+    // Events: age out, then maybe spawn one (only one running at a time).
+    for (const e of this.activeEvents) e.daysLeft--;
+    for (const e of this.activeEvents) {
+      if (e.daysLeft <= 0) this.log('✅', `${EVENTS[e.type].name} is over.`);
+    }
+    this.activeEvents = this.activeEvents.filter((e) => e.daysLeft > 0);
+    if (this.activeEvents.length === 0 && day >= 4 && Math.random() < 0.28) {
+      this.spawnEvent();
+    }
+
+    // Relationships drift toward neutral; a connected buyer counteracts it.
+    const connected = this.hasTrait('buyer', 'connected');
     for (const v of Object.values(this.vendors)) {
-      v.rel += (30 - v.rel) * 0.02;
+      v.rel += (30 - v.rel) * 0.02 + (connected ? 1 : 0);
+      v.rel = Math.min(100, v.rel);
     }
   }
 
@@ -461,6 +720,8 @@ export class Game {
     const data = {
       cash: this.cash, peakCash: this.peakCash, time: this.time, won: this.won,
       nameCursor: this.nameCursor,
+      today: this.today, history: this.history, logEntries: this.logEntries,
+      avgCost: this.avgCost,
       stores: this.stores,
       warehouse: this.warehouse,
       truckCount: this.trucks.length,
@@ -468,6 +729,7 @@ export class Game {
       vendors: this.vendors,
       purchasing: this.purchasing,
       hq: this.hq,
+      activeEvents: this.activeEvents,
     };
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch { /* ignore */ }
   }
@@ -480,7 +742,18 @@ export class Game {
     this.cash = d.cash; this.peakCash = d.peakCash ?? d.cash;
     this.time = d.time; this.won = !!d.won;
     this.nameCursor = d.nameCursor ?? 0;
+    this.today = d.today ?? this.blankLedger();
+    this.history = d.history ?? [];
+    this.logEntries = d.logEntries ?? [];
+    this.avgCost = d.avgCost ?? this.avgCost;
     this.stores = d.stores;
+    for (const s of this.stores) {
+      s.morale ??= 0.7;
+      s.manager ??= null;
+      s.today ??= { revenue: 0, cogs: 0 };
+      s.yesterday ??= { revenue: 0, cogs: 0, profit: 0 };
+      s.stockoutLogged ??= {};
+    }
     this.warehouse = d.warehouse;
     this.trucks = [];
     for (let i = 0; i < (d.truckCount || 1); i++) {
@@ -488,8 +761,10 @@ export class Game {
     }
     this.orders = d.orders ?? [];
     this.vendors = d.vendors ?? this.vendors;
+    for (const o of this.orders) o.unitCost ??= PRODUCTS[o.product].cost;
     this.purchasing = d.purchasing ?? this.purchasing;
     this.hq = d.hq ?? this.hq;
+    this.activeEvents = d.activeEvents ?? [];
     return true;
   }
 

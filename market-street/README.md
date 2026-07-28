@@ -38,9 +38,25 @@ office panels on the right.
   lead times (the cheap national distributor takes 3 days; local farms
   deliver overnight). Ordering builds relationships; negotiate to lock in
   discounts up to 25%. Failed negotiations sour the relationship.
-- **HQ** — Hire department heads: a Head Buyer (better negotiation, cheaper
-  goods), a Logistics Manager (faster, bigger trucks), and a Marketing Lead
-  (more customer demand). Salaries are daily.
+- **HQ** — Hire department heads from candidate pools: a Head Buyer (better
+  negotiation, cheaper goods), a Logistics Manager (faster, bigger trucks),
+  and a Marketing Lead (more customer demand). Every candidate has a skill
+  level, a salary ask, and a trait with a real mechanical effect (Haggler,
+  Tetris master, Couponer, …). Salaries are daily.
+- **Store managers & morale** — Each store can hire a named manager who adds
+  floor coverage, lifts team morale, and cuts spoilage. Morale rises with
+  good staffing and sinks when the team is stretched — and it multiplies
+  sales.
+- **Books** — A real P&L: revenue, cost of goods (weighted-average COGS, so
+  vendor discounts show up in your margins), rent, wages, salaries, fines;
+  today vs yesterday, a 30-day profit chart, per-store profitability, and an
+  activity log of everything that happened.
+- **City events** — Roughly weekly, something happens: cold snaps and heat
+  waves shift demand, vendor strikes freeze deliveries (source elsewhere!),
+  roadworks slow trucks, festivals spike a district, discounters start price
+  wars you can only win by cutting prices, health inspections reward
+  well-staffed stores and fine sloppy ones, and fridges break. Active events
+  show as chips on the map with a countdown.
 
 ### Expansion arc
 

@@ -1,18 +1,20 @@
-// DOM: top bar, sidebar tabs (Stores / Supply / Vendors / HQ), store detail.
+// DOM: top bar, map overlays (events, activity feed), sidebar tabs
+// (Stores / Supply / Vendors / HQ / Books), candidate hiring, store detail.
 
 import {
-  PRODUCTS, VENDORS, DISTRICTS, SITES, ROLES, SHELF_CAP, STAFF_WAGE,
+  PRODUCTS, VENDORS, DISTRICTS, ROLES, EVENTS, SHELF_CAP, STAFF_WAGE,
   TRUCK_COST, WAREHOUSE_UPGRADE, HIRE_ROLE_COST, WIN_CASH, WIN_STORES,
 } from './defs.js';
 
 const PROD_IDS = Object.keys(PRODUCTS);
 const fmt = (n) => `$${Math.round(n).toLocaleString()}`;
+const signFmt = (n) => `${n < 0 ? '−' : ''}$${Math.abs(Math.round(n)).toLocaleString()}`;
 
 export class UI {
   constructor(game) {
     this.game = game;
     this.tab = 'stores';
-    this.selectedSite = null;    // site id
+    this.selectedSite = null;
     this.winShown = false;
     this.toast = null;
     this.bindTop();
@@ -20,6 +22,7 @@ export class UI {
     this.buildSupplyTab();
     this.buildVendorsTab();
     this.buildHqTab();
+    this.buildBooksTab();
     this.renderStoreList();
   }
 
@@ -43,6 +46,7 @@ export class UI {
       this.buildSupplyTab();
       this.buildVendorsTab();
       this.buildHqTab();
+      this.buildBooksTab();
       this.renderStoreList();
     });
     document.getElementById('btn-win-close').addEventListener('click', () => {
@@ -69,13 +73,34 @@ export class UI {
     this.toast = { text, until: performance.now() + 2600 };
   }
 
-  // Map click → select site, jump to Stores tab.
   clickTile(x, y) {
     const site = this.game.siteAtTile(x, y);
     if (!site) return;
     this.selectedSite = site.id;
     this.setTab('stores');
     this.renderStoreList();
+  }
+
+  // ---- candidates (shared by HQ roles and store managers) ---------------
+
+  candidateRows(role, hireFn) {
+    const g = this.game;
+    const wrap = document.createElement('div');
+    g.candidatesFor(role).forEach((c, i) => {
+      const row = document.createElement('div');
+      row.className = 'cand-row';
+      row.innerHTML = `
+        <span class="cinfo">👤 ${c.name} <span class="stars">${'★'.repeat(c.skill)}</span> · ${fmt(c.salary)}/day
+          <span class="ctrait">${c.trait.name} — ${c.trait.desc}</span>
+        </span>`;
+      const btn = document.createElement('button');
+      btn.textContent = 'Hire';
+      btn.disabled = g.cash < HIRE_ROLE_COST;
+      btn.addEventListener('click', () => hireFn(i));
+      row.appendChild(btn);
+      wrap.appendChild(row);
+    });
+    return wrap;
   }
 
   // ---- stores tab -------------------------------------------------------
@@ -91,7 +116,7 @@ export class UI {
       row.innerHTML = `
         <span class="sname">${store.name}</span>
         <span class="sdist">${g.district(site.district).name}</span>
-        <span class="srev" data-rev="${site.id}"></span>`;
+        <span class="srev" data-rev="${site.id}" title="Yesterday's profit"></span>`;
       row.addEventListener('click', () => {
         this.selectedSite = site.id;
         this.renderStoreList();
@@ -137,7 +162,9 @@ export class UI {
     box.innerHTML = `
       <h4>${store.name} <span class="fine">· ${district.name} · ~${site.pop.toLocaleString()} shoppers</span></h4>
       <div class="kv"><span>Reputation</span><div class="meter"><i id="sd-rep"></i></div></div>
+      <div class="kv"><span>Team morale</span><div class="meter"><i id="sd-morale"></i></div></div>
       <div class="kv"><span>Revenue today</span><b id="sd-rev"></b></div>
+      <div class="kv"><span>Profit yesterday</span><b id="sd-yprofit"></b></div>
       <div class="kv"><span>Lost sales today</span><b id="sd-lost"></b></div>
       <div class="kv"><span>Rent</span><b>${fmt(site.rent)}/day</b></div>
       <div class="kv"><span>Staff <span class="fine">(${fmt(STAFF_WAGE)}/day each)</span></span>
@@ -150,8 +177,42 @@ export class UI {
       <div class="kv"><span>Prices <b id="sd-markup-val"></b></span>
         <input type="range" id="sd-markup" min="80" max="140" step="5">
       </div>
+      <div id="sd-manager"></div>
       <div id="sd-inv"></div>
       <button id="sd-close" class="danger">Close store (recover 60%)</button>`;
+
+    // Manager block.
+    const mgrWrap = box.querySelector('#sd-manager');
+    const title = document.createElement('h4');
+    title.textContent = 'Store manager';
+    title.style.marginTop = '8px';
+    mgrWrap.appendChild(title);
+    if (store.manager) {
+      const m = store.manager;
+      const row = document.createElement('div');
+      row.className = 'cand-row';
+      row.innerHTML = `
+        <span class="cinfo">👤 ${m.name} <span class="stars">${'★'.repeat(m.skill)}</span> · ${fmt(m.salary)}/day
+          <span class="ctrait">${m.trait.name} — ${m.trait.desc}</span>
+        </span>`;
+      const btn = document.createElement('button');
+      btn.textContent = 'Let go';
+      btn.addEventListener('click', () => {
+        g.fireManager(site.id);
+        this.renderStoreDetail();
+      });
+      row.appendChild(btn);
+      mgrWrap.appendChild(row);
+    } else {
+      const note = document.createElement('p');
+      note.className = 'fine';
+      note.textContent = `No manager — the team runs on autopilot. A manager boosts coverage, morale, and cuts spoilage (${fmt(HIRE_ROLE_COST)} signing bonus).`;
+      mgrWrap.appendChild(note);
+      mgrWrap.appendChild(this.candidateRows('manager', (i) => {
+        if (g.hireManager(site.id, i)) this.renderStoreDetail();
+        else this.say('Not enough cash.');
+      }));
+    }
 
     const invWrap = box.querySelector('#sd-inv');
     for (const p of PROD_IDS) {
@@ -260,6 +321,8 @@ export class UI {
       const pol = g.purchasing[p];
       if (g.placeOrder(p, pol.vendor, pol.qty)) {
         this.say(`Ordered ${pol.qty} ${PRODUCTS[p].name} from ${VENDORS[pol.vendor].name}.`);
+      } else if (g.vendorStruck(pol.vendor)) {
+        this.say(`${VENDORS[pol.vendor].name} is on strike — pick another vendor.`);
       } else {
         this.say('Order failed — check cash.');
       }
@@ -283,7 +346,7 @@ export class UI {
       const card = document.createElement('div');
       card.className = 'panel vendor-card';
       card.innerHTML = `
-        <h3>${v.name}</h3>
+        <h3>${v.name} <span data-struck="${id}" style="color:var(--bad)"></span></h3>
         <p class="fine">${v.blurb}</p>
         <div class="kv"><span>Supplies</span><b>${v.products.map((p) => PRODUCTS[p].name).join(', ')}</b></div>
         <div class="kv"><span>Lead time</span><b>${v.leadTime} day${v.leadTime > 1 ? 's' : ''}</b></div>
@@ -306,7 +369,6 @@ export class UI {
   // ---- hq tab -----------------------------------------------------------
 
   buildHqTab() {
-    const g = this.game;
     const page = document.getElementById('tab-hq');
     page.innerHTML = '';
     const office = document.createElement('div');
@@ -317,20 +379,11 @@ export class UI {
     for (const [id, def] of Object.entries(ROLES)) {
       const row = document.createElement('div');
       row.className = 'role-row';
-      row.dataset.role = id;
       row.innerHTML = `<div class="role-head"><b>${def.name}</b></div>
         <p class="fine">${def.desc}</p>
         <div class="role-body" data-body="${id}"></div>`;
       roles.appendChild(row);
     }
-    roles.addEventListener('click', (e) => {
-      const hireId = e.target.dataset?.hire;
-      const fireId = e.target.dataset?.fire;
-      if (hireId && !g.hireRole(hireId)) this.say('Not enough cash.');
-      if (fireId) g.fireRole(fireId);
-      if (hireId || fireId) this.refreshRoles(true);
-    });
-
     const miles = document.createElement('div');
     miles.className = 'panel';
     miles.innerHTML = '<h3>Expansion plan</h3><div id="milestones"></div>';
@@ -340,21 +393,187 @@ export class UI {
 
   refreshRoles(force = false) {
     const g = this.game;
-    const key = Object.keys(ROLES).map((r) => (g.hq[r] ? g.hq[r].name : '·')).join('|') + g.cash;
     const wrap = document.getElementById('roles');
     if (!wrap) return;
+    const key = Object.keys(ROLES).map((r) => (g.hq[r] ? g.hq[r].name : '·')).join('|')
+      + (g.cash < HIRE_ROLE_COST ? 'poor' : 'ok');
     if (!force && wrap.dataset.key === key) return;
     wrap.dataset.key = key;
     for (const id of Object.keys(ROLES)) {
       const body = wrap.querySelector(`[data-body="${id}"]`);
+      body.innerHTML = '';
       const cur = g.hq[id];
       if (cur) {
-        body.innerHTML = `<span>👤 ${cur.name} <span class="stars">${'★'.repeat(cur.skill)}</span> · ${fmt(cur.salary)}/day</span>
-          <button data-fire="${id}">Let go</button>`;
+        const row = document.createElement('div');
+        row.className = 'cand-row';
+        row.innerHTML = `
+          <span class="cinfo">👤 ${cur.name} <span class="stars">${'★'.repeat(cur.skill)}</span> · ${fmt(cur.salary)}/day
+            <span class="ctrait">${cur.trait.name} — ${cur.trait.desc}</span>
+          </span>`;
+        const btn = document.createElement('button');
+        btn.textContent = 'Let go';
+        btn.addEventListener('click', () => {
+          g.fireRole(id);
+          this.refreshRoles(true);
+        });
+        row.appendChild(btn);
+        body.appendChild(row);
       } else {
-        body.innerHTML = `<span class="fine">Position vacant</span>
-          <button data-hire="${id}" ${g.cash < HIRE_ROLE_COST ? 'disabled' : ''}>Hire (${fmt(HIRE_ROLE_COST)} + salary)</button>`;
+        const note = document.createElement('div');
+        note.className = 'fine';
+        note.textContent = `Candidates (${fmt(HIRE_ROLE_COST)} signing bonus):`;
+        body.appendChild(note);
+        body.appendChild(this.candidateRows(id, (i) => {
+          if (g.hireRole(id, i)) this.refreshRoles(true);
+          else this.say('Not enough cash.');
+        }));
       }
+    }
+  }
+
+  // ---- books tab --------------------------------------------------------
+
+  buildBooksTab() {
+    const page = document.getElementById('tab-books');
+    page.innerHTML = `
+      <div class="panel">
+        <h3>Profit &amp; loss <span class="fine" id="pl-day"></span></h3>
+        <div id="pl-body"></div>
+      </div>
+      <div class="panel">
+        <h3>Daily profit — last 30 days</h3>
+        <canvas id="chart"></canvas>
+      </div>
+      <div class="panel">
+        <h3>By store <span class="fine">(yesterday)</span></h3>
+        <div id="bstores"></div>
+      </div>
+      <div class="panel">
+        <h3>Activity log</h3>
+        <div id="log-list"></div>
+      </div>`;
+  }
+
+  refreshBooks() {
+    const g = this.game;
+    const t = g.today;
+    const y = g.history[g.history.length - 1];
+    setText('pl-day', y ? `· today so far vs day ${y.day}` : '· today so far');
+
+    // Rent/wages/salaries accrue at day end, so "today" shows — for them.
+    const body = document.getElementById('pl-body');
+    const lines = [
+      ['Revenue', t.revenue, y?.revenue],
+      ['Cost of goods', -t.cogs, y !== undefined ? -y.cogs : undefined],
+      ['Fines', -t.fines, y !== undefined ? -y.fines : undefined],
+      ['Rent (accrues nightly)', null, y !== undefined ? -y.rent : undefined],
+      ['Wages (accrues nightly)', null, y !== undefined ? -y.wages : undefined],
+      ['Salaries (accrues nightly)', null, y !== undefined ? -y.salaries : undefined],
+    ];
+    let html = '<div class="pl-row"><span></span><span><b>Today</b> · Yesterday</span></div>';
+    for (const [label, today, yest] of lines) {
+      const tv = today === null ? '—' : signFmt(today);
+      const yv = yest === undefined ? '—' : signFmt(yest);
+      html += `<div class="pl-row"><span>${label}</span><span><b>${tv}</b> · ${yv}</span></div>`;
+    }
+    const profitNow = g.profitToday();
+    const yProfit = y ? y.profit : undefined;
+    html += `<div class="pl-row total"><span>Profit</span>
+      <span><b class="${profitNow >= 0 ? 'pos' : 'neg'}">${signFmt(profitNow)}</b> · ${yProfit === undefined ? '—' : `<span class="${yProfit >= 0 ? 'pos' : 'neg'}">${signFmt(yProfit)}</span>`}</span></div>`;
+    if (body.dataset.key !== html) { body.dataset.key = html; body.innerHTML = html; }
+
+    this.drawChart();
+
+    const bs = document.getElementById('bstores');
+    let bHtml = '';
+    for (const store of g.stores) {
+      const p = store.yesterday.profit;
+      bHtml += `<div class="bstore-row"><span>${store.name}</span>
+        <span>rev ${fmt(store.yesterday.revenue)}</span>
+        <span class="${p >= 0 ? 'pos' : 'neg'}">${signFmt(p)}</span></div>`;
+    }
+    if (!g.stores.length) bHtml = '<div class="fine">No stores.</div>';
+    if (bs.dataset.key !== bHtml) { bs.dataset.key = bHtml; bs.innerHTML = bHtml; }
+
+    const logWrap = document.getElementById('log-list');
+    const entries = g.logEntries.slice(-40).reverse();
+    const lKey = entries.length ? `${entries.length}-${entries[0].day}-${entries[0].text}` : 'none';
+    if (logWrap.dataset.key !== lKey) {
+      logWrap.dataset.key = lKey;
+      logWrap.innerHTML = entries.length
+        ? entries.map((e) => `<div><span class="fday">D${e.day}</span>${e.icon} ${e.text}</div>`).join('')
+        : '<div class="fine">Nothing yet.</div>';
+    }
+  }
+
+  drawChart() {
+    const canvas = document.getElementById('chart');
+    if (!canvas) return;
+    const g = this.game;
+    const data = g.history.slice(-30);
+    const key = data.length ? `${data.length}-${data[data.length - 1].day}` : 'none';
+    if (canvas.dataset.key === key) return;
+    canvas.dataset.key = key;
+
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const w = rect.width, h = rect.height;
+    ctx.clearRect(0, 0, w, h);
+    if (!data.length) {
+      ctx.fillStyle = '#8b96a6';
+      ctx.font = '12px system-ui, sans-serif';
+      ctx.fillText('No full days yet.', 6, 20);
+      return;
+    }
+    const max = Math.max(50, ...data.map((d) => Math.abs(d.profit)));
+    const zero = h / 2;
+    ctx.strokeStyle = 'rgba(139, 150, 166, 0.4)';
+    ctx.beginPath();
+    ctx.moveTo(0, zero);
+    ctx.lineTo(w, zero);
+    ctx.stroke();
+    const bw = w / 30;
+    data.forEach((d, i) => {
+      const x = w - (data.length - i) * bw;
+      const bh = (d.profit / max) * (h / 2 - 4);
+      ctx.fillStyle = d.profit >= 0 ? '#6fd08c' : '#e8828c';
+      if (bh >= 0) ctx.fillRect(x + 1, zero - bh, bw - 2, Math.max(1, bh));
+      else ctx.fillRect(x + 1, zero, bw - 2, Math.max(1, -bh));
+    });
+  }
+
+  // ---- map overlays -----------------------------------------------------
+
+  refreshOverlays() {
+    const g = this.game;
+    // Active event chips.
+    const bar = document.getElementById('events-bar');
+    const eKey = g.activeEvents.map((e) => e.type + e.daysLeft + (e.vendor || e.district || '')).join('|') || 'none';
+    if (bar.dataset.key !== eKey) {
+      bar.dataset.key = eKey;
+      bar.innerHTML = g.activeEvents.map((e) => {
+        const def = EVENTS[e.type];
+        let where = '';
+        if (e.vendor) where = ` — ${VENDORS[e.vendor].name}`;
+        if (e.district) where = ` — ${g.district(e.district).name}`;
+        return `<div class="event-chip">${def.icon} <b>${def.name}</b>${where}
+          <span class="ev-days">· ${e.daysLeft}d left</span><br>
+          <span class="ev-days">${def.desc}</span></div>`;
+      }).join('');
+    }
+    // Activity feed: last 4 log entries.
+    const feed = document.getElementById('feed');
+    const entries = g.logEntries.slice(-4);
+    const fKey = entries.map((e) => e.day + e.text).join('|') || 'none';
+    if (feed.dataset.key !== fKey) {
+      feed.dataset.key = fKey;
+      feed.innerHTML = [...entries].reverse()
+        .map((e) => `<div class="feed-entry"><span class="fday">D${e.day}</span>${e.icon} ${e.text}</div>`)
+        .join('');
     }
   }
 
@@ -366,14 +585,13 @@ export class UI {
     document.getElementById('stat-cash').classList.toggle('broke', g.cash < 0);
     setText('stat-day', `Day ${g.day()}`);
     setText('stat-stores', `${g.stores.length} store${g.stores.length === 1 ? '' : 's'}`);
-    const net = g.todayRevenue - g.todayExpenses;
+    const net = g.profitToday();
     const netEl = document.getElementById('stat-net');
-    const netTxt = `${net >= 0 ? '+' : '−'}${fmt(Math.abs(net)).slice(0)} today`;
+    const netTxt = `${signFmt(net)} today`;
     if (netEl.textContent !== netTxt) netEl.textContent = netTxt;
     netEl.classList.toggle('pos', net >= 0);
     netEl.classList.toggle('neg', net < 0);
 
-    // Toast.
     const toastEl = document.getElementById('toast');
     if (this.toast && performance.now() < this.toast.until) {
       toastEl.textContent = this.toast.text;
@@ -382,10 +600,13 @@ export class UI {
       toastEl.classList.add('hidden');
     }
 
+    this.refreshOverlays();
+
     if (this.tab === 'stores') this.refreshStores();
     if (this.tab === 'supply') this.refreshSupply();
     if (this.tab === 'vendors') this.refreshVendors();
     if (this.tab === 'hq') { this.refreshRoles(); this.refreshMilestones(); }
+    if (this.tab === 'books') this.refreshBooks();
 
     if (g.won && !this.winShown) {
       this.winShown = true;
@@ -395,12 +616,15 @@ export class UI {
 
   refreshStores() {
     const g = this.game;
-    // Keep list rows in sync if store count changed under us.
     const wrap = document.getElementById('store-list');
     if (wrap.children.length !== g.stores.length) this.renderStoreList();
     for (const store of g.stores) {
       const el = wrap.querySelector(`[data-rev="${store.siteId}"]`);
-      if (el) setEl(el, fmt(store.revenueToday));
+      if (el) {
+        const p = store.yesterday.profit;
+        setEl(el, signFmt(p));
+        el.style.color = p >= 0 ? 'var(--good)' : 'var(--bad)';
+      }
     }
     const store = this.selectedSite ? g.storeAt(this.selectedSite) : null;
     if (!store) return;
@@ -409,7 +633,13 @@ export class UI {
     if (!rep) return;
     rep.style.width = `${Math.round(store.rep * 100)}%`;
     rep.style.background = store.rep > 0.6 ? 'var(--good)' : store.rep > 0.35 ? 'var(--accent)' : 'var(--bad)';
-    setEl(box.querySelector('#sd-rev'), fmt(store.revenueToday));
+    const mor = box.querySelector('#sd-morale');
+    mor.style.width = `${Math.round(store.morale * 100)}%`;
+    mor.style.background = store.morale > 0.6 ? 'var(--good)' : store.morale > 0.35 ? 'var(--accent)' : 'var(--bad)';
+    setEl(box.querySelector('#sd-rev'), fmt(store.today.revenue));
+    const yp = box.querySelector('#sd-yprofit');
+    setEl(yp, signFmt(store.yesterday.profit));
+    yp.style.color = store.yesterday.profit >= 0 ? 'var(--good)' : 'var(--bad)';
     const lostEl = box.querySelector('#sd-lost');
     setEl(lostEl, `${Math.round(store.lostToday)} customers`);
     lostEl.style.color = store.lostToday > 20 ? 'var(--bad)' : 'var(--dim)';
@@ -447,7 +677,7 @@ export class UI {
       list.dataset.key = key;
       list.innerHTML = g.orders.length
         ? g.orders.map((o) =>
-            `<div>${o.qty} × ${PRODUCTS[o.product].name} from ${VENDORS[o.vendor].name} — arrives day ${o.arriveDay}</div>`
+            `<div>${o.qty} × ${PRODUCTS[o.product].name} from ${VENDORS[o.vendor].name} — arrives day ${o.arriveDay}${g.vendorStruck(o.vendor) ? ' <span style="color:var(--bad)">(held by strike)</span>' : ''}</div>`
           ).join('')
         : 'Nothing inbound.';
     }
@@ -463,6 +693,8 @@ export class UI {
       }
       const disc = document.querySelector(`[data-disc="${id}"]`);
       if (disc) setEl(disc, `${Math.round(g.vendors[id].discount * 100)}%`);
+      const struck = document.querySelector(`[data-struck="${id}"]`);
+      if (struck) setEl(struck, g.vendorStruck(id) ? '✊ ON STRIKE' : '');
       const btn = document.querySelector(`[data-neg="${id}"]`);
       if (btn) {
         const used = g.vendors[id].lastNegDay === g.day();
