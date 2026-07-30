@@ -4,8 +4,9 @@
 import {
   GRID, START_CASH, WIN_CASH, WIN_STORES, POP_FACTOR, SHELF_CAP, STAFF_WAGE,
   HIRE_ROLE_COST, TRUCK_COST, TRUCK_CAP, TRUCK_SPEED, WAREHOUSE_CAP,
-  WAREHOUSE_UPGRADE, WAREHOUSE, MANAGER_SALARY, isRoad, PRODUCTS, VENDORS,
-  DISTRICTS, SITES, ROLES, EVENTS, TRAITS, PEOPLE_NAMES,
+  WAREHOUSE_UPGRADE, WAREHOUSE, MANAGER_SALARY, START_SLOTS, REMODEL,
+  isRoad, PRODUCTS, VENDORS, DISTRICTS, SITES, ROLES, EVENTS, TRAITS,
+  PEOPLE_NAMES,
 } from './defs.js';
 
 const SAVE_KEY = 'market-street-save-v2';
@@ -51,11 +52,12 @@ export class Game {
 
     this.purchasing = {};
     for (const p of PROD_IDS) {
+      const core = !!PRODUCTS[p].core;
       this.purchasing[p] = {
         auto: true,
         vendor: this.cheapestVendor(p),
-        point: 180,
-        qty: 350,
+        point: core ? 180 : 120,
+        qty: core ? 350 : 250,
       };
     }
 
@@ -74,12 +76,16 @@ export class Game {
       name: `Market St. #${this.stores.length + 1}`,
       inv: {}, staff: 2, markup: 1.0, rep: 0.5, avail: 1, morale: 0.7,
       manager: null,
+      range: {}, slots: START_SLOTS, remodels: 0,
       today: { revenue: 0, cogs: 0 },
       yesterday: { revenue: 0, cogs: 0, profit: 0 },
       servedToday: 0, lostToday: 0,
       stockoutLogged: {},
     };
-    for (const p of PROD_IDS) store.inv[p] = seeded ? SHELF_CAP * 0.7 : 0;
+    for (const p of PROD_IDS) {
+      store.range[p] = !!PRODUCTS[p].core;
+      store.inv[p] = seeded && store.range[p] ? SHELF_CAP * 0.7 : 0;
+    }
     this.stores.push(store);
     return store;
   }
@@ -115,10 +121,29 @@ export class Game {
     return PRODUCTS[product].cost * v.priceMult * (1 - disc) * buyer * trait;
   }
 
+  // Products carried by at least one store.
+  carriedProducts() {
+    return PROD_IDS.filter((p) => this.stores.some((s) => s.range[p]));
+  }
+
+  enabledWeight(store) {
+    return PROD_IDS.reduce((s, p) => s + (store.range[p] ? PRODUCTS[p].weight : 0), 0);
+  }
+
+  rangeCount(store) {
+    return PROD_IDS.filter((p) => store.range[p]).length;
+  }
+
+  remodelCost(store) {
+    return REMODEL.baseCost + REMODEL.stepCost * store.remodels;
+  }
+
   chainQuality() {
+    const carried = this.carriedProducts();
+    if (!carried.length) return 1;
     let q = 0;
-    for (const p of PROD_IDS) q += VENDORS[this.purchasing[p].vendor].quality;
-    return q / PROD_IDS.length;
+    for (const p of carried) q += VENDORS[this.purchasing[p].vendor].quality;
+    return q / carried.length;
   }
 
   warehouseUsed() {
@@ -255,6 +280,30 @@ export class Game {
     return true;
   }
 
+  toggleProduct(siteId, product) {
+    const store = this.storeAt(siteId);
+    if (!store || !PRODUCTS[product]) return false;
+    if (store.range[product]) {
+      store.range[product] = false;
+      return true;
+    }
+    if (this.rangeCount(store) >= store.slots) return false;
+    store.range[product] = true;
+    return true;
+  }
+
+  remodelStore(siteId) {
+    const store = this.storeAt(siteId);
+    if (!store || store.slots >= PROD_IDS.length) return false;
+    const cost = this.remodelCost(store);
+    if (this.cash < cost) return false;
+    this.cash -= cost;
+    store.slots = Math.min(PROD_IDS.length, store.slots + REMODEL.slots);
+    store.remodels++;
+    this.log('🔨', `${store.name} remodeled — now fits ${store.slots} product lines.`);
+    return true;
+  }
+
   placeOrder(product, vendorId, qty, quiet = false) {
     qty = Math.max(0, Math.round(qty));
     const v = VENDORS[vendorId];
@@ -351,6 +400,7 @@ export class Game {
         else if (product === 'produce') m *= 0.85;
       } else if (e.type === 'heat_wave') {
         if (product === 'frozen') m *= 1.6;
+        else if (product === 'beverages') m *= 1.5;
       } else if (e.type === 'festival' && e.district === site.district) {
         m *= 1.6;
       } else if (e.type === 'price_war' && e.district === site.district) {
@@ -379,7 +429,8 @@ export class Game {
 
       const baseDaily = site.pop * POP_FACTOR;
       const effStaff = store.staff + (store.manager ? 0.5 * store.manager.skill : 0);
-      const staffNeeded = baseDaily / 55;
+      // A wider assortment brings in more traffic — and needs more hands.
+      const staffNeeded = (baseDaily * this.enabledWeight(store)) / 55;
       const staffRatio = Math.min(1, effStaff / staffNeeded);
       const moraleF = 0.75 + 0.35 * store.morale;
       const staffF = (0.55 + 0.45 * staffRatio) * moraleF;
@@ -391,6 +442,11 @@ export class Game {
 
       let servedTick = 0, lostTick = 0;
       for (const p of PROD_IDS) {
+        if (!store.range[p]) {
+          // Leftover stock of a dropped line still spoils on the shelf.
+          if (PRODUCTS[p].spoil) store.inv[p] *= 1 - PRODUCTS[p].spoil * spoilMult * dt;
+          continue;
+        }
         const rate = baseDaily * PRODUCTS[p].weight * elastic * repF * staffF * mkt
           * this.demandMult(store, p);
         const want = rate * dt;
@@ -484,6 +540,7 @@ export class Game {
     const def = {};
     let total = 0;
     for (const p of PROD_IDS) {
+      if (!store.range[p]) { def[p] = 0; continue; }
       const d = Math.max(0, SHELF_CAP - store.inv[p] - (enroute[p] || 0));
       def[p] = d;
       total += Math.min(d, this.warehouse.inv[p]);
@@ -578,7 +635,7 @@ export class Game {
       const store = this.stores[Math.floor(Math.random() * this.stores.length)];
       const site = this.site(store.siteId);
       const effStaff = store.staff + (store.manager ? 0.5 * store.manager.skill : 0);
-      const ok = effStaff / (site.pop * POP_FACTOR / 55) >= 0.85;
+      const ok = effStaff / (site.pop * POP_FACTOR * this.enabledWeight(store) / 55) >= 0.85;
       if (ok) {
         store.rep = Math.min(1, store.rep + 0.08);
         this.log('🧾', `Health inspection at ${store.name}: passed with flying colors. Reputation up.`);
@@ -604,7 +661,8 @@ export class Game {
       daysLeft: def.dur[0] + Math.floor(Math.random() * (def.dur[1] - def.dur[0] + 1)),
     };
     if (type === 'strike') {
-      ev.vendor = Object.keys(VENDORS)[Math.floor(Math.random() * 4)];
+      const vendorIds = Object.keys(VENDORS);
+      ev.vendor = vendorIds[Math.floor(Math.random() * vendorIds.length)];
       this.log(def.icon, `${VENDORS[ev.vendor].name} workers walked out — no deliveries until it's settled.`);
     } else if (type === 'festival' || type === 'price_war') {
       const open = DISTRICTS.filter((d) => this.districtUnlocked(d.id));
@@ -667,7 +725,7 @@ export class Game {
       return false;
     });
     for (const o of arriving) {
-      const space = this.warehouse.cap - this.warehouseUsed();
+      const space = Math.floor(this.warehouse.cap - this.warehouseUsed());
       const accepted = Math.min(o.qty, Math.max(0, space));
       // Update weighted-average cost with the accepted units.
       const prevInv = this.warehouse.inv[o.product];
@@ -682,13 +740,35 @@ export class Game {
       this.addFloater(WAREHOUSE.x, WAREHOUSE.y, `+${accepted} ${PRODUCTS[o.product].name}`, '#6fd08c');
     }
 
-    // Auto-reorder.
-    for (const p of PROD_IDS) {
+    // Auto-reorder (skip lines no store carries — no point warehousing them).
+    // Capacity-aware: never order what the warehouse can't take on arrival.
+    const carried = new Set(this.carriedProducts());
+    let projected = this.warehouseUsed()
+      + this.orders.reduce((s, o) => s + o.qty, 0);
+    let warnedFull = false;
+    // Most-depleted lines (relative to their reorder point) order first, so
+    // a tight warehouse squeezes every line a little instead of starving one.
+    const needy = PROD_IDS
+      .filter((p) => {
+        const pol = this.purchasing[p];
+        return pol.auto && carried.has(p) && pol.point > 0
+          && this.warehouse.inv[p] + this.inTransit(p) < pol.point;
+      })
+      .sort((a, b) =>
+        (this.warehouse.inv[a] + this.inTransit(a)) / this.purchasing[a].point
+        - (this.warehouse.inv[b] + this.inTransit(b)) / this.purchasing[b].point);
+    for (const p of needy) {
       const pol = this.purchasing[p];
-      if (!pol.auto) continue;
-      if (this.warehouse.inv[p] + this.inTransit(p) < pol.point) {
-        this.placeOrder(p, pol.vendor, pol.qty, true);
+      const space = this.warehouse.cap - projected;
+      const qty = Math.min(pol.qty, Math.floor(space));
+      if (qty < 25) {
+        if (!warnedFull) {
+          warnedFull = true;
+          this.log('🏭', `Warehouse too full to reorder ${PRODUCTS[p].name} — expand it or trim standing orders.`);
+        }
+        continue;
       }
+      if (this.placeOrder(p, pol.vendor, qty, true)) projected += qty;
     }
 
     // Warehouse spoilage (cold storage halves shelf rates).
@@ -753,8 +833,19 @@ export class Game {
       s.today ??= { revenue: 0, cogs: 0 };
       s.yesterday ??= { revenue: 0, cogs: 0, profit: 0 };
       s.stockoutLogged ??= {};
+      s.slots ??= START_SLOTS;
+      s.remodels ??= 0;
+      s.range ??= {};
+      for (const p of PROD_IDS) {
+        s.range[p] ??= !!PRODUCTS[p].core;
+        s.inv[p] ??= 0;
+      }
     }
     this.warehouse = d.warehouse;
+    for (const p of PROD_IDS) {
+      this.warehouse.inv[p] ??= 0;
+      this.avgCost[p] ??= PRODUCTS[p].cost;
+    }
     this.trucks = [];
     for (let i = 0; i < (d.truckCount || 1); i++) {
       this.trucks.push({ state: 'idle', path: null, pos: 0, cargo: null, storeId: null });
@@ -762,7 +853,7 @@ export class Game {
     this.orders = d.orders ?? [];
     this.vendors = d.vendors ?? this.vendors;
     for (const o of this.orders) o.unitCost ??= PRODUCTS[o.product].cost;
-    this.purchasing = d.purchasing ?? this.purchasing;
+    this.purchasing = { ...this.purchasing, ...(d.purchasing ?? {}) };
     this.hq = d.hq ?? this.hq;
     this.activeEvents = d.activeEvents ?? [];
     return true;

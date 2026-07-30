@@ -224,3 +224,13 @@ select {
 .cand-row .cinfo { flex: 1; }
 .cand-row .ctrait { display: block; font-size: 11px; color: var(--dim); }
 .cand-row button { padding: 2px 9px; font-size: 12px; white-space: nowrap; }
+
+.range-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px;
+  margin: 4px 0;
+}
+.range-item {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; cursor: pointer; padding: 2px 0;
+}
+.range-item input { accent-color: var(--accent); }

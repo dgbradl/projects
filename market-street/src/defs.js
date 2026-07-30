@@ -22,20 +22,30 @@ export const WAREHOUSE = { x: 11, y: 11 };
 // Roads run every 4th tile in both directions.
 export const isRoad = (x, y) => x % 4 === 0 || y % 4 === 0;
 
+// `core: true` products are what every new store carries on day one.
+// The rest are optional lines you add per store — if it has the shelf slots.
 export const PRODUCTS = {
-  produce: { name: 'Produce', color: '#6fd08c', cost: 1.2, retail: 2.4, weight: 0.24, spoil: 0.10 },
-  dairy:   { name: 'Dairy',   color: '#9ec7ef', cost: 1.5, retail: 2.6, weight: 0.18, spoil: 0.06 },
-  bakery:  { name: 'Bakery',  color: '#e0b070', cost: 0.8, retail: 1.9, weight: 0.14, spoil: 0.15 },
-  meat:    { name: 'Meat',    color: '#e8828c', cost: 3.5, retail: 6.0, weight: 0.12, spoil: 0.08 },
-  frozen:  { name: 'Frozen',  color: '#7fd8e0', cost: 2.0, retail: 3.4, weight: 0.12, spoil: 0 },
-  pantry:  { name: 'Pantry',  color: '#c8b28a', cost: 1.0, retail: 2.0, weight: 0.20, spoil: 0 },
+  produce:   { name: 'Produce',   color: '#6fd08c', cost: 1.2, retail: 2.4, weight: 0.24, spoil: 0.10, core: true },
+  dairy:     { name: 'Dairy',     color: '#9ec7ef', cost: 1.5, retail: 2.6, weight: 0.18, spoil: 0.06, core: true },
+  bakery:    { name: 'Bakery',    color: '#e0b070', cost: 0.8, retail: 1.9, weight: 0.14, spoil: 0.15, core: true },
+  meat:      { name: 'Meat',      color: '#e8828c', cost: 3.5, retail: 6.0, weight: 0.12, spoil: 0.08, core: true },
+  frozen:    { name: 'Frozen',    color: '#7fd8e0', cost: 2.0, retail: 3.4, weight: 0.12, spoil: 0,    core: true },
+  pantry:    { name: 'Pantry',    color: '#c8b28a', cost: 1.0, retail: 2.0, weight: 0.20, spoil: 0,    core: true },
+  beverages: { name: 'Beverages', color: '#b28ae0', cost: 0.9, retail: 1.9, weight: 0.14, spoil: 0 },
+  snacks:    { name: 'Snacks',    color: '#f0a05a', cost: 0.7, retail: 1.7, weight: 0.12, spoil: 0 },
+  household: { name: 'Household', color: '#a8b8c8', cost: 1.4, retail: 2.3, weight: 0.10, spoil: 0 },
+  deli:      { name: 'Deli',      color: '#e0a8c0', cost: 2.2, retail: 4.2, weight: 0.10, spoil: 0.12 },
+  seafood:   { name: 'Seafood',   color: '#6fa8d0', cost: 3.0, retail: 5.6, weight: 0.08, spoil: 0.18 },
 };
+
+export const START_SLOTS = 6;      // product lines a fresh store can carry
+export const REMODEL = { slots: 2, baseCost: 2500, stepCost: 1800 };
 
 // Vendors: priceMult scales product base cost; quality feeds store reputation;
 // leadTime is days from order to warehouse arrival.
 export const VENDORS = {
   freshfields: {
-    name: 'FreshFields Farms', products: ['produce', 'dairy'],
+    name: 'FreshFields Farms', products: ['produce', 'dairy', 'deli'],
     priceMult: 1.0, quality: 0.95, leadTime: 1,
     blurb: 'Local farms. Fast and fresh, but they know their worth.',
   },
@@ -50,9 +60,20 @@ export const VENDORS = {
     blurb: 'Premium cuts and cold chain. Pricey, but customers notice.',
   },
   consolidated: {
-    name: 'Consolidated Goods', products: ['pantry', 'frozen', 'dairy'],
+    name: 'Consolidated Goods',
+    products: ['pantry', 'frozen', 'dairy', 'beverages', 'snacks', 'household'],
     priceMult: 0.88, quality: 0.75, leadTime: 3,
-    blurb: 'National distributor. Cheap and slow; quality is… fine.',
+    blurb: 'National distributor. Cheap and slow; quality is… fine. The only source for household goods.',
+  },
+  vista: {
+    name: 'Vista Beverage Co.', products: ['beverages', 'snacks'],
+    priceMult: 0.92, quality: 0.85, leadTime: 2,
+    blurb: 'Regional drinks & snacks distributor. Solid prices, decent speed.',
+  },
+  harborfresh: {
+    name: 'Harbor Fresh', products: ['seafood', 'deli'],
+    priceMult: 1.1, quality: 1.2, leadTime: 1,
+    blurb: 'Dockside daily catch. Expensive, spoils fast, sells itself.',
   },
 };
 
@@ -107,7 +128,7 @@ export const EVENTS = {
   },
   heat_wave: {
     icon: '🔥', name: 'Heat wave', dur: [2, 3],
-    desc: 'Frozen +60% demand, but perishables spoil twice as fast.',
+    desc: 'Frozen +60% and beverages +50% demand, but perishables spoil twice as fast.',
   },
   strike: {
     icon: '✊', name: 'Vendor strike', dur: [2, 4],

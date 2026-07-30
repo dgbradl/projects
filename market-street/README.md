@@ -29,6 +29,14 @@ office panels on the right.
   you set staffing (understaffed stores serve fewer customers) and a price
   level (cheaper = more traffic, thinner margins). Buy FOR SALE lots to open
   new stores.
+- **Product range** — 11 product lines, from the core six (produce, dairy,
+  bakery, meat, frozen, pantry) to optional ones: beverages, snacks,
+  household, deli, seafood. Every store has limited shelf slots — pick its
+  assortment line by line, and **remodel** (escalating cost) to fit more.
+  A wider range means more traffic, but also more staff, more truck volume,
+  and more warehouse pressure; deli and seafood have fat margins and brutal
+  spoilage. Household goods are only sold by the slow, low-quality national
+  distributor — a deliberate monopoly.
 - **Supply** — Your warehouse feeds the chain. Set standing orders per
   product: pick a vendor, a reorder point, and an order size, and the office
   reorders automatically. Trucks shuttle stock to whichever store needs it

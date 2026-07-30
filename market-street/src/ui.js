@@ -4,6 +4,7 @@
 import {
   PRODUCTS, VENDORS, DISTRICTS, ROLES, EVENTS, SHELF_CAP, STAFF_WAGE,
   TRUCK_COST, WAREHOUSE_UPGRADE, HIRE_ROLE_COST, WIN_CASH, WIN_STORES,
+  REMODEL,
 } from './defs.js';
 
 const PROD_IDS = Object.keys(PRODUCTS);
@@ -79,6 +80,10 @@ export class UI {
     this.selectedSite = site.id;
     this.setTab('stores');
     this.renderStoreList();
+  }
+
+  rangeSummary(store) {
+    return `${this.game.rangeCount(store)}/${store.slots} slots used`;
   }
 
   // ---- candidates (shared by HQ roles and store managers) ---------------
@@ -178,8 +183,49 @@ export class UI {
         <input type="range" id="sd-markup" min="80" max="140" step="5">
       </div>
       <div id="sd-manager"></div>
+      <div id="sd-range"></div>
       <div id="sd-inv"></div>
       <button id="sd-close" class="danger">Close store (recover 60%)</button>`;
+
+    // Product range block: choose which lines this store carries.
+    const rangeWrap = box.querySelector('#sd-range');
+    const rTitle = document.createElement('h4');
+    rTitle.innerHTML = `Product range <span class="fine" id="sd-slots"></span>`;
+    rTitle.style.marginTop = '8px';
+    rangeWrap.appendChild(rTitle);
+    const grid = document.createElement('div');
+    grid.className = 'range-grid';
+    for (const p of PROD_IDS) {
+      const label = document.createElement('label');
+      label.className = 'range-item';
+      label.innerHTML = `
+        <input type="checkbox" data-range="${p}" ${store.range[p] ? 'checked' : ''}>
+        <span class="swatch" style="background:${PRODUCTS[p].color}"></span>
+        <span>${PRODUCTS[p].name}</span>`;
+      grid.appendChild(label);
+    }
+    rangeWrap.appendChild(grid);
+    grid.addEventListener('change', (e) => {
+      const p = e.target.dataset?.range;
+      if (!p) return;
+      if (!g.toggleProduct(site.id, p)) {
+        e.target.checked = store.range[p];
+        this.say(`No shelf space — remodel to carry more lines (${this.rangeSummary(store)}).`);
+      } else {
+        this.renderStoreDetail();
+      }
+    });
+    if (store.slots < PROD_IDS.length) {
+      const btn = document.createElement('button');
+      btn.id = 'sd-remodel';
+      btn.textContent = `Remodel: +${REMODEL.slots} slots (${fmt(g.remodelCost(store))})`;
+      btn.style.marginTop = '6px';
+      btn.addEventListener('click', () => {
+        if (g.remodelStore(site.id)) this.renderStoreDetail();
+        else this.say('Not enough cash.');
+      });
+      rangeWrap.appendChild(btn);
+    }
 
     // Manager block.
     const mgrWrap = box.querySelector('#sd-manager');
@@ -214,8 +260,11 @@ export class UI {
       }));
     }
 
+    setEl(box.querySelector('#sd-slots'), this.rangeSummary(store));
+
     const invWrap = box.querySelector('#sd-inv');
     for (const p of PROD_IDS) {
+      if (!store.range[p] && store.inv[p] < 0.5) continue;
       const row = document.createElement('div');
       row.className = 'inv-row';
       row.innerHTML = `
@@ -289,6 +338,7 @@ export class UI {
       const pol = g.purchasing[p];
       const row = document.createElement('div');
       row.className = 'purch-row';
+      row.dataset.prow = p;
       const vendorOpts = Object.entries(VENDORS)
         .filter(([, v]) => v.products.includes(p))
         .map(([id, v]) => `<option value="${id}" ${pol.vendor === id ? 'selected' : ''}>${v.name}</option>`)
@@ -668,7 +718,14 @@ export class UI {
       const el = document.querySelector(`[data-whn="${p}"]`);
       if (el) setEl(el, `${Math.round(g.warehouse.inv[p])} units · ${Math.round(g.inTransit(p))} inbound`);
       const c = document.querySelector(`[data-cost="${p}"]`);
-      if (c) setEl(c, `$${g.unitCost(p, g.purchasing[p].vendor).toFixed(2)}/unit`);
+      const carried = g.stores.some((s) => s.range[p]);
+      if (c) {
+        setEl(c, carried
+          ? `$${g.unitCost(p, g.purchasing[p].vendor).toFixed(2)}/unit`
+          : 'no store carries this');
+      }
+      const rowEl = document.querySelector(`[data-prow="${p}"]`);
+      if (rowEl) rowEl.style.opacity = carried ? '1' : '0.45';
     }
     setText('truck-count', String(g.trucks.length));
     const list = document.getElementById('orders-list');
