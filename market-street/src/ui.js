@@ -4,7 +4,7 @@
 import {
   PRODUCTS, VENDORS, DISTRICTS, ROLES, EVENTS, SHELF_CAP, STAFF_WAGE,
   TRUCK_COST, WAREHOUSE_UPGRADE, HIRE_ROLE_COST, WIN_CASH, WIN_STORES,
-  REMODEL, DELEGATIONS,
+  REMODEL, DELEGATIONS, GOALS,
 } from './defs.js';
 
 const PROD_IDS = Object.keys(PRODUCTS);
@@ -673,6 +673,32 @@ export class UI {
     });
   }
 
+  refreshGoal() {
+    const g = this.game;
+    if (this.lastGoalIndex === undefined) this.lastGoalIndex = g.goalIndex;
+    if (g.goalIndex !== this.lastGoalIndex) {
+      const done = GOALS[this.lastGoalIndex];
+      if (done && g.goalIndex > this.lastGoalIndex) {
+        this.say(`🎯 Objective complete: ${done.title} — +${fmt(done.reward)} bonus!`);
+      }
+      this.lastGoalIndex = g.goalIndex;
+    }
+    const goal = GOALS[g.goalIndex];
+    const key = goal ? goal.id : 'final';
+    const panel = document.getElementById('goal-panel');
+    if (panel.dataset.key === key) return;
+    panel.dataset.key = key;
+    if (goal) {
+      setText('goal-reward', `+${fmt(goal.reward)}`);
+      setText('goal-title', goal.title);
+      setText('goal-desc', goal.desc);
+    } else {
+      setText('goal-reward', '');
+      setText('goal-title', 'Final goal: 8 stores & $200k');
+      setText('goal-desc', 'Outgrow BuyLow and the board approves multi-state expansion.');
+    }
+  }
+
   // ---- map overlays -----------------------------------------------------
 
   refreshOverlays() {
@@ -728,6 +754,7 @@ export class UI {
     }
 
     this.refreshOverlays();
+    this.refreshGoal();
 
     if (this.tab === 'stores') this.refreshStores();
     if (this.tab === 'supply') this.refreshSupply();

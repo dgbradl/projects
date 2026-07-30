@@ -95,6 +95,15 @@ button.danger { border-color: #6b3a42; color: var(--bad); margin-top: 10px; widt
   display: flex; flex-direction: column; gap: 10px;
 }
 
+#goal-panel {
+  background: linear-gradient(135deg, rgba(242, 193, 78, 0.12), rgba(242, 193, 78, 0.03));
+  border: 1px solid rgba(242, 193, 78, 0.5);
+  border-radius: 8px; padding: 8px 10px;
+}
+#goal-panel .goal-head { font-size: 12px; color: var(--accent); display: flex; gap: 6px; }
+#goal-panel .goal-head #goal-reward { margin-left: auto; font-weight: 700; }
+#goal-panel #goal-title { font-weight: 600; margin: 2px 0; }
+
 #tabs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
 #tabs button { padding: 7px 3px; font-size: 13px; }
 

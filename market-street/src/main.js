@@ -70,3 +70,4 @@ window.addEventListener('beforeunload', () => game.save());
 // Console access for debugging.
 window.game = game;
 window.ui = ui;
+window.renderer = renderer;

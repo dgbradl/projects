@@ -7,7 +7,7 @@ import {
   WAREHOUSE_UPGRADE, WAREHOUSE, MANAGER_SALARY, START_SLOTS, REMODEL,
   isRoad, PRODUCTS, VENDORS, DISTRICTS, SITES, ROLES, EVENTS, TRAITS,
   DELEGATIONS, PEOPLE_NAMES, RIVAL, DEBT_INTEREST, DEBT_GRACE_DAYS,
-  DEBT_HARD_LIMIT, WAGE_DRIFT,
+  DEBT_HARD_LIMIT, WAGE_DRIFT, GOALS,
 } from './defs.js';
 
 const SAVE_KEY = 'market-street-save-v2';
@@ -79,6 +79,7 @@ export class Game {
     this.rival = { stores: [], nextBuyDay: RIVAL.firstBuyDay };
     this.debtDays = 0;
     this.gameOver = false;
+    this.goalIndex = 0;
   }
 
   blankLedger() {
@@ -425,6 +426,31 @@ export class Game {
     if (!this.won && this.cash >= WIN_CASH && this.stores.length >= WIN_STORES) {
       this.won = true;
     }
+    this.checkGoals();
+  }
+
+  goalMet(id) {
+    switch (id) {
+      case 'negotiate': return Object.values(this.vendors).some((v) => v.discount >= 0.05);
+      case 'manager': return this.stores.some((s) => s.manager);
+      case 'truck': return this.trucks.length >= 2;
+      case 'range': return this.stores.some((s) =>
+        PROD_IDS.some((p) => s.range[p] && !PRODUCTS[p].core));
+      case 'rep': return this.stores.some((s) => s.rep >= 0.8);
+      case 'third': return this.stores.length >= 3;
+      case 'hq': return !!(this.hq.buyer && this.hq.logistics && this.hq.marketing);
+      case 'districts': return new Set(this.stores.map((s) => this.site(s.siteId).district)).size >= 2;
+      case 'five': return this.stores.length >= 5;
+      default: return false;
+    }
+  }
+
+  checkGoals() {
+    const goal = GOALS[this.goalIndex];
+    if (!goal || !this.goalMet(goal.id)) return;
+    this.cash += goal.reward;
+    this.log('🎯', `Objective complete: ${goal.title} (+$${goal.reward.toLocaleString()} bonus).`);
+    this.goalIndex++;
   }
 
   // Event-driven demand multiplier for one product at one store.
@@ -1040,6 +1066,7 @@ export class Game {
       rival: this.rival,
       debtDays: this.debtDays,
       gameOver: this.gameOver,
+      goalIndex: this.goalIndex,
     };
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch { /* ignore */ }
   }
@@ -1092,6 +1119,7 @@ export class Game {
     this.rival = d.rival ?? this.rival;
     this.debtDays = d.debtDays ?? 0;
     this.gameOver = !!d.gameOver;
+    this.goalIndex = d.goalIndex ?? 0;
     return true;
   }
 

@@ -216,6 +216,29 @@ export const TRAITS = {
   ],
 };
 
+// Onboarding goal ladder: sequential objectives with cash rewards.
+// Completion checks live in game.js (checkGoals).
+export const GOALS = [
+  { id: 'negotiate', title: 'Negotiate your first discount', reward: 500,
+    desc: 'Vendors tab — order to build the relationship, then push for a better rate.' },
+  { id: 'manager', title: 'Hire a store manager', reward: 500,
+    desc: 'Open a store panel and pick a candidate — they can run staffing and prices for you.' },
+  { id: 'truck', title: 'Grow the fleet to 2 trucks', reward: 750,
+    desc: 'Supply tab — one truck can\'t feed a growing chain.' },
+  { id: 'range', title: 'Add a new product line', reward: 1000,
+    desc: 'Remodel a store (or swap a line out) to carry something beyond the core six.' },
+  { id: 'rep', title: 'Reach 80% reputation at any store', reward: 750,
+    desc: 'Full shelves and healthy staffing — reputation compounds into traffic.' },
+  { id: 'third', title: 'Open your third store', reward: 1000,
+    desc: 'A fresh district pays better than crowding your own turf.' },
+  { id: 'hq', title: 'Fill all three HQ roles', reward: 1500,
+    desc: 'Buyer, Logistics, Marketing — then delegate what you don\'t want to micromanage.' },
+  { id: 'districts', title: 'Operate in two districts', reward: 1500,
+    desc: 'Sister stores share shoppers; fresh neighborhoods don\'t.' },
+  { id: 'five', title: 'Run five stores', reward: 2000,
+    desc: 'BuyLow is buying lots. Claim the good corners first.' },
+];
+
 export const PEOPLE_NAMES = [
   'Ada Okafor', 'Grace Lindqvist', 'Marge Devine', 'Hank Solano', 'Yuki Tanaka',
   'Priya Raman', 'Omar Haddad', 'Sofia Reyes', 'Dmitri Volkov', 'June Park',
