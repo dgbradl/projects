@@ -55,6 +55,17 @@ office panels on the right.
   floor coverage, lifts team morale, and cuts spoilage. Morale rises with
   good staffing and sinks when the team is stretched — and it multiplies
   sales.
+- **Delegation** — Your people don't just buff numbers; they can make the
+  decisions. Store managers can be trusted with staffing and pricing (they
+  cut prices to fight a price war in their district, discount to win back
+  shoppers, and hold higher prices when skilled). The Head Buyer can run
+  vendor negotiations, switch suppliers on price/quality — re-sourcing
+  instantly around strikes — and retune standing orders from measured
+  demand. The Logistics Manager can be given capex authority to buy trucks
+  and expand the warehouse (off by default). Skill governs how often they
+  act and how sharp the calls are: a ★ manager makes rough calls every few
+  days, a ★★★ manager plays near-optimally daily. Every decision lands in
+  the activity feed with their name on it, and every toggle is yours.
 - **Books** — A real P&L: revenue, cost of goods (weighted-average COGS, so
   vendor discounts show up in your margins), rent, wages, salaries, fines;
   today vs yesterday, a 30-day profit chart, per-store profitability, and an

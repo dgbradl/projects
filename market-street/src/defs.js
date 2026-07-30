@@ -102,6 +102,27 @@ export const SITES = [
   { id: 's14', x: 22, y: 21, district: 'downtown',  pop: 3000, price: 52000, rent: 200 },
 ];
 
+// Chain-wide delegations, unlocked by hiring the matching department head.
+// Each is a decision the player can hand off; skill governs quality/cadence.
+export const DELEGATIONS = {
+  negotiate: {
+    role: 'buyer', name: 'Negotiate with vendors', defaultOn: true,
+    desc: 'Works one vendor per day toward better rates.',
+  },
+  sourcing: {
+    role: 'buyer', name: 'Choose vendors', defaultOn: true,
+    desc: 'Switches suppliers for price (and, if skilled, quality) — and re-sources around strikes.',
+  },
+  reorders: {
+    role: 'buyer', name: 'Tune standing orders', defaultOn: true,
+    desc: 'Sets reorder points and quantities from measured demand.',
+  },
+  fleet: {
+    role: 'logistics', name: 'Plan fleet & warehouse', defaultOn: false,
+    desc: 'Buys trucks when stores run dry and expands a chronically full warehouse. Spends real money.',
+  },
+};
+
 // HQ department heads. Effects scale with skill (1–3 stars).
 export const ROLES = {
   buyer: {

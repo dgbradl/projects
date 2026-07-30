@@ -4,7 +4,7 @@
 import {
   PRODUCTS, VENDORS, DISTRICTS, ROLES, EVENTS, SHELF_CAP, STAFF_WAGE,
   TRUCK_COST, WAREHOUSE_UPGRADE, HIRE_ROLE_COST, WIN_CASH, WIN_STORES,
-  REMODEL,
+  REMODEL, DELEGATIONS,
 } from './defs.js';
 
 const PROD_IDS = Object.keys(PRODUCTS);
@@ -249,6 +249,18 @@ export class UI {
       });
       row.appendChild(btn);
       mgrWrap.appendChild(row);
+      // What this manager is trusted to decide.
+      const del = document.createElement('div');
+      del.className = 'delegate-row';
+      del.innerHTML = `
+        <label class="range-item"><input type="checkbox" data-del="staffing" ${store.delegate.staffing ? 'checked' : ''}> Sets staffing</label>
+        <label class="range-item"><input type="checkbox" data-del="pricing" ${store.delegate.pricing ? 'checked' : ''}> Sets prices</label>
+        <span class="fine">${'★'.repeat(m.skill)} = ${m.skill === 3 ? 'sharp calls, daily' : m.skill === 2 ? 'decent calls, most days' : 'rough calls, every few days'}</span>`;
+      del.addEventListener('change', (e) => {
+        const k = e.target.dataset?.del;
+        if (k) store.delegate[k] = e.target.checked;
+      });
+      mgrWrap.appendChild(del);
     } else {
       const note = document.createElement('p');
       note.className = 'fine';
@@ -434,11 +446,50 @@ export class UI {
         <div class="role-body" data-body="${id}"></div>`;
       roles.appendChild(row);
     }
+    const deleg = document.createElement('div');
+    deleg.className = 'panel';
+    deleg.innerHTML = '<h3>Delegation</h3><p class="fine">Hand decisions to your department heads. Their skill decides how good the calls are — watch the activity feed to see them work. Store staffing &amp; pricing are delegated per store, in each store\'s manager section.</p><div id="delegations"></div>';
+    page.appendChild(deleg);
+    const dWrap = deleg.querySelector('#delegations');
+    for (const [id, def] of Object.entries(DELEGATIONS)) {
+      const row = document.createElement('label');
+      row.className = 'deleg-item';
+      row.innerHTML = `
+        <input type="checkbox" data-deleg="${id}">
+        <span class="dinfo"><b>${def.name}</b> <span class="fine" data-dwho="${id}"></span>
+          <span class="ctrait">${def.desc}</span></span>`;
+      dWrap.appendChild(row);
+    }
+    dWrap.addEventListener('change', (e) => {
+      const id = e.target.dataset?.deleg;
+      if (id) this.game.delegation[id] = e.target.checked;
+    });
+
     const miles = document.createElement('div');
     miles.className = 'panel';
     miles.innerHTML = '<h3>Expansion plan</h3><div id="milestones"></div>';
     page.appendChild(miles);
     this.refreshRoles(true);
+    this.refreshDelegations();
+  }
+
+  refreshDelegations() {
+    const g = this.game;
+    for (const [id, def] of Object.entries(DELEGATIONS)) {
+      const box = document.querySelector(`[data-deleg="${id}"]`);
+      if (!box) continue;
+      const holder = g.hq[def.role];
+      box.disabled = !holder;
+      if (box.checked !== (g.delegation[id] && !!holder)) {
+        box.checked = g.delegation[id] && !!holder;
+      }
+      const who = document.querySelector(`[data-dwho="${id}"]`);
+      if (who) {
+        setEl(who, holder
+          ? `— ${holder.name} ${'★'.repeat(holder.skill)}`
+          : `(hire a ${ROLES[def.role].name})`);
+      }
+    }
   }
 
   refreshRoles(force = false) {
@@ -655,7 +706,7 @@ export class UI {
     if (this.tab === 'stores') this.refreshStores();
     if (this.tab === 'supply') this.refreshSupply();
     if (this.tab === 'vendors') this.refreshVendors();
-    if (this.tab === 'hq') { this.refreshRoles(); this.refreshMilestones(); }
+    if (this.tab === 'hq') { this.refreshRoles(); this.refreshMilestones(); this.refreshDelegations(); }
     if (this.tab === 'books') this.refreshBooks();
 
     if (g.won && !this.winShown) {
@@ -695,6 +746,12 @@ export class UI {
     lostEl.style.color = store.lostToday > 20 ? 'var(--bad)' : 'var(--dim)';
     setEl(box.querySelector('#sd-staff'), String(store.staff));
     setEl(box.querySelector('#sd-markup-val'), `${Math.round(store.markup * 100)}%`);
+    // A delegated manager may move the slider — keep it in sync.
+    const slider = box.querySelector('#sd-markup');
+    if (slider && document.activeElement !== slider) {
+      const v = String(Math.round(store.markup * 100));
+      if (slider.value !== v) slider.value = v;
+    }
     for (const p of PROD_IDS) {
       const bar = box.querySelector(`[data-inv="${p}"]`);
       if (bar) {
@@ -726,6 +783,18 @@ export class UI {
       }
       const rowEl = document.querySelector(`[data-prow="${p}"]`);
       if (rowEl) rowEl.style.opacity = carried ? '1' : '0.45';
+      // The buyer may retune these under delegation — keep inputs in sync
+      // (but never yank a field the player is editing).
+      for (const [attr, val] of [['point', g.purchasing[p].point], ['qty', g.purchasing[p].qty]]) {
+        const input = document.querySelector(`[data-${attr}="${p}"]`);
+        if (input && document.activeElement !== input && Number(input.value) !== val) {
+          input.value = val;
+        }
+      }
+      const vsel = document.querySelector(`[data-vendor="${p}"]`);
+      if (vsel && document.activeElement !== vsel && vsel.value !== g.purchasing[p].vendor) {
+        vsel.value = g.purchasing[p].vendor;
+      }
     }
     setText('truck-count', String(g.trucks.length));
     const list = document.getElementById('orders-list');

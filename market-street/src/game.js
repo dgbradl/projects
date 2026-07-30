@@ -6,7 +6,7 @@ import {
   HIRE_ROLE_COST, TRUCK_COST, TRUCK_CAP, TRUCK_SPEED, WAREHOUSE_CAP,
   WAREHOUSE_UPGRADE, WAREHOUSE, MANAGER_SALARY, START_SLOTS, REMODEL,
   isRoad, PRODUCTS, VENDORS, DISTRICTS, SITES, ROLES, EVENTS, TRAITS,
-  PEOPLE_NAMES,
+  DELEGATIONS, PEOPLE_NAMES,
 } from './defs.js';
 
 const SAVE_KEY = 'market-street-save-v2';
@@ -64,6 +64,15 @@ export class Game {
     this.hq = { buyer: null, logistics: null, marketing: null };
     this.candidates = {};       // role -> [candidate x3], generated on demand
     this.activeEvents = [];     // [{type, daysLeft, vendor?, district?, siteId?}]
+
+    // Delegation: chain-wide toggles (active only while the role is filled).
+    this.delegation = {};
+    for (const [id, d] of Object.entries(DELEGATIONS)) this.delegation[id] = d.defaultOn;
+    // Demand measurement for the buyer's reorder tuning.
+    this.soldToday = {};
+    this.demandEma = {};
+    for (const p of PROD_IDS) { this.soldToday[p] = 0; this.demandEma[p] = 0; }
+    this.whFullStreak = 0;
   }
 
   blankLedger() {
@@ -77,6 +86,7 @@ export class Game {
       inv: {}, staff: 2, markup: 1.0, rep: 0.5, avail: 1, morale: 0.7,
       manager: null,
       range: {}, slots: START_SLOTS, remodels: 0,
+      delegate: { staffing: true, pricing: true },   // used only with a manager
       today: { revenue: 0, cogs: 0 },
       yesterday: { revenue: 0, cogs: 0, profit: 0 },
       servedToday: 0, lostToday: 0,
@@ -459,6 +469,7 @@ export class Game {
         this.today.cogs += cogs;
         store.today.revenue += revenue;
         store.today.cogs += cogs;
+        this.soldToday[p] += sold;
         servedTick += sold;
         lostTick += want - sold;
         if (PRODUCTS[p].spoil) store.inv[p] *= 1 - PRODUCTS[p].spoil * spoilMult * dt;
@@ -674,6 +685,126 @@ export class Game {
     this.activeEvents.push(ev);
   }
 
+  // ---- delegation: staff who make decisions ------------------------------
+
+  delegationActive(id) {
+    return this.delegation[id] && !!this.hq[DELEGATIONS[id].role];
+  }
+
+  runDelegation(day) {
+    // --- Store managers: staffing & pricing at their own cadence. ---------
+    this.stores.forEach((store, idx) => {
+      const m = store.manager;
+      if (!m) return;
+      const cadence = 4 - m.skill;               // ★★★ acts daily, ★ every 3rd day
+      if ((day + idx) % cadence !== 0) return;
+      const site = this.site(store.siteId);
+
+      if (store.delegate.staffing) {
+        const needed = (site.pop * POP_FACTOR * this.enabledWeight(store)) / 55;
+        const noise = (Math.random() - 0.5) * (3 - m.skill) * 0.8;
+        const target = Math.max(1, Math.min(8, Math.round(needed + 0.3 + noise)));
+        if (target > store.staff) {
+          store.staff++;
+          this.log('🧠', `${m.name} hired a stocker at ${store.name} for the rush (${store.staff} staff).`);
+        } else if (target < store.staff) {
+          store.staff--;
+          this.log('🧠', `${m.name} trimmed the roster at ${store.name} (${store.staff} staff).`);
+        }
+      }
+
+      if (store.delegate.pricing) {
+        let target = 1.0 + 0.05 * (m.skill - 1);  // skilled managers hold higher prices
+        if (store.rep < 0.45) target = 0.95;      // win shoppers back
+        const war = this.activeEvents.find((e) => e.type === 'price_war' && e.district === site.district);
+        if (war) target = 0.90;                   // undercut the discounter
+        target += (Math.random() - 0.5) * 0.05 * (3 - m.skill);
+        target = Math.max(0.8, Math.min(1.4, Math.round(target * 20) / 20));
+        if (Math.abs(target - store.markup) >= 0.049) {
+          store.markup += Math.sign(target - store.markup) * 0.05;
+          store.markup = Math.round(store.markup * 20) / 20;
+          const why = war ? ' to fight the price war' : store.rep < 0.45 ? ' to win back shoppers' : '';
+          this.log('🧠', `${m.name} set ${store.name} prices to ${Math.round(store.markup * 100)}%${why}.`);
+        }
+      }
+    });
+
+    // --- Head Buyer: sourcing, negotiation, reorder tuning. ---------------
+    const buyer = this.hq.buyer;
+    if (buyer) {
+      const carried = this.carriedProducts();
+
+      if (this.delegationActive('sourcing')) {
+        const qWeight = 0.10 * (buyer.skill - 1);  // skilled buyers value quality
+        for (const p of carried) {
+          const pol = this.purchasing[p];
+          const score = (vid) =>
+            this.unitCost(p, vid) * (1 - qWeight * (VENDORS[vid].quality - 1));
+          let best = null;
+          for (const vid of Object.keys(VENDORS)) {
+            if (!VENDORS[vid].products.includes(p) || this.vendorStruck(vid)) continue;
+            if (!best || score(vid) < score(best)) best = vid;
+          }
+          if (!best || best === pol.vendor) continue;
+          const mustSwitch = this.vendorStruck(pol.vendor);
+          if (mustSwitch || score(best) < score(pol.vendor) * 0.96) {
+            const from = VENDORS[pol.vendor].name, to = VENDORS[best].name;
+            pol.vendor = best;
+            this.log('💼', mustSwitch
+              ? `${buyer.name} re-sourced ${PRODUCTS[p].name} to ${to} around the ${from} strike.`
+              : `${buyer.name} switched ${PRODUCTS[p].name} sourcing from ${from} to ${to}.`);
+          }
+        }
+      }
+
+      if (this.delegationActive('negotiate')) {
+        const targets = Object.keys(VENDORS)
+          .filter((vid) => this.vendors[vid].discount < 0.249
+            && this.vendors[vid].lastNegDay !== day
+            && carried.some((p) => this.purchasing[p].vendor === vid))
+          .sort((a, b) => this.vendors[b].rel - this.vendors[a].rel);
+        if (targets.length) this.negotiate(targets[0]);   // success logs itself
+      }
+
+      if (this.delegationActive('reorders')) {
+        let retuned = 0;
+        for (const p of carried) {
+          const avg = this.demandEma[p];
+          if (avg < 2) continue;
+          const pol = this.purchasing[p];
+          const lead = VENDORS[pol.vendor].leadTime;
+          const point = Math.ceil(avg * (lead + 1 + 0.5 * buyer.skill) / 25) * 25;
+          const qty = Math.max(50, Math.ceil(avg * 3.5 / 25) * 25);
+          if (Math.abs(point - pol.point) / Math.max(pol.point, 1) > 0.2
+            || Math.abs(qty - pol.qty) / Math.max(pol.qty, 1) > 0.2) retuned++;
+          pol.point = point;
+          pol.qty = qty;
+        }
+        if (retuned >= 2) {
+          this.log('💼', `${buyer.name} retuned standing orders on ${retuned} product lines to match demand.`);
+        }
+      }
+    }
+
+    // --- Logistics Manager: fleet & warehouse capex (opt-in). -------------
+    if (this.delegationActive('fleet')) {
+      const lm = this.hq.logistics;
+      const starving = this.stores.filter((s) => {
+        const total = PROD_IDS.reduce((sum, p) => sum + (s.range[p] ? s.inv[p] : 0), 0);
+        return total < SHELF_CAP * this.rangeCount(s) * 0.35;
+      }).length;
+      if (starving >= 2 && this.cash > TRUCK_COST * 2.5 && this.trucks.length < this.stores.length) {
+        this.buyTruck();
+        this.log('💼', `${lm.name}: "${starving} stores are running dry — I bought us another truck."`);
+      }
+      if (this.whFullStreak >= 2 && this.cash > WAREHOUSE_UPGRADE.cost * 2) {
+        this.upgradeWarehouse();
+        this.whFullStreak = 0;
+        this.log('💼', `${lm.name}: "The warehouse was bursting — I signed off on an expansion."`);
+      }
+    }
+  }
+
   // ---- day boundary -----------------------------------------------------
 
   dayTick() {
@@ -701,6 +832,15 @@ export class Game {
     });
     if (this.history.length > 60) this.history.shift();
     this.today = this.blankLedger();
+
+    // Update measured demand (for the buyer's reorder tuning), then reset.
+    for (const p of PROD_IDS) {
+      const sold = this.soldToday[p];
+      this.demandEma[p] = this.demandEma[p] > 0
+        ? 0.75 * this.demandEma[p] + 0.25 * sold
+        : sold;
+      this.soldToday[p] = 0;
+    }
 
     for (const store of this.stores) {
       store.yesterday = {
@@ -740,6 +880,9 @@ export class Game {
       this.addFloater(WAREHOUSE.x, WAREHOUSE.y, `+${accepted} ${PRODUCTS[o.product].name}`, '#6fd08c');
     }
 
+    // Let the staff make their delegated calls before the standing orders run.
+    this.runDelegation(day);
+
     // Auto-reorder (skip lines no store carries — no point warehousing them).
     // Capacity-aware: never order what the warehouse can't take on arrival.
     const carried = new Set(this.carriedProducts());
@@ -770,6 +913,7 @@ export class Game {
       }
       if (this.placeOrder(p, pol.vendor, qty, true)) projected += qty;
     }
+    this.whFullStreak = warnedFull ? this.whFullStreak + 1 : 0;
 
     // Warehouse spoilage (cold storage halves shelf rates).
     for (const p of PERISHABLE) {
@@ -810,6 +954,8 @@ export class Game {
       purchasing: this.purchasing,
       hq: this.hq,
       activeEvents: this.activeEvents,
+      delegation: this.delegation,
+      demandEma: this.demandEma,
     };
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch { /* ignore */ }
   }
@@ -835,6 +981,7 @@ export class Game {
       s.stockoutLogged ??= {};
       s.slots ??= START_SLOTS;
       s.remodels ??= 0;
+      s.delegate ??= { staffing: true, pricing: true };
       s.range ??= {};
       for (const p of PROD_IDS) {
         s.range[p] ??= !!PRODUCTS[p].core;
@@ -856,6 +1003,8 @@ export class Game {
     this.purchasing = { ...this.purchasing, ...(d.purchasing ?? {}) };
     this.hq = d.hq ?? this.hq;
     this.activeEvents = d.activeEvents ?? [];
+    this.delegation = { ...this.delegation, ...(d.delegation ?? {}) };
+    this.demandEma = { ...this.demandEma, ...(d.demandEma ?? {}) };
     return true;
   }
 

@@ -234,3 +234,17 @@ select {
   font-size: 12px; cursor: pointer; padding: 2px 0;
 }
 .range-item input { accent-color: var(--accent); }
+
+.delegate-row {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 4px 0 2px;
+}
+.deleg-item {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 6px 0; cursor: pointer;
+  border-top: 1px solid rgba(50, 59, 74, 0.4);
+}
+.deleg-item input { margin-top: 3px; accent-color: var(--accent); }
+.deleg-item .dinfo { font-size: 13px; }
+.deleg-item .ctrait { display: block; font-size: 11px; color: var(--dim); }
+.deleg-item input:disabled + .dinfo { opacity: 0.5; }
