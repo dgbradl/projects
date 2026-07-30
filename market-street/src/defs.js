@@ -12,6 +12,7 @@ export const POP_FACTOR = 0.18;    // units of demand per resident per day
 export const SHELF_CAP = 60;       // per product, per store
 export const STAFF_WAGE = 28;      // per store staffer per day
 export const HIRE_ROLE_COST = 200; // signing bonus for HQ department heads
+export const TRUCK_UNLOAD = 0.08; // days a truck spends parked at the store unloading
 export const TRUCK_COST = 4000;
 export const TRUCK_CAP = 110;      // units per trip (before logistics bonus)
 export const TRUCK_SPEED = 110;    // road tiles per day (before logistics bonus)

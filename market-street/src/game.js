@@ -3,7 +3,7 @@
 
 import {
   GRID, START_CASH, WIN_CASH, WIN_STORES, POP_FACTOR, SHELF_CAP, STAFF_WAGE,
-  HIRE_ROLE_COST, TRUCK_COST, TRUCK_CAP, TRUCK_SPEED, WAREHOUSE_CAP,
+  HIRE_ROLE_COST, TRUCK_COST, TRUCK_CAP, TRUCK_SPEED, TRUCK_UNLOAD, WAREHOUSE_CAP,
   WAREHOUSE_UPGRADE, WAREHOUSE, MANAGER_SALARY, START_SLOTS, REMODEL,
   isRoad, PRODUCTS, VENDORS, DISTRICTS, SITES, ROLES, EVENTS, TRAITS,
   DELEGATIONS, PEOPLE_NAMES, RIVAL, DEBT_INTEREST, DEBT_GRACE_DAYS,
@@ -596,10 +596,22 @@ export class Game {
     return null;
   }
 
+  finishUnload(truck, delivered) {
+    if (delivered > 0.5) {
+      const site = this.site(truck.storeId);
+      if (site) this.addFloater(site.x, site.y, `+${Math.round(delivered)} stock`, '#9ec7ef');
+    }
+    truck.cargo = null;
+    truck.cargo0 = null;
+    truck.path = [...truck.path].reverse();
+    truck.pos = 0;
+    truck.state = 'return';
+  }
+
   storeDeficit(store) {
     const enroute = {};
     for (const t of this.trucks) {
-      if (t.cargo && t.storeId === store.siteId && t.state === 'toStore') {
+      if (t.cargo && t.storeId === store.siteId && (t.state === 'toStore' || t.state === 'unloading')) {
         for (const [p, q] of Object.entries(t.cargo)) enroute[p] = (enroute[p] || 0) + q;
       }
     }
@@ -654,29 +666,40 @@ export class Game {
         truck.pos = 0;
         truck.cargo = cargo;
         truck.storeId = best.siteId;
+      } else if (truck.state === 'unloading') {
+        const store = this.storeAt(truck.storeId);
+        if (!store) {
+          // Store closed mid-delivery — haul it all back.
+          for (const [p, q] of Object.entries(truck.cargo)) this.warehouse.inv[p] += q;
+          this.finishUnload(truck, 0);
+          continue;
+        }
+        // Hand-truck the goods in crate by crate.
+        const frac = Math.min(1, dt / TRUCK_UNLOAD);
+        let remaining = 0;
+        for (const p of Object.keys(truck.cargo)) {
+          const step = (truck.cargo0[p] ?? 0) * frac;
+          const move = Math.min(truck.cargo[p], step);
+          const add = Math.min(move, Math.max(0, SHELF_CAP - store.inv[p]));
+          store.inv[p] += add;
+          truck.cargo[p] -= move;
+          this.warehouse.inv[p] += move - add;   // shelf overflow rides back later
+          truck.delivered += add;
+          remaining += truck.cargo[p];
+        }
+        truck.unloadT += dt;
+        if (remaining <= 0.01 || truck.unloadT > TRUCK_UNLOAD * 1.5) {
+          for (const [p, q] of Object.entries(truck.cargo)) this.warehouse.inv[p] += q;
+          this.finishUnload(truck, truck.delivered);
+        }
       } else {
         truck.pos += speed * dt;
         if (truck.pos < truck.path.length - 1) continue;
         if (truck.state === 'toStore') {
-          const store = this.storeAt(truck.storeId);
-          if (store) {
-            let dropped = 0;
-            for (const [p, q] of Object.entries(truck.cargo)) {
-              const add = Math.min(q, SHELF_CAP - store.inv[p]);
-              store.inv[p] += add;
-              dropped += add;
-              const back = q - add;
-              if (back > 0) this.warehouse.inv[p] += back;
-            }
-            const site = this.site(truck.storeId);
-            if (dropped > 0) this.addFloater(site.x, site.y, `+${Math.round(dropped)} stock`, '#9ec7ef');
-          } else if (truck.cargo) {
-            for (const [p, q] of Object.entries(truck.cargo)) this.warehouse.inv[p] += q;
-          }
-          truck.cargo = null;
-          truck.path = [...truck.path].reverse();
-          truck.pos = 0;
-          truck.state = 'return';
+          truck.state = 'unloading';
+          truck.unloadT = 0;
+          truck.delivered = 0;
+          truck.cargo0 = { ...truck.cargo };
         } else {
           truck.state = 'idle';
           truck.path = null;

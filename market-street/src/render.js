@@ -102,6 +102,27 @@ export class Renderer {
     ctx.fill();
   }
 
+  // Screen-space unit vector for a grid direction.
+  isoUnit(dx, dy) {
+    const vx = (dx - dy) * (this.tw / 2), vy = (dx + dy) * (this.th / 2);
+    const len = Math.hypot(vx, vy) || 1;
+    return { x: vx / len, y: vy / len };
+  }
+
+  // Filled parallelogram centered at (cx,cy), aligned to u, half-length L,
+  // perpendicular p, half-width W — the building block for vehicles.
+  quad(cx, cy, u, L, p, W, color) {
+    const ctx = this.ctx;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(cx + u.x * L + p.x * W, cy + u.y * L + p.y * W);
+    ctx.lineTo(cx + u.x * L - p.x * W, cy + u.y * L - p.y * W);
+    ctx.lineTo(cx - u.x * L - p.x * W, cy - u.y * L - p.y * W);
+    ctx.lineTo(cx - u.x * L + p.x * W, cy - u.y * L + p.y * W);
+    ctx.closePath();
+    ctx.fill();
+  }
+
   districtOf(x, y) {
     return DISTRICTS.find((d) => {
       const [x0, y0, x1, y1] = d.rect;
@@ -134,17 +155,22 @@ export class Renderer {
 
     // Cars cruise the road grid.
     this.carClock += dt;
-    if (this.carClock > 1.1 && this.cars.length < 14) {
+    if (this.carClock > 0.7 && this.cars.length < 20) {
       this.carClock = 0;
       const horizontal = Math.random() < 0.5;
       const dir = Math.random() < 0.5 ? 1 : -1;
+      const roll = Math.random();
+      const type = roll < 0.15 ? 'taxi' : roll < 0.38 ? 'van' : 'sedan';
       this.cars.push({
         horizontal,
         line: ROAD_LINES[Math.floor(Math.random() * ROAD_LINES.length)],
         dir,
+        type,
         pos: dir > 0 ? -1.5 : GRID + 0.5,
-        speed: 1.8 + Math.random() * 1.4,
-        color: CAR_COLORS[Math.floor(Math.random() * CAR_COLORS.length)],
+        speed: 2.2 + Math.random() * 1.8,
+        color: type === 'taxi'
+          ? '#e8c33a'
+          : CAR_COLORS[Math.floor(Math.random() * CAR_COLORS.length)],
       });
     }
     for (const c of this.cars) c.pos += c.dir * c.speed * dt;
@@ -196,20 +222,42 @@ export class Renderer {
         const district = this.districtOf(x, y);
         const locked = !g.districtUnlocked(district.id);
         if (isRoad(x, y)) {
-          ctx.fillStyle = locked ? '#20242b' : '#2c313a';
+          // Sidewalk border with an asphalt roadbed inset into it.
+          ctx.fillStyle = locked ? '#242832' : '#3a404b';
           this.diamond(sx, sy);
           ctx.fill();
-          // Faint lane line along the road direction.
-          if (!locked && (x % 4 === 0) !== (y % 4 === 0)) {
-            ctx.strokeStyle = 'rgba(200, 205, 215, 0.07)';
-            ctx.lineWidth = 1;
+          ctx.fillStyle = locked ? '#1e222a' : '#262b33';
+          this.diamond(sx, sy, 0.80);
+          ctx.fill();
+          const intersection = x % 4 === 0 && y % 4 === 0;
+          if (!locked && !intersection) {
+            // Dashed center line along the street.
             const vertical = x % 4 === 0;
-            const dxv = vertical ? [0, 1] : [1, 0];
-            const ax = (dxv[0] - dxv[1]) * (this.tw / 2), ay = (dxv[0] + dxv[1]) * (this.th / 2);
-            ctx.beginPath();
-            ctx.moveTo(sx - ax * 0.4, sy - ay * 0.4);
-            ctx.lineTo(sx + ax * 0.4, sy + ay * 0.4);
-            ctx.stroke();
+            const u = this.isoUnit(vertical ? 0 : 1, vertical ? 1 : 0);
+            ctx.strokeStyle = 'rgba(215, 200, 130, 0.35)';
+            ctx.lineWidth = 1.2;
+            for (const t of [-0.28, 0.08]) {
+              ctx.beginPath();
+              ctx.moveTo(sx + u.x * this.tw * t, sy + u.y * this.tw * t);
+              ctx.lineTo(sx + u.x * this.tw * (t + 0.18), sy + u.y * this.tw * (t + 0.18));
+              ctx.stroke();
+            }
+          } else if (!locked && intersection) {
+            // Zebra crosswalks on each approach.
+            ctx.strokeStyle = 'rgba(220, 225, 235, 0.25)';
+            ctx.lineWidth = 1.5;
+            for (const [ddx, ddy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+              const u = this.isoUnit(ddx, ddy);
+              const p = { x: -u.y, y: u.x };
+              for (const s of [-0.09, 0, 0.09]) {
+                const bx = sx + u.x * this.tw * 0.30 + p.x * this.tw * s;
+                const by = sy + u.y * this.tw * 0.30 + p.y * this.tw * s;
+                ctx.beginPath();
+                ctx.moveTo(bx - u.x * this.tw * 0.035, by - u.y * this.tw * 0.035);
+                ctx.lineTo(bx + u.x * this.tw * 0.035, by + u.y * this.tw * 0.035);
+                ctx.stroke();
+              }
+            }
           }
         } else if (isRiver(x, y)) {
           const shimmer = Math.sin(g.time * 40 + x * 2 + y) * 6;
@@ -258,11 +306,31 @@ export class Renderer {
     }
     for (const t of g.trucks) {
       if (t.state === 'idle' || !t.path) continue;
-      const i = Math.min(t.path.length - 1, Math.floor(t.pos));
-      const frac = Math.min(1, t.pos - i);
-      const a = t.path[i], b = t.path[Math.min(t.path.length - 1, i + 1)];
-      const x = a.x + (b.x - a.x) * frac, y = a.y + (b.y - a.y) * frac;
-      drawables.push({ key: x + y + 0.01, kind: 'truck', fx: x, fy: y });
+      let x, y, dx, dy, unloading = false;
+      if (t.state === 'unloading') {
+        // Parked at the store's door, nose pointed at the store.
+        const end = t.path[t.path.length - 1];
+        const site = g.site(t.storeId);
+        x = end.x; y = end.y;
+        dx = site ? Math.sign(site.x - end.x) : 1;
+        dy = site ? Math.sign(site.y - end.y) : 0;
+        unloading = true;
+      } else {
+        const i = Math.min(t.path.length - 1, Math.floor(t.pos));
+        const frac = Math.min(1, t.pos - i);
+        const a = t.path[i], b = t.path[Math.min(t.path.length - 1, i + 1)];
+        x = a.x + (b.x - a.x) * frac;
+        y = a.y + (b.y - a.y) * frac;
+        dx = Math.sign(b.x - a.x) || 1;
+        dy = Math.sign(b.y - a.y) || 0;
+        // Keep to the right-hand lane.
+        x += -dy * 0.18;
+        y += dx * 0.18;
+      }
+      drawables.push({
+        key: x + y + 0.01, kind: 'truck', fx: x, fy: y, dx, dy,
+        unloading, storeId: t.storeId,
+      });
     }
     for (const c of this.cars) {
       const lane = 0.22 * c.dir;
@@ -356,8 +424,16 @@ export class Renderer {
         ctx.fill();
       } else if (d.kind === 'car') {
         const { sx, sy } = this.toScreen(d.fx, d.fy);
+        const c = d.car;
+        const u = this.isoUnit(c.horizontal ? c.dir : 0, c.horizontal ? 0 : c.dir);
+        const L = this.tw * 0.12;
         ctx.fillStyle = `rgba(255, 240, 200, ${0.9 * glow})`;
-        ctx.fillRect(sx - 1.5, sy - 4 * this.scale - 1, 3, 2);
+        ctx.fillRect(sx + u.x * L - 1.2, sy - 3.5 * this.scale + u.y * L - 1.2, 2.4, 2.4);
+      } else if (d.kind === 'truck') {
+        const { sx, sy } = this.toScreen(d.fx, d.fy);
+        const u = this.isoUnit(d.dx, d.dy);
+        ctx.fillStyle = `rgba(255, 240, 200, ${0.9 * glow})`;
+        ctx.fillRect(sx + u.x * this.tw * 0.2 - 1.3, sy - 5 * this.scale + u.y * this.tw * 0.2 - 1.3, 2.6, 2.6);
       }
     }
   }
@@ -390,6 +466,9 @@ export class Renderer {
       const apartment = d.r > 0.21;
       const h = apartment ? 14 + d.r * 14 : 7 + d.r * 8;
       const footprint = apartment ? 0.62 : 0.5 + d.r * 0.15;
+      ctx.fillStyle = 'rgba(0,0,0,0.22)';
+      this.diamond(sx + 2, sy + 1.5, footprint * 1.04);
+      ctx.fill();
       this.box(sx, sy, h, tones[0], tones[1], tones[2], footprint);
       if (!apartment) {
         // Pitched roof: darker cap diamond.
@@ -410,6 +489,9 @@ export class Renderer {
 
     if (d.kind === 'warehouse') {
       const { sx, sy } = this.toScreen(d.x, d.y);
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      this.diamond(sx + 2, sy + 1.5, 1.0);
+      ctx.fill();
       this.box(sx, sy, 26, '#4a5f7d', '#33425a', '#3d4f6b', 0.95);
       ctx.textAlign = 'center';
       ctx.font = `700 ${10 * this.scale + 3}px system-ui, sans-serif`;
@@ -422,15 +504,67 @@ export class Renderer {
 
     if (d.kind === 'truck') {
       const { sx, sy } = this.toScreen(d.fx, d.fy);
-      this.box(sx, sy, 7, '#e8e4da', '#b8b4aa', '#ccc8be', 0.26);
-      ctx.fillStyle = '#f2c14e';
-      ctx.fillRect(sx - 2, sy - 10 * this.scale, 4, 3);
+      const u = this.isoUnit(d.dx, d.dy);
+      const p = { x: -u.y, y: u.x };
+      // Ground shadow.
+      ctx.fillStyle = 'rgba(0,0,0,0.32)';
+      ctx.beginPath();
+      ctx.ellipse(sx, sy + 2, this.tw * 0.22, this.tw * 0.09, Math.atan2(u.y, u.x), 0, Math.PI * 2);
+      ctx.fill();
+      const cy = sy - 5 * this.scale;
+      // Trailer box with company stripe, cab up front.
+      this.quad(sx - u.x * this.tw * 0.06, cy, u, this.tw * 0.17, p, this.tw * 0.085, '#ded9cc');
+      this.quad(sx - u.x * this.tw * 0.06, cy - 3.5, u, this.tw * 0.17, p, this.tw * 0.07, '#f4f1e8');
+      this.quad(sx - u.x * this.tw * 0.06, cy + 1.5, u, this.tw * 0.16, p, this.tw * 0.02, '#f2c14e');
+      this.quad(sx + u.x * this.tw * 0.165, cy + 1, u, this.tw * 0.06, p, this.tw * 0.075, '#5a80a8');
+      this.quad(sx + u.x * this.tw * 0.20, cy - 0.5, u, this.tw * 0.02, p, this.tw * 0.065, 'rgba(190,215,235,0.9)');
+      // Unloading: crates hop from the tailgate into the store.
+      if (d.unloading) {
+        const site = g.site(d.storeId);
+        if (site) {
+          const st = this.toScreen(site.x, site.y);
+          const anim = (performance.now() / 650) % 1;
+          for (const off of [0, 0.5]) {
+            const q = (anim + off) % 1;
+            const cx2 = sx + (st.sx - sx) * q;
+            const cy2 = sy + (st.sy - 10 * this.scale - sy) * q - Math.sin(q * Math.PI) * 11;
+            ctx.fillStyle = '#b08a5a';
+            ctx.fillRect(cx2 - 2.5, cy2 - 2.5, 5, 5);
+            ctx.strokeStyle = 'rgba(60, 40, 20, 0.6)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(cx2 - 2.5, cy2 - 2.5, 5, 5);
+          }
+          // Hazard blinker while parked.
+          if (Math.floor(performance.now() / 400) % 2 === 0) {
+            ctx.fillStyle = '#f2a13a';
+            ctx.fillRect(sx - u.x * this.tw * 0.23 - 1.5, cy - 1, 3, 3);
+          }
+        }
+      }
       return;
     }
 
     if (d.kind === 'car') {
       const { sx, sy } = this.toScreen(d.fx, d.fy);
-      this.box(sx, sy, 4, d.car.color, shade(d.car.color, -35), shade(d.car.color, -18), 0.16);
+      const c = d.car;
+      const u = this.isoUnit(c.horizontal ? c.dir : 0, c.horizontal ? 0 : c.dir);
+      const p = { x: -u.y, y: u.x };
+      const van = c.type === 'van';
+      const L = this.tw * (van ? 0.135 : 0.115);
+      const W = this.tw * (van ? 0.055 : 0.045);
+      ctx.fillStyle = 'rgba(0,0,0,0.30)';
+      ctx.beginPath();
+      ctx.ellipse(sx, sy + 1.5, L * 1.1, W * 1.6, Math.atan2(u.y, u.x), 0, Math.PI * 2);
+      ctx.fill();
+      const cy = sy - (van ? 4.5 : 3.5) * this.scale;
+      this.quad(sx, cy, u, L, p, W, c.color);
+      this.quad(sx - u.x * L * 0.15, cy - 2.2, u, L * (van ? 0.6 : 0.45), p, W * 0.8,
+        shade(c.color, -40));
+      this.quad(sx + u.x * L * 0.62, cy - 1, u, L * 0.14, p, W * 0.85, 'rgba(190, 215, 235, 0.85)');
+      if (c.type === 'taxi') {
+        ctx.fillStyle = '#222';
+        ctx.fillRect(sx - 1.5, cy - 4.5, 3, 2);
+      }
       return;
     }
 
@@ -451,6 +585,9 @@ export class Renderer {
     const unlocked = g.districtUnlocked(site.district);
 
     if (g.rivalAt(site.id)) {
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      this.diamond(sx + 2, sy + 1.5, 0.92);
+      ctx.fill();
       this.box(sx, sy, 18, '#8a4438', '#5e2d26', '#733830', 0.85);
       ctx.fillStyle = '#f0c4b8';
       ctx.textAlign = 'center';
@@ -470,7 +607,10 @@ export class Renderer {
       return;
     }
 
-    // Owned store: green grocer with awning stripes.
+    // Owned store: green grocer with awning stripes and a lit shopfront.
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    this.diamond(sx + 2, sy + 1.5, 0.92);
+    ctx.fill();
     this.box(sx, sy, 20, '#4f7a58', '#37543d', '#42654a', 0.85);
     const hw = (this.tw / 2) * 0.85;
     // Striped awning.
@@ -478,6 +618,12 @@ export class Renderer {
       ctx.fillStyle = i % 2 === 0 ? '#e8e4da' : '#c95f52';
       ctx.fillRect(sx - hw * 0.55 + i * (hw * 1.1 / 5), sy - 20 * this.scale + 2, hw * 1.1 / 5, 3.5);
     }
+    // Shop windows + door under the awning.
+    ctx.fillStyle = 'rgba(228, 238, 215, 0.75)';
+    ctx.fillRect(sx - hw * 0.48, sy - 11 * this.scale, hw * 0.34, 4.5 * this.scale);
+    ctx.fillRect(sx + hw * 0.14, sy - 11 * this.scale, hw * 0.34, 4.5 * this.scale);
+    ctx.fillStyle = 'rgba(26, 34, 26, 0.85)';
+    ctx.fillRect(sx - hw * 0.09, sy - 11 * this.scale, hw * 0.18, 8 * this.scale);
     ctx.textAlign = 'center';
     ctx.font = `${9 * this.scale + 4}px system-ui, sans-serif`;
     ctx.fillText('🛒', sx, sy - 20 * this.scale - 5);
