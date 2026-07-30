@@ -53,6 +53,19 @@ export class UI {
     document.getElementById('btn-win-close').addEventListener('click', () => {
       document.getElementById('win-banner').classList.add('hidden');
     });
+    document.getElementById('btn-lose-reset').addEventListener('click', () => {
+      this.game.clearSave();
+      this.game.reset();
+      this.selectedSite = null;
+      this.winShown = false;
+      this.loseShown = false;
+      document.getElementById('lose-banner').classList.add('hidden');
+      this.buildSupplyTab();
+      this.buildVendorsTab();
+      this.buildHqTab();
+      this.buildBooksTab();
+      this.renderStoreList();
+    });
   }
 
   bindTabs() {
@@ -143,11 +156,22 @@ export class UI {
     const store = g.storeAt(site.id);
     const district = g.district(site.district);
 
+    if (g.rivalAt(site.id)) {
+      box.innerHTML = `
+        <h4>BuyLow — ${district.name}</h4>
+        <p class="fine">The discount rival got here first. Their stores siphon shoppers from yours in this
+        district — fight back with sharper prices and better reputation.</p>`;
+      return;
+    }
+
     if (!store) {
       const unlocked = g.districtUnlocked(site.district);
+      const sisters = g.stores.filter((s) => g.site(s.siteId).district === site.district).length;
+      const projShare = Math.round(100 / (1 + 0.18 * sisters));
       box.innerHTML = `
         <h4>Vacant lot — ${district.name}</h4>
-        <p class="fine">Neighborhood of ~${site.pop.toLocaleString()} shoppers · rent ${fmt(site.rent)}/day</p>`;
+        <p class="fine">Neighborhood of ~${site.pop.toLocaleString()} shoppers · rent ${fmt(site.rent)}/day</p>
+        ${sisters > 0 ? `<p class="fine" style="color:var(--accent)">⚠ You already run ${sisters} store${sisters > 1 ? 's' : ''} in ${district.name} — each would capture ~${projShare}% of its neighborhood. Fresh districts pay better.</p>` : ''}`;
       const btn = document.createElement('button');
       btn.className = 'primary';
       if (!unlocked) {
@@ -168,6 +192,7 @@ export class UI {
       <h4>${store.name} <span class="fine">· ${district.name} · ~${site.pop.toLocaleString()} shoppers</span></h4>
       <div class="kv"><span>Reputation</span><div class="meter"><i id="sd-rep"></i></div></div>
       <div class="kv"><span>Team morale</span><div class="meter"><i id="sd-morale"></i></div></div>
+      <div class="kv"><span>Local market share</span><b id="sd-market" title="How much of the neighborhood this store captures, after sister stores and rival competition"></b></div>
       <div class="kv"><span>Revenue today</span><b id="sd-rev"></b></div>
       <div class="kv"><span>Profit yesterday</span><b id="sd-yprofit"></b></div>
       <div class="kv"><span>Lost sales today</span><b id="sd-lost"></b></div>
@@ -567,6 +592,7 @@ export class UI {
       ['Revenue', t.revenue, y?.revenue],
       ['Cost of goods', -t.cogs, y !== undefined ? -y.cogs : undefined],
       ['Fines', -t.fines, y !== undefined ? -y.fines : undefined],
+      ['Debt interest', -t.interest, y !== undefined ? -(y.interest ?? 0) : undefined],
       ['Rent (accrues nightly)', null, y !== undefined ? -y.rent : undefined],
       ['Wages (accrues nightly)', null, y !== undefined ? -y.wages : undefined],
       ['Salaries (accrues nightly)', null, y !== undefined ? -y.salaries : undefined],
@@ -713,6 +739,10 @@ export class UI {
       this.winShown = true;
       document.getElementById('win-banner').classList.remove('hidden');
     }
+    if (g.gameOver && !this.loseShown) {
+      this.loseShown = true;
+      document.getElementById('lose-banner').classList.remove('hidden');
+    }
   }
 
   refreshStores() {
@@ -737,6 +767,14 @@ export class UI {
     const mor = box.querySelector('#sd-morale');
     mor.style.width = `${Math.round(store.morale * 100)}%`;
     mor.style.background = store.morale > 0.6 ? 'var(--good)' : store.morale > 0.35 ? 'var(--accent)' : 'var(--bad)';
+    const mEl = box.querySelector('#sd-market');
+    if (mEl) {
+      const mf = g.marketFactor(store);
+      const site2 = g.site(store.siteId);
+      const rivals = g.rival.stores.filter((id) => g.site(id).district === site2.district).length;
+      setEl(mEl, `${Math.round(mf * 100)}%${rivals ? ` (${rivals} BuyLow nearby)` : ''}`);
+      mEl.style.color = mf > 0.85 ? 'var(--good)' : mf > 0.6 ? 'var(--accent)' : 'var(--bad)';
+    }
     setEl(box.querySelector('#sd-rev'), fmt(store.today.revenue));
     const yp = box.querySelector('#sd-yprofit');
     setEl(yp, signFmt(store.yesterday.profit));

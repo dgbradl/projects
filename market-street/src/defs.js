@@ -8,7 +8,7 @@ export const START_CASH = 25000;
 export const WIN_CASH = 200000;
 export const WIN_STORES = 8;
 
-export const POP_FACTOR = 0.16;    // units of demand per resident per day
+export const POP_FACTOR = 0.18;    // units of demand per resident per day
 export const SHELF_CAP = 60;       // per product, per store
 export const STAFF_WAGE = 28;      // per store staffer per day
 export const HIRE_ROLE_COST = 200; // signing bonus for HQ department heads
@@ -40,6 +40,20 @@ export const PRODUCTS = {
 
 export const START_SLOTS = 6;      // product lines a fresh store can carry
 export const REMODEL = { slots: 2, baseCost: 2500, stepCost: 1800 };
+
+// The rival discount chain contesting the city.
+export const RIVAL = {
+  name: 'BuyLow',
+  firstBuyDay: 14,       // when they open their first store
+  buyInterval: [7, 12],  // days between openings
+  maxStores: 4,          // they never lock you out of the 8-store win
+};
+
+// Stakes & drift.
+export const DEBT_INTEREST = 0.02;   // daily, on negative cash
+export const DEBT_GRACE_DAYS = 4;    // day-ends below -$500 before the bank calls it
+export const DEBT_HARD_LIMIT = -10000;
+export const WAGE_DRIFT = 0.003;     // wages & salaries +0.3%/day cost-of-living creep
 
 // Vendors: priceMult scales product base cost; quality feeds store reputation;
 // leadTime is days from order to warehouse arrival.
@@ -79,9 +93,9 @@ export const VENDORS = {
 
 export const DISTRICTS = [
   { id: 'oldtown',   name: 'Old Town',  unlock: 0,      rect: [0, 0, 12, 12],   phase: 'Your neighborhood' },
-  { id: 'westside',  name: 'Westside',  unlock: 35000,  rect: [12, 0, 24, 12],  phase: 'Across town' },
-  { id: 'riverside', name: 'Riverside', unlock: 65000,  rect: [0, 12, 12, 24],  phase: 'Citywide' },
-  { id: 'downtown',  name: 'Downtown',  unlock: 110000, rect: [12, 12, 24, 24], phase: 'The big leagues' },
+  { id: 'westside',  name: 'Westside',  unlock: 32000,  rect: [12, 0, 24, 12],  phase: 'Across town' },
+  { id: 'riverside', name: 'Riverside', unlock: 60000,  rect: [0, 12, 12, 24],  phase: 'Citywide' },
+  { id: 'downtown',  name: 'Downtown',  unlock: 100000, rect: [12, 12, 24, 24], phase: 'The big leagues' },
 ];
 
 // Store sites. Every site tile touches a road. `owned: true` = starting stores.

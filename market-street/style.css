@@ -74,16 +74,17 @@ button.danger { border-color: #6b3a42; color: var(--bad); margin-top: 10px; widt
 }
 #toast.hidden { display: none; }
 
-#win-banner {
+#win-banner, #lose-banner {
   position: absolute; inset: 0; margin: auto;
   width: 380px; height: fit-content;
   background: var(--panel); border: 1px solid var(--accent);
   border-radius: 12px; padding: 22px; text-align: center;
   box-shadow: 0 12px 40px rgba(0,0,0,0.5);
 }
-#win-banner h2 { margin-bottom: 8px; }
-#win-banner p { color: var(--dim); margin-bottom: 14px; }
-#win-banner.hidden { display: none; }
+#lose-banner { border-color: var(--bad); }
+#win-banner h2, #lose-banner h2 { margin-bottom: 8px; }
+#win-banner p, #lose-banner p { color: var(--dim); margin-bottom: 14px; }
+#win-banner.hidden, #lose-banner.hidden { display: none; }
 
 #sidebar {
   width: 330px; flex: 0 0 330px;

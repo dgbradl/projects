@@ -6,7 +6,8 @@ import {
   HIRE_ROLE_COST, TRUCK_COST, TRUCK_CAP, TRUCK_SPEED, WAREHOUSE_CAP,
   WAREHOUSE_UPGRADE, WAREHOUSE, MANAGER_SALARY, START_SLOTS, REMODEL,
   isRoad, PRODUCTS, VENDORS, DISTRICTS, SITES, ROLES, EVENTS, TRAITS,
-  DELEGATIONS, PEOPLE_NAMES,
+  DELEGATIONS, PEOPLE_NAMES, RIVAL, DEBT_INTEREST, DEBT_GRACE_DAYS,
+  DEBT_HARD_LIMIT, WAGE_DRIFT,
 } from './defs.js';
 
 const SAVE_KEY = 'market-street-save-v2';
@@ -73,10 +74,15 @@ export class Game {
     this.demandEma = {};
     for (const p of PROD_IDS) { this.soldToday[p] = 0; this.demandEma[p] = 0; }
     this.whFullStreak = 0;
+
+    // The rival chain, and the stakes.
+    this.rival = { stores: [], nextBuyDay: RIVAL.firstBuyDay };
+    this.debtDays = 0;
+    this.gameOver = false;
   }
 
   blankLedger() {
-    return { revenue: 0, cogs: 0, rent: 0, wages: 0, salaries: 0, fines: 0 };
+    return { revenue: 0, cogs: 0, rent: 0, wages: 0, salaries: 0, fines: 0, interest: 0 };
   }
 
   addStore(siteId, seeded = false) {
@@ -109,6 +115,26 @@ export class Game {
   siteAtTile(x, y) { return SITES.find((s) => s.x === x && s.y === y); }
   district(id) { return DISTRICTS.find((d) => d.id === id); }
   districtUnlocked(id) { return this.peakCash >= this.district(id).unlock; }
+
+  rivalAt(siteId) { return this.rival.stores.includes(siteId); }
+  wageMult() { return 1 + WAGE_DRIFT * this.day(); }
+
+  // How much of its neighborhood a store actually captures: sister stores in
+  // the district share the pie, and rival stores siphon shoppers — worse if
+  // your prices are high, softened by strong reputation.
+  marketFactor(store) {
+    const district = this.site(store.siteId).district;
+    const sisters = this.stores.filter((s) => this.site(s.siteId).district === district).length;
+    const sharing = 1 / (1 + 0.18 * (sisters - 1));
+    const rivals = this.rival.stores.filter((id) => this.site(id).district === district).length;
+    let competition = 1;
+    if (rivals > 0) {
+      let penalty = Math.max(0.05, Math.min(0.20, 0.08 + 0.25 * (store.markup - 0.90)));
+      penalty *= 1.3 - 0.6 * store.rep;
+      competition = 1 - Math.min(0.55, rivals * penalty);
+    }
+    return sharing * competition;
+  }
 
   roleSkill(role) { return this.hq[role] ? this.hq[role].skill : 0; }
   hasTrait(role, traitId) { return this.hq[role]?.trait?.id === traitId; }
@@ -174,20 +200,21 @@ export class Game {
 
   // Daily fixed costs, for smooth "profit so far today" display.
   dailyOpex() {
+    const w = this.wageMult();
     let c = 0;
     for (const store of this.stores) {
-      c += this.site(store.siteId).rent + store.staff * STAFF_WAGE;
-      if (store.manager) c += store.manager.salary;
+      c += this.site(store.siteId).rent + store.staff * STAFF_WAGE * w;
+      if (store.manager) c += store.manager.salary * w;
     }
     for (const role of Object.keys(ROLES)) {
-      if (this.hq[role]) c += this.hq[role].salary;
+      if (this.hq[role]) c += this.hq[role].salary * w;
     }
     return c;
   }
 
   profitToday() {
     const t = this.today;
-    return t.revenue - t.cogs - t.fines - this.dailyOpex() * this.dayFrac();
+    return t.revenue - t.cogs - t.fines - t.interest - this.dailyOpex() * this.dayFrac();
   }
 
   // ---- people -----------------------------------------------------------
@@ -260,7 +287,7 @@ export class Game {
 
   buyStore(siteId) {
     const site = this.site(siteId);
-    if (!site || this.storeAt(siteId)) return false;
+    if (!site || this.storeAt(siteId) || this.rivalAt(siteId)) return false;
     if (!this.districtUnlocked(site.district)) return false;
     if (this.cash < site.price) return false;
     this.cash -= site.price;
@@ -383,6 +410,7 @@ export class Game {
   // ---- simulation -------------------------------------------------------
 
   tick(dt) {
+    if (this.gameOver) return;
     const prevDay = this.day();
     this.time += dt;
     if (this.day() !== prevDay) this.dayTick();
@@ -437,7 +465,8 @@ export class Game {
       }
       elastic = Math.max(0.25, Math.min(1.5, elastic));
 
-      const baseDaily = site.pop * POP_FACTOR;
+      const market = this.marketFactor(store);
+      const baseDaily = site.pop * POP_FACTOR * market;
       const effStaff = store.staff + (store.manager ? 0.5 * store.manager.skill : 0);
       // A wider assortment brings in more traffic — and needs more hands.
       const staffNeeded = (baseDaily * this.enabledWeight(store)) / 55;
@@ -646,7 +675,7 @@ export class Game {
       const store = this.stores[Math.floor(Math.random() * this.stores.length)];
       const site = this.site(store.siteId);
       const effStaff = store.staff + (store.manager ? 0.5 * store.manager.skill : 0);
-      const ok = effStaff / (site.pop * POP_FACTOR * this.enabledWeight(store) / 55) >= 0.85;
+      const ok = effStaff / (site.pop * POP_FACTOR * this.marketFactor(store) * this.enabledWeight(store) / 55) >= 0.85;
       if (ok) {
         store.rep = Math.min(1, store.rep + 0.08);
         this.log('🧾', `Health inspection at ${store.name}: passed with flying colors. Reputation up.`);
@@ -701,7 +730,7 @@ export class Game {
       const site = this.site(store.siteId);
 
       if (store.delegate.staffing) {
-        const needed = (site.pop * POP_FACTOR * this.enabledWeight(store)) / 55;
+        const needed = (site.pop * POP_FACTOR * this.marketFactor(store) * this.enabledWeight(store)) / 55;
         const noise = (Math.random() - 0.5) * (3 - m.skill) * 0.8;
         const target = Math.max(1, Math.min(8, Math.round(needed + 0.3 + noise)));
         if (target > store.staff) {
@@ -811,16 +840,37 @@ export class Game {
     const day = this.day();
 
     // Close out yesterday's books first (opex accrues here for real).
+    const w = this.wageMult();
     let rent = 0, wages = 0, salaries = 0;
     for (const store of this.stores) {
       rent += this.site(store.siteId).rent;
-      wages += store.staff * STAFF_WAGE;
-      if (store.manager) salaries += store.manager.salary;
+      wages += store.staff * STAFF_WAGE * w;
+      if (store.manager) salaries += store.manager.salary * w;
     }
     for (const role of Object.keys(ROLES)) {
-      if (this.hq[role]) salaries += this.hq[role].salary;
+      if (this.hq[role]) salaries += this.hq[role].salary * w;
     }
     this.cash -= rent + wages + salaries;
+
+    // Debt: the bank charges interest on a negative balance — and has limits.
+    let interest = 0;
+    if (this.cash < 0) {
+      interest = -this.cash * DEBT_INTEREST;
+      this.cash -= interest;
+    }
+    this.today.interest += interest;
+    if (this.cash < -500) {
+      this.debtDays++;
+      if (this.debtDays >= DEBT_GRACE_DAYS || this.cash < DEBT_HARD_LIMIT) {
+        this.gameOver = true;
+        this.log('💥', 'The bank pulled your credit line. It\'s over.');
+      } else {
+        this.log('🏦', `Bank warning ${this.debtDays}/${DEBT_GRACE_DAYS}: get back in the black or lose the company.`);
+      }
+    } else {
+      this.debtDays = 0;
+    }
+
     this.today.rent = rent;
     this.today.wages = wages;
     this.today.salaries = salaries;
@@ -828,7 +878,8 @@ export class Game {
     this.history.push({
       day: day - 1,
       revenue: t.revenue, cogs: t.cogs, rent, wages, salaries, fines: t.fines,
-      profit: t.revenue - t.cogs - rent - wages - salaries - t.fines,
+      interest: t.interest,
+      profit: t.revenue - t.cogs - rent - wages - salaries - t.fines - t.interest,
     });
     if (this.history.length > 60) this.history.shift();
     this.today = this.blankLedger();
@@ -911,8 +962,14 @@ export class Game {
         }
         continue;
       }
-      if (this.placeOrder(p, pol.vendor, qty, true)) projected += qty;
+      if (this.placeOrder(p, pol.vendor, qty, true)) {
+        projected += qty;
+      } else if (this.cash < this.unitCost(p, pol.vendor) * qty && !this.cashCrunchWarned) {
+        this.cashCrunchWarned = true;
+        this.log('⚠️', `Not enough cash to restock ${PRODUCTS[p].name} — empty shelves will follow. Raise cash or cut costs!`);
+      }
     }
+    this.cashCrunchWarned = false;
     this.whFullStreak = warnedFull ? this.whFullStreak + 1 : 0;
 
     // Warehouse spoilage (cold storage halves shelf rates).
@@ -928,6 +985,30 @@ export class Game {
     this.activeEvents = this.activeEvents.filter((e) => e.daysLeft > 0);
     if (this.activeEvents.length === 0 && day >= 4 && Math.random() < 0.28) {
       this.spawnEvent();
+    }
+
+    // The rival chain shops for real estate. Unlike you, they aren't gated
+    // by district unlocks — a discounter grabs empty markets first and only
+    // contests your turf when the easy lots are gone.
+    if (day >= this.rival.nextBuyDay && this.rival.stores.length < RIVAL.maxStores) {
+      const vacant = SITES.filter((s) => !this.storeAt(s.id) && !this.rivalAt(s.id));
+      if (vacant.length) {
+        const weighted = [];
+        for (const s of vacant) {
+          const contested = this.stores.some((st) => this.site(st.siteId).district === s.district);
+          for (let i = 0; i < (contested ? 1 : 3); i++) weighted.push(s);
+        }
+        const pick = weighted[Math.floor(Math.random() * weighted.length)];
+        this.rival.stores.push(pick.id);
+        const dname = this.district(pick.district).name;
+        const contested = this.stores.some((st) => this.site(st.siteId).district === pick.district);
+        this.log('🏪', contested
+          ? `${RIVAL.name} opened a discount store in ${dname} — right in your backyard!`
+          : `${RIVAL.name} claimed a prime lot in ${dname} before you got there.`);
+        this.addFloater(pick.x, pick.y, `${RIVAL.name} opens!`, '#e8828c');
+      }
+      const [lo, hi] = RIVAL.buyInterval;
+      this.rival.nextBuyDay = day + lo + Math.floor(Math.random() * (hi - lo + 1));
     }
 
     // Relationships drift toward neutral; a connected buyer counteracts it.
@@ -956,6 +1037,9 @@ export class Game {
       activeEvents: this.activeEvents,
       delegation: this.delegation,
       demandEma: this.demandEma,
+      rival: this.rival,
+      debtDays: this.debtDays,
+      gameOver: this.gameOver,
     };
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch { /* ignore */ }
   }
@@ -968,7 +1052,7 @@ export class Game {
     this.cash = d.cash; this.peakCash = d.peakCash ?? d.cash;
     this.time = d.time; this.won = !!d.won;
     this.nameCursor = d.nameCursor ?? 0;
-    this.today = d.today ?? this.blankLedger();
+    this.today = { ...this.blankLedger(), ...(d.today ?? {}) };
     this.history = d.history ?? [];
     this.logEntries = d.logEntries ?? [];
     this.avgCost = d.avgCost ?? this.avgCost;
@@ -1005,6 +1089,9 @@ export class Game {
     this.activeEvents = d.activeEvents ?? [];
     this.delegation = { ...this.delegation, ...(d.delegation ?? {}) };
     this.demandEma = { ...this.demandEma, ...(d.demandEma ?? {}) };
+    this.rival = d.rival ?? this.rival;
+    this.debtDays = d.debtDays ?? 0;
+    this.gameOver = !!d.gameOver;
     return true;
   }
 

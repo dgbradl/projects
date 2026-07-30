@@ -77,6 +77,21 @@ office panels on the right.
   well-staffed stores and fine sloppy ones, and fridges break. Active events
   show as chips on the map with a countdown.
 
+### Stakes
+
+You are not alone in this city. **BuyLow**, a discount rival, starts buying
+lots on day ~14 — grabbing prime sites in districts you haven't reached yet
+first, then contesting your turf. Their stores siphon shoppers from yours in
+the same district (worse if your prices are high, softened by strong
+reputation), and every lot they take is one you can't have. Your own stores
+also share their district's shoppers, so carpeting one neighborhood pays
+worse than spreading out — the buy panel warns you before you crowd in.
+
+The bank is real too: negative cash accrues **2% daily interest**, and four
+day-ends in the red (or a deep enough hole) ends the game. Wages and
+salaries creep up ~0.3% per day, so a chain that stops improving slowly
+bleeds out.
+
 ### Expansion arc
 
 Districts unlock as your peak cash grows: **Old Town** (start) → **Westside**

@@ -221,6 +221,16 @@ export class Renderer {
     const store = g.storeAt(site.id);
     const unlocked = g.districtUnlocked(site.district);
 
+    if (g.rivalAt(site.id)) {
+      // The rival's discount store: boxy, red, unmistakable.
+      this.box(sx, sy, 18, '#8a4438', '#5e2d26', '#733830', 0.85);
+      ctx.fillStyle = '#f0c4b8';
+      ctx.textAlign = 'center';
+      ctx.font = `700 ${8 * this.scale + 3}px system-ui, sans-serif`;
+      ctx.fillText('BUYLOW', sx, sy - 18 * this.scale - 4);
+      return;
+    }
+
     if (!store) {
       // For-sale lot.
       ctx.globalAlpha = unlocked ? 0.85 : 0.35;
