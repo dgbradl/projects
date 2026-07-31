@@ -34,6 +34,7 @@ canvas.addEventListener('pointerdown', (e) => {
 canvas.addEventListener('pointermove', (e) => {
   hover = eventTile(e);
   canvas.style.cursor = hover && game.siteAtTile(hover.x, hover.y) ? 'pointer' : 'default';
+  ui.updateMapTip(e.clientX, e.clientY, hover);
   if (pointer && e.pointerId === pointer.id) {
     const dx = e.clientX - pointer.x, dy = e.clientY - pointer.y;
     if (pointer.moved || Math.hypot(dx, dy) > 6) {
@@ -54,7 +55,10 @@ canvas.addEventListener('pointerup', (e) => {
   }
 });
 canvas.addEventListener('pointercancel', () => { pointer = null; });
-canvas.addEventListener('mouseleave', () => { hover = null; });
+canvas.addEventListener('mouseleave', () => {
+  hover = null;
+  document.getElementById('map-tip').classList.add('hidden');
+});
 canvas.addEventListener('wheel', (e) => {
   e.preventDefault();
   const rect = canvas.getBoundingClientRect();

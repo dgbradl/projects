@@ -23,6 +23,10 @@ const fmt = (n) => `$${Math.round(n).toLocaleString()}`;
 const signFmt = (n) => `${n < 0 ? '−' : ''}$${Math.abs(Math.round(n)).toLocaleString()}`;
 
 const SETTINGS_KEY = 'market-street-settings';
+const DISTRICT_COLOR = {
+  oldtown: 'var(--d-oldtown)', westside: 'var(--d-westside)',
+  riverside: 'var(--d-riverside)', downtown: 'var(--d-downtown)',
+};
 
 export class UI {
   constructor(game, { fresh = false } = {}) {
@@ -38,6 +42,8 @@ export class UI {
     this.bindTop();
     this.bindTabs();
     this.bindChips();
+    this.bindFeed();
+    this.bindModals();
     this.bindSettings();
     this.buildSupplyTab();
     this.buildVendorsTab();
@@ -165,6 +171,37 @@ export class UI {
     document.getElementById('btn-lose-reset').addEventListener('click', () => this.newGame());
   }
 
+  syncBackdrop() {
+    const anyOpen = ['settings-modal', 'week-report', 'welcome-banner', 'win-banner', 'lose-banner']
+      .some((id) => !document.getElementById(id).classList.contains('hidden'));
+    document.getElementById('modal-backdrop').classList.toggle('hidden', !anyOpen);
+  }
+
+  bindModals() {
+    document.querySelectorAll('.modal-x').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.close;
+        if (id === 'week-report') this.closeWeeklyReport();
+        else document.getElementById(id).classList.add('hidden');
+      });
+    });
+    document.getElementById('modal-backdrop').addEventListener('click', () => {
+      // Click-outside closes the dismissable overlays (never the lose banner).
+      document.getElementById('settings-modal').classList.add('hidden');
+      document.getElementById('welcome-banner').classList.add('hidden');
+      document.getElementById('win-banner').classList.add('hidden');
+      this.closeWeeklyReport();
+    });
+  }
+
+  bindFeed() {
+    const feed = document.getElementById('feed');
+    feed.addEventListener('click', () => {
+      this.setTab('books');
+      document.getElementById('log-list')?.scrollIntoView({ block: 'nearest' });
+    });
+  }
+
   bindChips() {
     document.getElementById('events-bar').addEventListener('click', (e) => {
       const district = e.target.dataset?.matchwar;
@@ -196,6 +233,37 @@ export class UI {
       .forEach((p) => p.classList.toggle('hidden', p.id !== `tab-${tab}`));
   }
 
+  updateMapTip(clientX, clientY, tile) {
+    const tip = document.getElementById('map-tip');
+    const g = this.game;
+    const site = tile ? g.siteAtTile(tile.x, tile.y) : null;
+    if (!site) {
+      tip.classList.add('hidden');
+      return;
+    }
+    let html;
+    const store = g.storeAt(site.id);
+    if (store) {
+      const total = PROD_IDS.reduce((s, p) => s + (store.range[p] ? store.inv[p] : 0), 0);
+      const fill = Math.round(100 * total / (SHELF_CAP * Math.max(1, g.rangeCount(store))));
+      html = `<b>${store.name}</b><br>Shelves ${fill}% · rep ${Math.round(store.rep * 100)}% · ${Math.round(g.marketFactor(store) * 100)}% share`;
+    } else if (g.rivalAt(site.id)) {
+      html = `<b>BuyLow${g.rival.plus?.[site.id] ? '+' : ''}</b><br>The rival. ${g.district(site.district).name}.`;
+    } else if (g.districtUnlocked(site.district)) {
+      html = `<b>For sale — ${fmt(site.price)}</b><br>~${site.pop.toLocaleString()} shoppers · rent ${fmt(site.rent)}/day`;
+    } else {
+      html = `<b>Locked lot</b><br>Unlocks with ${g.district(site.district).name}`;
+    }
+    if (tip.dataset.html !== html) {
+      tip.dataset.html = html;
+      tip.innerHTML = html;
+    }
+    const wrap = document.getElementById('canvas-wrap').getBoundingClientRect();
+    tip.style.left = `${Math.min(clientX - wrap.left + 14, wrap.width - 190)}px`;
+    tip.style.top = `${clientY - wrap.top + 12}px`;
+    tip.classList.remove('hidden');
+  }
+
   closeOverlays() {
     for (const id of ['settings-modal', 'welcome-banner', 'win-banner']) {
       document.getElementById(id).classList.add('hidden');
@@ -212,6 +280,7 @@ export class UI {
   }
 
   confetti() {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
     const wrap = document.getElementById('canvas-wrap');
     const colors = ['#f2c14e', '#6fd08c', '#9ec7ef', '#e8828c', '#b28ae0'];
     for (let i = 0; i < 26; i++) {
@@ -276,9 +345,16 @@ export class UI {
       const row = document.createElement('button');
       row.className = 'store-row' + (this.selectedSite === site.id ? ' selected' : '');
       row.innerHTML = `
-        <span class="sname">${store.name}</span>
-        <span class="sdist">${g.district(site.district).name}</span>
-        <span class="srev" data-rev="${site.id}" title="Yesterday's profit"></span>`;
+        <span class="drow">
+          <span class="ddot" style="background:${DISTRICT_COLOR[site.district]}"></span>
+          <span class="sname">${store.name}</span>
+          <span class="sdist">${g.district(site.district).name}</span>
+          <span class="srev" data-rev="${site.id}" title="Yesterday's profit"></span>
+        </span>
+        <span class="srow-meta">
+          <span class="mini-meter" title="Shelf fill"><i data-minibar="${site.id}"></i></span>
+          <span class="fine" data-mgr="${site.id}">${store.manager ? '👤 ' + store.manager.name.split(' ')[0] : '—'}</span>
+        </span>`;
       row.addEventListener('click', () => {
         this.selectedSite = site.id;
         this.renderStoreList();
@@ -294,7 +370,11 @@ export class UI {
     box.innerHTML = '';
     const site = this.selectedSite ? g.site(this.selectedSite) : null;
     if (!site) {
-      box.innerHTML = '<p class="fine">Click a store on the map or in the list above. Lots marked FOR SALE can be bought once their district is unlocked.</p>';
+      box.innerHTML = `<div class="empty-state">
+        <div class="es-icon">🗺️</div>
+        <div>Pick a store on the map or in the list above.</div>
+        <div class="fine">FOR SALE lots can be bought once their district unlocks.</div>
+      </div>`;
       return;
     }
     const store = g.storeAt(site.id);
@@ -333,7 +413,11 @@ export class UI {
     }
 
     box.innerHTML = `
-      <h4>${store.name} <span class="fine">· ${district.name} · ~${site.pop.toLocaleString()} shoppers</span></h4>
+      <div class="sd-header">
+        <div class="sd-title">${store.name}</div>
+        <span class="dbadge" style="--dc:${DISTRICT_COLOR[site.district]}">${district.name}</span>
+        <span class="fine">~${site.pop.toLocaleString()} shoppers</span>
+      </div>
       <div class="kv"><span>Reputation</span><div class="meter"><i id="sd-rep"></i></div></div>
       <div class="kv"><span>Team morale</span><div class="meter"><i id="sd-morale"></i></div></div>
       <div class="kv"><span>Local market share</span><b id="sd-market" title="How much of the neighborhood this store captures, after sister stores and rival competition"></b></div>
@@ -358,10 +442,13 @@ export class UI {
 
     // Product range block: choose which lines this store carries.
     const rangeWrap = box.querySelector('#sd-range');
-    const rTitle = document.createElement('h4');
-    rTitle.innerHTML = `Product range <span class="fine" id="sd-slots"></span>`;
-    rTitle.style.marginTop = '8px';
-    rangeWrap.appendChild(rTitle);
+    const rDetails = document.createElement('details');
+    rDetails.open = this.detailOpen?.range ?? true;
+    rDetails.addEventListener('toggle', () => {
+      (this.detailOpen ??= {}).range = rDetails.open;
+    });
+    rDetails.innerHTML = `<summary>Product range <span class="fine" id="sd-slots"></span></summary>`;
+    rangeWrap.appendChild(rDetails);
     const grid = document.createElement('div');
     grid.className = 'range-grid';
     for (const p of PROD_IDS) {
@@ -373,7 +460,7 @@ export class UI {
         <span>${PRODUCTS[p].name}</span>`;
       grid.appendChild(label);
     }
-    rangeWrap.appendChild(grid);
+    rDetails.appendChild(grid);
     grid.addEventListener('change', (e) => {
       const p = e.target.dataset?.range;
       if (!p) return;
@@ -400,7 +487,7 @@ export class UI {
           else this.say('Not enough cash.');
         });
       }
-      rangeWrap.appendChild(btn);
+      rDetails.appendChild(btn);
     }
     if (store.slots < PROD_IDS.length) {
       const btn = document.createElement('button');
@@ -411,15 +498,18 @@ export class UI {
         if (g.remodelStore(site.id)) this.renderStoreDetail();
         else this.say('Not enough cash.');
       });
-      rangeWrap.appendChild(btn);
+      rDetails.appendChild(btn);
     }
 
     // Manager block.
     const mgrWrap = box.querySelector('#sd-manager');
-    const title = document.createElement('h4');
-    title.textContent = 'Store manager';
-    title.style.marginTop = '8px';
-    mgrWrap.appendChild(title);
+    const mDetails = document.createElement('details');
+    mDetails.open = this.detailOpen?.manager ?? true;
+    mDetails.addEventListener('toggle', () => {
+      (this.detailOpen ??= {}).manager = mDetails.open;
+    });
+    mDetails.innerHTML = `<summary>Store manager${store.manager ? ` <span class="fine">— ${store.manager.name}</span>` : ' <span class="fine">— vacant</span>'}</summary>`;
+    mgrWrap.appendChild(mDetails);
     if (store.manager) {
       const m = store.manager;
       const row = document.createElement('div');
@@ -435,7 +525,7 @@ export class UI {
         this.renderStoreDetail();
       });
       row.appendChild(btn);
-      mgrWrap.appendChild(row);
+      mDetails.appendChild(row);
       // What this manager is trusted to decide.
       const del = document.createElement('div');
       del.className = 'delegate-row';
@@ -447,13 +537,13 @@ export class UI {
         const k = e.target.dataset?.del;
         if (k) store.delegate[k] = e.target.checked;
       });
-      mgrWrap.appendChild(del);
+      mDetails.appendChild(del);
     } else {
       const note = document.createElement('p');
       note.className = 'fine';
       note.textContent = `No manager — the team runs on autopilot. A manager boosts coverage, morale, and cuts spoilage (${fmt(HIRE_ROLE_COST)} signing bonus).`;
-      mgrWrap.appendChild(note);
-      mgrWrap.appendChild(this.candidateRows('manager', (i) => {
+      mDetails.appendChild(note);
+      mDetails.appendChild(this.candidateRows('manager', (i) => {
         if (g.hireManager(site.id, i)) this.renderStoreDetail();
         else this.say('Not enough cash.');
       }));
@@ -546,6 +636,7 @@ export class UI {
         <div class="purch-head">
           <span class="swatch" style="background:${PRODUCTS[p].color}"></span>
           <span class="pname">${PRODUCTS[p].name}</span>
+          <span class="days-chip" data-days="${p}" title="Days of warehouse stock at current sales pace"></span>
           <span class="fine" data-cost="${p}"></span>
           <label class="fine auto"><input type="checkbox" data-auto="${p}" ${pol.auto ? 'checked' : ''}> auto</label>
         </div>
@@ -594,14 +685,31 @@ export class UI {
     for (const [id, v] of Object.entries(VENDORS)) {
       const card = document.createElement('div');
       card.className = 'panel vendor-card';
+      const monogram = v.name.split(' ').map((w) => w[0]).slice(0, 2).join('');
+      const priceTier = v.priceMult <= 0.9 ? '$' : v.priceMult <= 1.0 ? '$$' : '$$$';
       card.innerHTML = `
-        <h3>${v.name} <span data-struck="${id}" style="color:var(--bad)"></span></h3>
+        <div class="v-head">
+          <span class="v-mono" style="--vc:${['#e0a54e','#c98a3f','#c0687a','#7fa8d0','#9a7ac8','#5aa8a0'][Object.keys(VENDORS).indexOf(id) % 6]}">${monogram}</span>
+          <div class="v-title">
+            <h3>${v.name} <span data-struck="${id}" style="color:var(--bad)"></span></h3>
+            <div class="v-chips">
+              <span class="v-chip" title="Price tier">${priceTier}</span>
+              <span class="v-chip" title="Quality">${'★'.repeat(Math.round(v.quality * 3))}</span>
+              <span class="v-chip" title="Delivery lead time">🚚 ${v.leadTime}d</span>
+            </div>
+          </div>
+        </div>
         <p class="fine">${v.blurb}</p>
-        <div class="kv"><span>Supplies</span><b>${v.products.map((p) => PRODUCTS[p].name).join(', ')}</b></div>
-        <div class="kv"><span>Lead time</span><b>${v.leadTime} day${v.leadTime > 1 ? 's' : ''}</b></div>
-        <div class="kv"><span>Quality</span><b>${'★'.repeat(Math.round(v.quality * 3))}</b></div>
-        <div class="kv"><span>Relationship</span><div class="meter"><i data-rel="${id}"></i></div></div>
-        <div class="kv"><span>Negotiated discount</span><b data-disc="${id}"></b></div>
+        <div class="kv"><span>Supplies</span><b class="fine">${v.products.map((p) => PRODUCTS[p].name).join(', ')}</b></div>
+        <div class="kv"><span>Relationship</span>
+          <div class="meter rel-meter"><i data-rel="${id}"></i><em class="rel-mark" title="Contract threshold"></em></div>
+        </div>
+        <div class="kv"><span>Discount</span>
+          <span class="pips" data-pips="${id}" title="Each pip is 5% off (negotiate to earn them)">
+            ${'<i></i>'.repeat(5)}
+          </span>
+          <b data-disc="${id}"></b>
+        </div>
         <div class="kv"><span>Contract</span><b data-contract="${id}" class="fine"></b></div>
         <button data-neg="${id}">Negotiate</button>
         <button data-sign="${id}" title="Commit to ${CONTRACT.weeklyMin} units/week for ${CONTRACT.days} days at ${Math.round(CONTRACT.discount * 100)}% off. Breaching costs $${CONTRACT.penalty} and sours the relationship.">Sign supply contract</button>`;
@@ -884,19 +992,51 @@ export class UI {
     }
     const max = Math.max(50, ...data.map((d) => Math.abs(d.profit)));
     const zero = h / 2;
-    ctx.strokeStyle = 'rgba(139, 150, 166, 0.4)';
-    ctx.beginPath();
-    ctx.moveTo(0, zero);
-    ctx.lineTo(w, zero);
-    ctx.stroke();
+    // Gridlines with $ labels.
+    ctx.font = '9px system-ui, sans-serif';
+    ctx.textAlign = 'left';
+    for (const frac of [-0.5, 0, 0.5]) {
+      const y = zero - frac * (h - 16);
+      ctx.strokeStyle = frac === 0 ? 'rgba(139, 150, 166, 0.45)' : 'rgba(139, 150, 166, 0.15)';
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+      if (frac !== 0) {
+        ctx.fillStyle = 'rgba(139, 150, 166, 0.7)';
+        ctx.fillText(`${frac > 0 ? '+' : '−'}$${Math.round(max * Math.abs(frac) * 2).toLocaleString()}`, 3, y - 2);
+      }
+    }
     const bw = w / 30;
+    const yFor = (v) => zero - (v / max) * (h / 2 - 10);
     data.forEach((d, i) => {
       const x = w - (data.length - i) * bw;
-      const bh = (d.profit / max) * (h / 2 - 4);
-      ctx.fillStyle = d.profit >= 0 ? '#6fd08c' : '#e8828c';
+      const bh = zero - yFor(d.profit);
+      ctx.fillStyle = d.profit >= 0 ? 'rgba(111, 208, 140, 0.85)' : 'rgba(232, 130, 140, 0.85)';
       if (bh >= 0) ctx.fillRect(x + 1, zero - bh, bw - 2, Math.max(1, bh));
       else ctx.fillRect(x + 1, zero, bw - 2, Math.max(1, -bh));
     });
+    // 7-day moving average line.
+    if (data.length >= 3) {
+      ctx.strokeStyle = '#f2c14e';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      data.forEach((d, i) => {
+        const from = Math.max(0, i - 6);
+        const avg = data.slice(from, i + 1).reduce((s, e) => s + e.profit, 0) / (i + 1 - from);
+        const x = w - (data.length - i) * bw + bw / 2;
+        const y = yFor(avg);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+      // Annotate the current average.
+      const lastFrom = Math.max(0, data.length - 7);
+      const lastAvg = data.slice(lastFrom).reduce((s, e) => s + e.profit, 0) / (data.length - lastFrom);
+      ctx.fillStyle = '#f2c14e';
+      ctx.textAlign = 'right';
+      ctx.fillText(`7d avg ${lastAvg >= 0 ? '+' : '−'}$${Math.abs(Math.round(lastAvg)).toLocaleString()}`, w - 4, yFor(lastAvg) - 4);
+    }
   }
 
   refreshGoal() {
@@ -1028,6 +1168,11 @@ export class UI {
     document.getElementById('stat-cash').classList.toggle('broke', g.cash < 0);
     const season = g.season();
     setText('stat-day', `Day ${g.day()} · ${season.icon} ${season.name} ${g.seasonDay()}`);
+    const dp = document.getElementById('day-progress');
+    if (dp) dp.style.width = `${Math.round(g.dayFrac() * 100)}%`;
+    const ph = document.getElementById('paused-hint');
+    if (ph) ph.classList.toggle('hidden', g.speed !== 0 || g.gameOver
+      || !document.getElementById('week-report').classList.contains('hidden'));
     setText('stat-stores', `${g.stores.length} store${g.stores.length === 1 ? '' : 's'}`);
     const net = g.profitToday();
     const netEl = document.getElementById('stat-net');
@@ -1078,6 +1223,7 @@ export class UI {
     this.refreshOverlays();
     this.refreshGoal();
     this.refreshSounds();
+    this.syncBackdrop();
 
     if (this.tab === 'stores') this.refreshStores();
     if (this.tab === 'supply') this.refreshSupply();
@@ -1118,6 +1264,15 @@ export class UI {
         setEl(el, signFmt(p));
         el.style.color = p >= 0 ? 'var(--good)' : 'var(--bad)';
       }
+      const bar = wrap.querySelector(`[data-minibar="${store.siteId}"]`);
+      if (bar) {
+        const total = PROD_IDS.reduce((s, p2) => s + (store.range[p2] ? store.inv[p2] : 0), 0);
+        const f = total / (SHELF_CAP * Math.max(1, g.rangeCount(store)));
+        bar.style.width = `${Math.round(Math.min(1, f) * 100)}%`;
+        bar.style.background = f > 0.45 ? 'var(--good)' : f > 0.18 ? 'var(--accent)' : 'var(--bad)';
+      }
+      const mgr = wrap.querySelector(`[data-mgr="${store.siteId}"]`);
+      if (mgr) setEl(mgr, store.manager ? '👤 ' + store.manager.name.split(' ')[0] : '—');
     }
     const store = this.selectedSite ? g.storeAt(this.selectedSite) : null;
     if (!store) return;
@@ -1183,6 +1338,20 @@ export class UI {
       }
       const rowEl = document.querySelector(`[data-prow="${p}"]`);
       if (rowEl) rowEl.style.opacity = carried ? '1' : '0.45';
+      const daysEl = document.querySelector(`[data-days="${p}"]`);
+      if (daysEl) {
+        const ema = g.demandEma[p] ?? 0;
+        if (!carried || ema < 1) {
+          setEl(daysEl, '');
+          daysEl.style.display = 'none';
+        } else {
+          daysEl.style.display = '';
+          const days = (g.warehouse.inv[p] + g.inTransit(p)) / ema;
+          setEl(daysEl, `${days > 9 ? '9+' : days.toFixed(1)}d`);
+          daysEl.style.color = days < 1.5 ? 'var(--bad)' : days < 3 ? 'var(--accent)' : 'var(--good)';
+          daysEl.style.borderColor = days < 1.5 ? 'var(--bad)' : days < 3 ? 'var(--accent)' : 'var(--border)';
+        }
+      }
       // The buyer may retune these under delegation — keep inputs in sync
       // (but never yank a field the player is editing).
       for (const [attr, val] of [['point', g.purchasing[p].point], ['qty', g.purchasing[p].qty]]) {
@@ -1219,6 +1388,11 @@ export class UI {
       }
       const disc = document.querySelector(`[data-disc="${id}"]`);
       if (disc) setEl(disc, `${Math.round(g.vendors[id].discount * 100)}%`);
+      const pips = document.querySelector(`[data-pips="${id}"]`);
+      if (pips) {
+        const n = Math.round(g.vendors[id].discount / 0.05);
+        [...pips.children].forEach((pip, i) => pip.classList.toggle('on', i < n));
+      }
       const struck = document.querySelector(`[data-struck="${id}"]`);
       if (struck) setEl(struck, g.vendorStruck(id) ? '✊ ON STRIKE' : '');
       const btn = document.querySelector(`[data-neg="${id}"]`);

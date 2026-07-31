@@ -529,7 +529,11 @@ export class Renderer {
     ctx.fillStyle = vg;
     ctx.fillRect(0, 0, this.w, this.h);
 
-    // District labels (with a grounding shadow for readability).
+    // District labels, tinted with each district's identity color.
+    const DISTRICT_RGB = {
+      oldtown: '242, 193, 78', westside: '127, 178, 229',
+      riverside: '111, 208, 140', downtown: '178, 138, 224',
+    };
     ctx.textAlign = 'center';
     for (const d of DISTRICTS) {
       const [x0, y0, x1, y1] = d.rect;
@@ -538,7 +542,7 @@ export class Renderer {
       ctx.font = `700 ${13 * this.scale + 4}px system-ui, sans-serif`;
       ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
       ctx.fillText(d.name.toUpperCase(), sx + 1, sy + 1);
-      ctx.fillStyle = locked ? 'rgba(210, 220, 235, 0.6)' : 'rgba(210, 220, 235, 0.30)';
+      ctx.fillStyle = `rgba(${DISTRICT_RGB[d.id]}, ${locked ? 0.55 : 0.34})`;
       ctx.fillText(d.name.toUpperCase(), sx, sy);
       if (locked) {
         ctx.font = `${11 * this.scale + 3}px system-ui, sans-serif`;

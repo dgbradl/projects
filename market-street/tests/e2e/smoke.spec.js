@@ -34,6 +34,7 @@ test('map click selects a store and tabs switch', async ({ page }) => {
   await page.waitForTimeout(300);
   const welcome = page.locator('#btn-welcome-close');
   if (await welcome.isVisible()) await welcome.click();
+  await expect(page.locator('#modal-backdrop')).toBeHidden();   // backdrop clears next frame
 
   // Click store #1's tile via the renderer's own projection.
   const pos = await page.evaluate(() => {
