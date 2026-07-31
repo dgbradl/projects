@@ -41,6 +41,10 @@
       <div id="modal-backdrop" class="hidden"></div>
       <div id="map-tip" class="hidden"></div>
       <div id="paused-hint" class="hidden">⏸ Paused — press Space or a speed button to resume</div>
+      <div id="plan-bar" class="hidden">
+        <span id="plan-label">📋 <b>Planning week 2</b> — adjust orders, prices &amp; people, then</span>
+        <button id="btn-run-week">▶ Run the week</button>
+      </div>
       <div id="hint">Click stores &amp; FOR SALE lots on the map · manage the chain from the panels on the right</div>
       <div id="win-banner" class="hidden">
         <h2>🏆 Regional powerhouse!</h2>
@@ -52,8 +56,10 @@
         <p>You've inherited <b>two corner grocery stores</b> and a small warehouse.
         Keep the shelves stocked, keep the customers happy, and grow into the
         chain this city deserves — before <b>BuyLow</b> beats you to it.</p>
-        <p class="fine">Follow the 🎯 objective in the top-right to learn the ropes.
-        Drag the map to pan, scroll to zoom.</p>
+        <p class="fine">The game runs week by week: at each week's end it pauses so you
+        can read the wrap-up and adjust your plan — then hit <b>▶ Run the week</b>
+        and watch it play out. Follow the 🎯 objective in the top-right to learn
+        the ropes. Drag the map to pan, scroll to zoom.</p>
         <button id="btn-welcome-close" class="primary">Open the doors</button>
       </div>
       <div id="settings-modal" class="hidden">
@@ -61,6 +67,7 @@
         <h2>Settings</h2>
         <label class="set-row"><input type="checkbox" id="set-pause-event"> Pause when a city event starts</label>
         <label class="set-row"><input type="checkbox" id="set-weekly"> Show the weekly report</label>
+        <label class="set-row"><input type="checkbox" id="set-weekly-mode"> Weekly planning: pause at each week's end to plan the next</label>
         <label class="set-row">Difficulty (next new game)
           <select id="set-difficulty">
             <option value="relaxed">Relaxed</option>
@@ -80,7 +87,10 @@
         <h2>📊 Weekly report</h2>
         <p class="fine" id="wr-title"></p>
         <div id="wr-body"></div>
-        <button id="btn-week-close" class="primary">Back to work</button>
+        <div class="wr-actions">
+          <button id="btn-week-close">Make some moves first</button>
+          <button id="btn-week-run" class="primary">▶ Run the week</button>
+        </div>
       </div>
       <div id="lose-banner" class="hidden">
         <h2>💥 Bankrupt</h2>

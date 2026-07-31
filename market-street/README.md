@@ -21,6 +21,11 @@ drawn procedurally.
 
 ## How the game works
 
+The game runs on a **weekly rhythm**: each week ends in a planning stop — the
+wrap-up report shows how the week went, the sim pauses while you adjust
+orders, prices, and people, and then you hit **▶ Run the week** to watch the
+plan play out. (Continuous play is a settings toggle away.)
+
 Goods flow **vendors → warehouse → trucks → shelves → customers**, and every
 link can be the bottleneck.
 

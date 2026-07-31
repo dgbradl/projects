@@ -97,3 +97,33 @@ test('new systems are reachable from the UI', async ({ page }) => {
   await page.click('[data-tab="books"]');
   await expect(page.locator('#bproducts')).toContainText('Produce');
 });
+
+test('weekly planning loop: stop, plan, run', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForTimeout(300);
+  const welcome = page.locator('#btn-welcome-close');
+  if (await welcome.isVisible()) await welcome.click();
+
+  // Fast-forward to the end of week 1 — the game must stop into planning.
+  await page.evaluate(() => {
+    const g = window.game;
+    g.speed = 3;
+    for (let i = 0; i < 600 * 7 + 5; i++) g.tick(1 / 600);
+  });
+  await page.waitForTimeout(300);
+  await expect(page.locator('#week-report')).toBeVisible();
+  await expect(page.locator('#btn-week-run')).toBeVisible();
+  const stopped = await page.evaluate(() => ({ planning: window.game.planning, speed: window.game.speed }));
+  expect(stopped).toEqual({ planning: true, speed: 0 });
+
+  // Closing the report keeps the planning pause with the plan bar up.
+  await page.click('#btn-week-close');
+  await expect(page.locator('#plan-bar')).toBeVisible();
+  expect(await page.evaluate(() => window.game.speed)).toBe(0);
+
+  // Running the week resumes at the pre-stop cruise speed.
+  await page.click('#btn-run-week');
+  await expect(page.locator('#plan-bar')).toBeHidden();
+  const running = await page.evaluate(() => ({ planning: window.game.planning, speed: window.game.speed }));
+  expect(running).toEqual({ planning: false, speed: 3 });
+});

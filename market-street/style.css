@@ -523,3 +523,25 @@ button:active:not(:disabled) { transform: scale(0.96); }
 }
 #store-detail .danger:hover { opacity: 1; transform: none; }
 #sd-remodel { background: var(--panel-3); border-color: var(--dim); font-weight: 600; }
+
+/* ---- weekly planning ---- */
+#plan-bar {
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 10px; max-width: 92%;
+  background: rgba(29, 35, 45, 0.94); border: 1px solid var(--gold, #f2c14e);
+  border-radius: 10px; padding: 7px 10px 7px 14px; font-size: 12.5px;
+  color: var(--fg, #e8ecf2); z-index: 3; box-shadow: 0 4px 18px rgba(0,0,0,0.35);
+}
+#plan-bar.hidden { display: none; }
+#plan-bar b { color: var(--gold, #f2c14e); }
+#btn-run-week {
+  background: var(--gold, #f2c14e); color: #23282e; font-weight: 700;
+  border: 0; border-radius: 7px; padding: 6px 12px; cursor: pointer;
+  white-space: nowrap;
+}
+#btn-run-week:hover { filter: brightness(1.08); }
+.wr-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+.wr-actions .hidden { display: none; }
+@media (max-width: 860px) {
+  #plan-bar { top: 8px; font-size: 11.5px; flex-wrap: wrap; justify-content: center; }
+}

@@ -84,6 +84,11 @@ export class Game {
     this.lastWeekReport = null;
     this.weekReportId = 0;
     this.whFullStreak = 0;
+    // Weekly planning mode: pause at each week boundary so the player can
+    // review the wrap-up, adjust the plan, then let the week run.
+    this.weeklyMode = true;
+    this.planning = false;
+    this.preWeekSpeed = 1;
 
     // The rival chain, and the stakes.
     this.rival = { stores: [], nextBuyDay: D.rivalFirst, openedDay: {}, plus: {} };
@@ -1285,6 +1290,13 @@ export class Game {
       };
       this.weekReportId++;
       this.week = { start: day, events: [], staffActions: 0, storeProfit: {} };
+      // In weekly mode the week boundary is a planning stop: pause the sim
+      // until the player runs the next week.
+      if (this.weeklyMode && !this.gameOver) {
+        this.preWeekSpeed = this.speed || this.preWeekSpeed || 1;
+        this.speed = 0;
+        this.planning = true;
+      }
     }
 
     // BuyLow invests: a store older than 20 days becomes a BuyLow+ superstore.
@@ -1346,6 +1358,17 @@ export class Game {
 
   // ---- persistence ------------------------------------------------------
 
+  // Leave the planning stop and let the new week play out at the speed the
+  // player was cruising at before the pause.
+  startWeek() {
+    this.planning = false;
+    if (this.speed === 0) this.speed = this.preWeekSpeed || 1;
+  }
+
+  weekNum() {
+    return Math.floor((this.day() - 1) / 7) + 1;
+  }
+
   save() {
     const data = {
       cash: this.cash, peakCash: this.peakCash, time: this.time, won: this.won,
@@ -1370,6 +1393,9 @@ export class Game {
       lastCampaignDay: this.lastCampaignDay,
       achieved: this.achieved,
       stats: this.stats,
+      weeklyMode: this.weeklyMode,
+      planning: this.planning,
+      preWeekSpeed: this.preWeekSpeed,
     };
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch { /* ignore */ }
   }
@@ -1429,6 +1455,10 @@ export class Game {
     this.lastCampaignDay = d.lastCampaignDay ?? {};
     this.achieved = d.achieved ?? {};
     this.stats = { ...this.stats, ...(d.stats ?? {}) };
+    this.weeklyMode = d.weeklyMode ?? true;
+    this.planning = d.planning ?? false;
+    this.preWeekSpeed = d.preWeekSpeed ?? 1;
+    if (this.planning) this.speed = 0;
     return true;
   }
 

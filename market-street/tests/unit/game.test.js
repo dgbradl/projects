@@ -482,3 +482,51 @@ describe('flu season', () => {
     expect(sick.stores[0].servedToday ?? 0).toBeLessThan(healthy.stores[0].servedToday ?? 1);
   });
 });
+
+describe('weekly planning mode', () => {
+  it('pauses into a planning stop at each week boundary', () => {
+    expect(g.weeklyMode).toBe(true);
+    g.speed = 3;
+    for (let i = 0; i < 600 * 7 + 5; i++) g.tick(1 / 600);
+    expect(g.day()).toBe(8);
+    expect(g.planning).toBe(true);
+    expect(g.speed).toBe(0);
+    expect(g.lastWeekReport.weekEndingDay).toBe(7);
+    expect(g.weekNum()).toBe(2);
+  });
+
+  it('startWeek resumes at the pre-pause cruise speed', () => {
+    g.speed = 3;
+    for (let i = 0; i < 600 * 7 + 5; i++) g.tick(1 / 600);
+    expect(g.speed).toBe(0);
+    g.startWeek();
+    expect(g.planning).toBe(false);
+    expect(g.speed).toBe(3);
+  });
+
+  it('does not pause when weekly mode is off', () => {
+    g.weeklyMode = false;
+    g.speed = 1;
+    for (let i = 0; i < 600 * 7 + 5; i++) g.tick(1 / 600);
+    expect(g.planning).toBe(false);
+    expect(g.speed).toBe(1);
+  });
+
+  it('persists the planning stop across save/load', () => {
+    const store = new Map();
+    globalThis.localStorage = {
+      getItem: (k) => (store.has(k) ? store.get(k) : null),
+      setItem: (k, v) => store.set(k, String(v)),
+      removeItem: (k) => store.delete(k),
+    };
+    for (let i = 0; i < 600 * 7 + 5; i++) g.tick(1 / 600);
+    expect(g.planning).toBe(true);
+    g.save();
+    const g2 = new Game();
+    expect(g2.load()).toBe(true);
+    expect(g2.planning).toBe(true);
+    expect(g2.speed).toBe(0);
+    expect(g2.weeklyMode).toBe(true);
+    delete globalThis.localStorage;
+  });
+});

@@ -55,6 +55,15 @@ export class UI {
       document.getElementById('welcome-banner').classList.add('hidden');
     });
     document.getElementById('btn-week-close').addEventListener('click', () => this.closeWeeklyReport());
+    document.getElementById('btn-week-run').addEventListener('click', () => this.runWeek());
+    document.getElementById('btn-run-week').addEventListener('click', () => this.runWeek());
+  }
+
+  runWeek() {
+    this.game.startWeek();
+    this.game.save();
+    const el = document.getElementById('week-report');
+    if (!el.classList.contains('hidden')) el.classList.add('hidden');
   }
 
   saveSettings() {
@@ -80,6 +89,8 @@ export class UI {
     const modal = document.getElementById('settings-modal');
     document.getElementById('btn-settings').addEventListener('click', () => {
       modal.classList.toggle('hidden');
+      const wm = document.getElementById('set-weekly-mode');
+      if (wm) wm.checked = this.game.weeklyMode;
     });
     document.getElementById('btn-settings-close').addEventListener('click', () => {
       modal.classList.add('hidden');
@@ -95,6 +106,13 @@ export class UI {
     weekly.addEventListener('change', () => {
       this.settings.weeklyReport = weekly.checked;
       this.saveSettings();
+    });
+    const weeklyMode = document.getElementById('set-weekly-mode');
+    weeklyMode.checked = this.game.weeklyMode;
+    weeklyMode.addEventListener('change', () => {
+      this.game.weeklyMode = weeklyMode.checked;
+      if (!weeklyMode.checked && this.game.planning) this.game.startWeek();
+      this.game.save();
     });
     const diff = document.getElementById('set-difficulty');
     diff.value = this.settings.difficulty;
@@ -275,6 +293,9 @@ export class UI {
     const el = document.getElementById('week-report');
     if (!el.classList.contains('hidden')) {
       el.classList.add('hidden');
+      // During a planning stop, closing the report keeps the game paused —
+      // the plan bar takes over until the player runs the week.
+      if (this.game.planning) return;
       if (this.game.speed === 0) this.game.speed = this.reportPrevSpeed ?? 1;
     }
   }
@@ -1094,6 +1115,10 @@ export class UI {
     this.game.speed = 0;
     const el = document.getElementById('week-report');
     el.querySelector('#wr-title').textContent = `Week ending day ${r.weekEndingDay}`;
+    // The "run the week" button only makes sense during a planning stop.
+    el.querySelector('#btn-week-run').classList.toggle('hidden', !this.game.planning);
+    el.querySelector('#btn-week-close').textContent =
+      this.game.planning ? 'Make some moves first' : 'Back to work';
     const lines = [];
     lines.push(`<div class="pl-row"><span>Revenue</span><b>${fmt(r.revenue)}</b></div>`);
     lines.push(`<div class="pl-row"><span>Profit</span><b class="${r.profit >= 0 ? 'pos' : 'neg'}">${signFmt(r.profit)}</b></div>`);
@@ -1170,9 +1195,24 @@ export class UI {
     setText('stat-day', `Day ${g.day()} · ${season.icon} ${season.name} ${g.seasonDay()}`);
     const dp = document.getElementById('day-progress');
     if (dp) dp.style.width = `${Math.round(g.dayFrac() * 100)}%`;
+    // A speed button or Space during a planning stop counts as running the week.
+    if (g.planning && g.speed > 0) g.planning = false;
+    const reportOpen = !document.getElementById('week-report').classList.contains('hidden');
     const ph = document.getElementById('paused-hint');
-    if (ph) ph.classList.toggle('hidden', g.speed !== 0 || g.gameOver
-      || !document.getElementById('week-report').classList.contains('hidden'));
+    if (ph) ph.classList.toggle('hidden', g.speed !== 0 || g.gameOver || g.planning || reportOpen);
+    const pb = document.getElementById('plan-bar');
+    if (pb) {
+      const show = g.planning && !g.gameOver && !reportOpen;
+      pb.classList.toggle('hidden', !show);
+      if (show) {
+        const lbl = document.getElementById('plan-label');
+        const txt = `📋 Planning week ${g.weekNum()} — adjust orders, prices & people, then`;
+        if (lbl.dataset.txt !== txt) {
+          lbl.dataset.txt = txt;
+          lbl.innerHTML = `📋 <b>Planning week ${g.weekNum()}</b> — adjust orders, prices &amp; people, then`;
+        }
+      }
+    }
     setText('stat-stores', `${g.stores.length} store${g.stores.length === 1 ? '' : 's'}`);
     const net = g.profitToday();
     const netEl = document.getElementById('stat-net');
