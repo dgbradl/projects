@@ -8,7 +8,8 @@ import {
   isRoad, PRODUCTS, VENDORS, DISTRICTS, SITES, ROLES, EVENTS, TRAITS,
   DELEGATIONS, PEOPLE_NAMES, RIVAL, DEBT_INTEREST, DEBT_GRACE_DAYS,
   DEBT_HARD_LIMIT, WAGE_DRIFT, GOALS, DIFFICULTY, CONTRACT, STORE_UPGRADES,
-  CAMPAIGN, ACHIEVEMENTS,
+  CAMPAIGN, ACHIEVEMENTS, SEASONS, SEASON_DAYS, YEAR_DAYS, HOLIDAYS,
+  HOLIDAY_ANNOUNCE,
 } from './defs.js';
 
 const SAVE_KEY = 'market-street-save-v2';
@@ -134,6 +135,32 @@ export class Game {
   rivalAt(siteId) { return this.rival.stores.includes(siteId); }
   wageMult() { return 1 + WAGE_DRIFT * this.day(); }
 
+  // ---- calendar ---------------------------------------------------------
+
+  yearDay() { return (this.day() - 1) % YEAR_DAYS; }
+  season() { return SEASONS[Math.floor(this.yearDay() / SEASON_DAYS)]; }
+  seasonDay() { return (this.yearDay() % SEASON_DAYS) + 1; }
+
+  currentHoliday() {
+    const doy = this.yearDay();
+    return HOLIDAYS.find((h) => doy >= h.start && doy < h.start + h.days) ?? null;
+  }
+
+  holidayAftermath() {
+    const doy = this.yearDay();
+    return HOLIDAYS.find((h) => h.aftermathDays
+      && doy >= h.start + h.days && doy < h.start + h.days + h.aftermathDays) ?? null;
+  }
+
+  upcomingHoliday() {
+    const doy = this.yearDay();
+    for (const h of HOLIDAYS) {
+      const delta = (h.start - doy + YEAR_DAYS) % YEAR_DAYS;
+      if (delta > 0 && delta <= HOLIDAY_ANNOUNCE) return { holiday: h, inDays: delta };
+    }
+    return null;
+  }
+
   // How much of its neighborhood a store actually captures: sister stores in
   // the district share the pie, and rival stores siphon shoppers — worse if
   // your prices are high, softened by strong reputation.
@@ -178,7 +205,18 @@ export class Game {
     const disc = Math.max(vs.discount, vs.contract ? CONTRACT.discount : 0);
     const buyer = 1 - 0.02 * this.roleSkill('buyer');
     const trait = this.hasTrait('buyer', 'pennypincher') ? 0.985 : 1;
-    return PRODUCTS[product].cost * v.priceMult * (1 - disc) * buyer * trait;
+    let mult = this.season().cost?.[product] ?? 1;
+    for (const e of this.activeEvents) {
+      const def = EVENTS[e.type];
+      if (def?.costMult) mult *= def.costMult;
+      if (def?.cost?.[product]) mult *= def.cost[product];
+    }
+    return PRODUCTS[product].cost * v.priceMult * (1 - disc) * buyer * trait * mult;
+  }
+
+  // Extra vendor lead time from active events (port congestion etc.).
+  leadDelta() {
+    return this.activeEvents.reduce((s, e) => s + (EVENTS[e.type]?.leadDelta ?? 0), 0);
   }
 
   // Products carried by at least one store.
@@ -392,7 +430,7 @@ export class Game {
     this.cash -= cost;
     this.orders.push({
       vendor: vendorId, product, qty,
-      arriveDay: this.day() + v.leadTime, unitCost: unit,
+      arriveDay: this.day() + v.leadTime + this.leadDelta(), unitCost: unit,
     });
     const vs = this.vendors[vendorId];
     vs.rel = Math.min(100, vs.rel + Math.min(4, qty / 150));
@@ -469,7 +507,8 @@ export class Game {
     if (this.logEntries.length > 120) this.logEntries.shift();
     if (this.week) {
       if (icon === '🧠' || icon === '💼') this.week.staffActions++;
-      const EVENT_ICONS = ['❄️', '🔥', '✊', '🚧', '🎪', '⚔️', '🧾', '🧊', '🏪'];
+      const EVENT_ICONS = ['🥶', '🔥', '✊', '🚧', '🎪', '⚔️', '🧾', '🧊', '🏪',
+        '🤧', '☣️', '📱', '⛽', '⚓', '🥕', '📅', '🌸', '🍖', '🦃', '🎁'];
       if (EVENT_ICONS.includes(icon)) this.week.events.push(text);
     }
   }
@@ -562,7 +601,19 @@ export class Game {
       } else if (e.type === 'campaign' && e.district === site.district) {
         m *= CAMPAIGN.boost;
       }
+      const def = EVENTS[e.type];
+      if (def?.productDemand && e.product === product) m *= def.productDemand;
     }
+    // Season, holiday, and post-holiday slump.
+    const season = this.season();
+    m *= season.demand[product] ?? 1;
+    const hol = this.currentHoliday();
+    if (hol) {
+      m *= hol.all ?? 1;
+      m *= hol.demand?.[product] ?? 1;
+    }
+    const after = this.holidayAftermath();
+    if (after) m *= after.aftermath;
     return m;
   }
 
@@ -571,6 +622,8 @@ export class Game {
     if (this.hasTrait('marketing', 'adwizard')) mkt *= 1.03;
     const quality = this.chainQuality();
     const heatWave = !!this.eventOfType('heat_wave');
+    const staffEventMult = this.activeEvents.reduce(
+      (m, e) => m * (EVENTS[e.type]?.staffMult ?? 1), 1);
     const repTraitBonus = this.hasTrait('marketing', 'localhero') ? 0.03 : 0;
 
     for (const store of this.stores) {
@@ -585,7 +638,7 @@ export class Game {
 
       const market = this.marketFactor(store);
       const baseDaily = site.pop * POP_FACTOR * market;
-      const effStaff = this.effStaff(store);
+      const effStaff = this.effStaff(store) * staffEventMult;
       // A wider assortment brings in more traffic — and needs more hands.
       const staffNeeded = (baseDaily * this.enabledWeight(store)) / 55;
       const staffRatio = Math.min(1, effStaff / staffNeeded);
@@ -593,7 +646,7 @@ export class Game {
       const staffF = (0.55 + 0.45 * staffRatio) * moraleF;
       const repF = 0.6 + 0.8 * store.rep;
 
-      let spoilMult = heatWave ? 2 : 1;
+      let spoilMult = (heatWave ? 2 : 1) * (this.season().spoil ?? 1);
       if (store.upgrades?.coldstorage) spoilMult *= 0.5;
       if (store.manager) spoilMult *= 1 - 0.12 * store.manager.skill * (this.managerTrait(store, 'shelfhawk') ? 2 : 1);
       spoilMult = Math.max(0.2, spoilMult);
@@ -732,6 +785,7 @@ export class Game {
     if (this.hasTrait('logistics', 'tetris')) cap *= 1.10;
     if (this.hasTrait('logistics', 'planner')) { speed *= 1.05; cap *= 1.05; }
     if (this.eventOfType('roadworks')) speed *= 0.6;
+    speed *= this.season().truck ?? 1;
     cap = Math.round(cap);
 
     for (const truck of this.trucks) {
@@ -810,8 +864,11 @@ export class Game {
   // ---- events -----------------------------------------------------------
 
   spawnEvent() {
+    const seasonId = this.season().id;
     const pool = Object.keys(EVENTS).filter((t) => {
-      if (EVENTS[t].player) return false;         // campaigns are yours to launch
+      const def = EVENTS[t];
+      if (def.player) return false;               // campaigns are yours to launch
+      if (def.seasons && !def.seasons.includes(seasonId)) return false;
       if (t === 'strike') return this.day() >= 8;
       return true;
     });
@@ -848,6 +905,14 @@ export class Game {
       type,
       daysLeft: def.dur[0] + Math.floor(Math.random() * (def.dur[1] - def.dur[0] + 1)),
     };
+    if (def.productPick) {
+      const carried = this.carriedProducts();
+      if (!carried.length) return;
+      ev.product = carried[Math.floor(Math.random() * carried.length)];
+      this.log(def.icon, `${def.name}: ${PRODUCTS[ev.product].name}. ${def.desc}`);
+      this.activeEvents.push(ev);
+      return;
+    }
     if (type === 'strike') {
       const vendorIds = Object.keys(VENDORS);
       ev.vendor = vendorIds[Math.floor(Math.random() * vendorIds.length)];
@@ -1130,6 +1195,31 @@ export class Game {
     // Warehouse spoilage (cold storage halves shelf rates).
     for (const p of PERISHABLE) {
       this.warehouse.inv[p] *= 1 - PRODUCTS[p].spoil * 0.5;
+    }
+
+    // Calendar beats: season changes, holiday announcements, starts, ends.
+    if (this.seasonDay() === 1 && day > 1) {
+      const s = this.season();
+      this.log(s.icon, `${s.name} has arrived.`);
+    }
+    const up = this.upcomingHoliday();
+    if (up) {
+      const key = `${up.holiday.id}@${Math.floor((this.yearDay() + up.inDays) / YEAR_DAYS)}-${this.day() + up.inDays}`;
+      if (this.announcedHoliday !== up.holiday.id + key.split('-')[1]) {
+        this.announcedHoliday = up.holiday.id + key.split('-')[1];
+        if (up.inDays === HOLIDAY_ANNOUNCE) {
+          this.log('📅', `${up.holiday.icon} ${up.holiday.name} in ${up.inDays} days — stock up on ${up.holiday.tip}!`);
+        }
+      }
+    }
+    const hol = this.currentHoliday();
+    if (hol && this.activeHolidayId !== hol.id) {
+      this.activeHolidayId = hol.id;
+      this.log(hol.icon, `${hol.name} begins! ${hol.desc}`);
+    } else if (!hol && this.activeHolidayId) {
+      const ended = HOLIDAYS.find((h) => h.id === this.activeHolidayId);
+      this.log('📅', `${ended?.name ?? 'The holiday'} is over${ended?.aftermathDays ? ' — expect a few slow days' : ''}.`);
+      this.activeHolidayId = null;
     }
 
     // Events: age out, then maybe spawn one (only one running at a time).

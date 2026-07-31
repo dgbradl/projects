@@ -11,8 +11,10 @@ import { sfx, setMuted, isMuted } from './audio.js';
 // Which activity-log icons make which noise.
 const LOG_SFX = {
   '🎯': 'goal', '🤝': 'dealYes', '🏅': 'goal', '🎓': 'hire',
-  '🏪': 'event', '❄️': 'event', '🔥': 'event', '✊': 'event', '🚧': 'event',
+  '🏪': 'event', '🥶': 'event', '🔥': 'event', '✊': 'event', '🚧': 'event',
   '🎪': 'event', '⚔️': 'event', '🧾': 'event', '🧊': 'event',
+  '🤧': 'event', '☣️': 'event', '📱': 'event', '⛽': 'event', '⚓': 'event',
+  '🥕': 'event', '📅': 'cash', '🌸': 'goal', '🍖': 'goal', '🦃': 'goal', '🎁': 'goal',
   '🏦': 'alert', '⚠️': 'alert', '💥': 'lose',
 };
 
@@ -935,7 +937,7 @@ export class UI {
       const hit = fresh.map((e) => LOG_SFX[e.icon]).filter(Boolean).pop();
       if (hit && sfx[hit]) sfx[hit]();
       // Optionally stop the clock when a city event lands.
-      const DURATION_EVENTS = ['❄️', '🔥', '✊', '🚧', '🎪', '⚔️'];
+      const DURATION_EVENTS = ['🥶', '🔥', '✊', '🚧', '🎪', '⚔️', '🤧', '☣️', '📱', '⛽', '⚓'];
       if (this.settings.pauseOnEvent && g.speed > 0
         && fresh.some((e) => DURATION_EVENTS.includes(e.icon))) {
         g.speed = 0;
@@ -972,14 +974,30 @@ export class UI {
     const g = this.game;
     // Active event chips.
     const bar = document.getElementById('events-bar');
-    const eKey = g.activeEvents.map((e) => e.type + e.daysLeft + (e.vendor || e.district || '')).join('|') || 'none';
+    const hol = g.currentHoliday();
+    const after = g.holidayAftermath();
+    const up = g.upcomingHoliday();
+    const holKey = (hol ? `h${hol.id}${g.yearDay()}` : '') + (up ? `u${up.holiday.id}${up.inDays}` : '') + (after ? 'a' : '');
+    const eKey = (g.activeEvents.map((e) => e.type + e.daysLeft + (e.vendor || e.district || e.product || '')).join('|') || 'none') + holKey;
     if (bar.dataset.key !== eKey) {
       bar.dataset.key = eKey;
-      bar.innerHTML = g.activeEvents.map((e) => {
+      let holHtml = '';
+      if (hol) {
+        const left = hol.start + hol.days - g.yearDay();
+        holHtml += `<div class="event-chip holiday">${hol.icon} <b>${hol.name}</b>
+          <span class="ev-days">· ${left}d left</span><br><span class="ev-days">${hol.desc}</span></div>`;
+      } else if (after) {
+        holHtml += `<div class="event-chip">😮‍💨 <b>Post-${after.name} slump</b><br><span class="ev-days">Everyone's fridges are full. Demand −20% for a few days.</span></div>`;
+      } else if (up) {
+        holHtml += `<div class="event-chip holiday">${up.holiday.icon} <b>${up.holiday.name}</b>
+          <span class="ev-days">· in ${up.inDays}d</span><br><span class="ev-days">Stock up on ${up.holiday.tip}!</span></div>`;
+      }
+      bar.innerHTML = holHtml + g.activeEvents.map((e) => {
         const def = EVENTS[e.type];
         let where = '';
         if (e.vendor) where = ` — ${VENDORS[e.vendor].name}`;
         if (e.district) where = ` — ${g.district(e.district).name}`;
+        if (e.product) where = ` — ${PRODUCTS[e.product].name}`;
         let action = '';
         if (e.type === 'price_war'
           && g.stores.some((s) => g.site(s.siteId).district === e.district && s.markup > 0.92)) {
@@ -1008,7 +1026,8 @@ export class UI {
     const g = this.game;
     setText('stat-cash', fmt(g.cash));
     document.getElementById('stat-cash').classList.toggle('broke', g.cash < 0);
-    setText('stat-day', `Day ${g.day()}`);
+    const season = g.season();
+    setText('stat-day', `Day ${g.day()} · ${season.icon} ${season.name} ${g.seasonDay()}`);
     setText('stat-stores', `${g.stores.length} store${g.stores.length === 1 ? '' : 's'}`);
     const net = g.profitToday();
     const netEl = document.getElementById('stat-net');

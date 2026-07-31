@@ -359,3 +359,5 @@ select {
   to { transform: translateX(0); opacity: 1; }
 }
 button:active:not(:disabled) { transform: scale(0.96); }
+
+.event-chip.holiday { border-color: #d98cc0; }

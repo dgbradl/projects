@@ -365,7 +365,7 @@ export class Renderer {
           ctx.fillStyle = `rgba(220, 240, 255, ${0.5 * Math.sin(sq * Math.PI)})`;
           ctx.fillRect(sx - hw * 0.4 + sq * hw * 0.8, sy - 2 + hash(y, x) * 4, 4, 1.2);
         } else {
-          // District-tinted grass/lot ground with per-tile variation.
+          // District-tinted grass/lot ground with per-tile and seasonal variation.
           const r = hash(x, y);
           const shade = r * 16 - 5;
           let base;
@@ -373,6 +373,16 @@ export class Renderer {
           else if (district.id === 'westside') base = [54, 63, 64];
           else if (district.id === 'riverside') base = [50, 71, 55];
           else base = [58, 60, 66];
+          const sid = this.game.season?.().id;
+          if (sid === 'summer') base = [base[0] + 8, base[1] + 2, base[2] - 4];
+          else if (sid === 'fall') base = [base[0] + 16, base[1] + 2, base[2] - 8];
+          else if (sid === 'winter') {
+            base = [
+              base[0] * 0.45 + 205 * 0.55,
+              base[1] * 0.45 + 210 * 0.55,
+              base[2] * 0.45 + 220 * 0.55,
+            ];
+          }
           ctx.fillStyle = `rgb(${base[0] + shade}, ${base[1] + shade}, ${base[2] + shade})`;
           this.diamond(sx, sy);
           ctx.fill();
@@ -650,11 +660,17 @@ export class Renderer {
       ctx.fillRect(sx + ox - 1, sy - 6 * s, 2, 6 * s);
       const cx = sx + ox + sway;
       const cy = sy - (8 + size) * s;
-      ctx.fillStyle = d.r < 0.41 ? '#39603f' : '#416f48';
+      const sid = g.season?.().id;
+      let deep = d.r < 0.41 ? '#39603f' : '#416f48';
+      let mid = d.r < 0.41 ? '#4a7a50' : '#569159';
+      if (sid === 'fall') { deep = d.r < 0.41 ? '#8a5a2a' : '#a4622c'; mid = d.r < 0.41 ? '#b8783a' : '#c98a3f'; }
+      else if (sid === 'winter') { deep = '#7a8894'; mid = '#dde6ee'; }
+      else if (sid === 'spring') { mid = d.r < 0.41 ? '#5f9a5e' : '#6fae67'; }
+      ctx.fillStyle = deep;
       ctx.beginPath();
       ctx.ellipse(cx, cy, size * s * 1.15, size * s * 1.3, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = d.r < 0.41 ? '#4a7a50' : '#569159';
+      ctx.fillStyle = mid;
       ctx.beginPath();
       ctx.ellipse(cx - size * s * 0.2, cy - size * s * 0.35, size * s * 0.75, size * s * 0.8, 0, 0, Math.PI * 2);
       ctx.fill();
@@ -674,8 +690,9 @@ export class Renderer {
       this.castShadow(sx, sy, h, footprint);
       this.box(sx, sy, h, tones[0], tones[1], tones[2], footprint);
       if (!apartment) {
-        // Pitched roof: darker cap diamond.
-        ctx.fillStyle = d.r < 0.12 ? '#7a4f42' : '#4f4a55';
+        // Pitched roof: darker cap diamond (snow-dusted in winter).
+        const winter = g.season?.().id === 'winter';
+        ctx.fillStyle = winter ? '#e2e8f0' : d.r < 0.12 ? '#7a4f42' : '#4f4a55';
         this.diamond(sx, sy - (h + 2) * this.scale, footprint * 0.7);
         ctx.fill();
       } else {

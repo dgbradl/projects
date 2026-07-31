@@ -67,7 +67,19 @@ and pull request.
 | `src/ui.js` | DOM panels: stores / supply / vendors / HQ / books, inspector, overlays |
 | `src/main.js` | Fixed-step loop, input, autosave |
 
-## Feature highlights (v0.2)
+## Feature highlights (v0.3)
+
+- **Seasons**: a 112-day year of four seasons shifting demand (summer beverages,
+  winter pantry), spoilage (hot summers), trucking (snowy roads), and procurement
+  (produce cheap at harvest, dear in winter) — with the city visibly changing:
+  orange falls, snowy winters
+- **Holidays**: Spring Festival, Grill-Out Weekend, Harvest Feast, and Winterfest —
+  multi-day demand surges announced 5 days ahead so you can stock up against
+  vendor lead times; Winterfest is followed by a post-holiday slump
+- **More events**: flu season (staff effectiveness −25%), food scares and viral
+  recipes (one product craters or soars), fuel spikes (vendor prices +12%),
+  port congestion (+1 day on all lead times), farmers markets (cheap produce —
+  a buying opportunity); weather events now respect the season
 
 - **Camera**: wheel/pinch-button zoom anchored at the cursor, drag to pan, double-click to reset
 - **Sound**: procedural WebAudio SFX (deals, deliveries, events, fanfares) with a persisted mute

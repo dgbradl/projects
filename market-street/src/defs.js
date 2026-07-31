@@ -42,6 +42,64 @@ export const PRODUCTS = {
 export const START_SLOTS = 6;      // product lines a fresh store can carry
 export const REMODEL = { slots: 2, baseCost: 2500, stepCost: 1800 };
 
+// The calendar: four seasons per year, each with demand, spoilage, trucking,
+// and procurement effects. Day 1 is the first day of spring.
+export const SEASON_DAYS = 28;
+export const SEASONS = [
+  {
+    id: 'spring', name: 'Spring', icon: '🌱',
+    demand: { produce: 1.15, bakery: 1.05 },
+    spoil: 1.0, truck: 1.0, cost: { produce: 0.95 },
+  },
+  {
+    id: 'summer', name: 'Summer', icon: '☀️',
+    demand: { beverages: 1.35, frozen: 1.25, seafood: 1.15, produce: 1.1, bakery: 0.9 },
+    spoil: 1.25, truck: 1.0, cost: { produce: 0.9 },
+  },
+  {
+    id: 'fall', name: 'Fall', icon: '🍂',
+    demand: { pantry: 1.15, bakery: 1.1, produce: 1.05 },
+    spoil: 1.0, truck: 1.0, cost: { produce: 0.85 },
+  },
+  {
+    id: 'winter', name: 'Winter', icon: '❄️',
+    demand: { pantry: 1.2, meat: 1.1, dairy: 1.05, frozen: 0.9, beverages: 0.85 },
+    spoil: 0.85, truck: 0.85, cost: { produce: 1.2 },
+  },
+];
+export const YEAR_DAYS = SEASONS.length * SEASON_DAYS;
+
+// Holidays: day-of-year windows with demand surges, announced ahead of time
+// so you can stock up against vendor lead times.
+export const HOLIDAY_ANNOUNCE = 5;
+export const HOLIDAYS = [
+  {
+    id: 'spring_fest', name: 'Spring Festival', icon: '🌸', start: 19, days: 3,
+    demand: { produce: 1.4, bakery: 1.4, beverages: 1.2 },
+    tip: 'produce and bakery',
+    desc: 'Flowers, picnics, fresh bread.',
+  },
+  {
+    id: 'grill_day', name: 'Grill-Out Weekend', icon: '🍖', start: 42, days: 3,
+    demand: { meat: 1.6, beverages: 1.4, snacks: 1.3 },
+    tip: 'meat, beverages, and snacks',
+    desc: 'The whole city fires up the barbecue.',
+  },
+  {
+    id: 'harvest', name: 'Harvest Feast', icon: '🦃', start: 76, days: 4,
+    all: 1.25, demand: { meat: 1.5, bakery: 1.4, produce: 1.3 },
+    tip: 'everything — especially meat, bakery, and produce',
+    desc: 'The biggest table of the year.',
+  },
+  {
+    id: 'winterfest', name: 'Winterfest', icon: '🎁', start: 100, days: 5,
+    all: 1.3, demand: { snacks: 1.5, beverages: 1.4, frozen: 1.2 },
+    aftermathDays: 3, aftermath: 0.8,
+    tip: 'everything — snacks and beverages most of all',
+    desc: 'Gifts, gatherings, and groceries. A slump follows.',
+  },
+];
+
 // Per-store equipment upgrades.
 export const STORE_UPGRADES = {
   coldstorage: {
@@ -180,12 +238,38 @@ export const MANAGER_SALARY = 45;  // per ★, per day
 // Random city events. Duration in days ([min,max]); instant events resolve on spawn.
 export const EVENTS = {
   cold_snap: {
-    icon: '❄️', name: 'Cold snap', dur: [2, 4],
+    icon: '🥶', name: 'Cold snap', dur: [2, 4], seasons: ['fall', 'winter'],
     desc: 'Frozen +80%, dairy +30%, produce −15% demand while it lasts.',
   },
   heat_wave: {
-    icon: '🔥', name: 'Heat wave', dur: [2, 3],
+    icon: '🔥', name: 'Heat wave', dur: [2, 3], seasons: ['summer'],
     desc: 'Frozen +60% and beverages +50% demand, but perishables spoil twice as fast.',
+  },
+  flu_season: {
+    icon: '🤧', name: 'Flu season', dur: [3, 5], seasons: ['fall', 'winter'],
+    staffMult: 0.75,
+    desc: 'A bug going around — staff effectiveness −25% chain-wide.',
+  },
+  food_scare: {
+    icon: '☣️', name: 'Food scare', dur: [3, 5], productPick: true, productDemand: 0.35,
+    desc: 'A contamination scare craters demand for one product line.',
+  },
+  viral_recipe: {
+    icon: '📱', name: 'Viral recipe', dur: [2, 4], productPick: true, productDemand: 1.8,
+    desc: 'A viral recipe sends one product flying off the shelves.',
+  },
+  fuel_spike: {
+    icon: '⛽', name: 'Fuel price spike', dur: [3, 5], costMult: 1.12,
+    desc: 'Every vendor tacks 12% onto prices while diesel is dear.',
+  },
+  port_delay: {
+    icon: '⚓', name: 'Port congestion', dur: [3, 4], leadDelta: 1,
+    desc: 'All vendor deliveries take one extra day.',
+  },
+  farmers_market: {
+    icon: '🥕', name: 'Farmers market', dur: [2, 3], seasons: ['spring', 'summer', 'fall'],
+    cost: { produce: 0.7, dairy: 0.85 },
+    desc: 'Fresh goods flooding in cheap — a buying opportunity.',
   },
   strike: {
     icon: '✊', name: 'Vendor strike', dur: [2, 4],

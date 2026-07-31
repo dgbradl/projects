@@ -364,3 +364,121 @@ describe('export/import', () => {
     delete globalThis.localStorage;
   });
 });
+
+// ---- calendar: seasons, holidays, and the new events -------------------
+
+import { SEASON_DAYS, YEAR_DAYS, HOLIDAYS, SEASONS, VENDORS as VDS } from '../../src/defs.js';
+
+const dayToTime = (day) => day - 1 + 0.5;   // midday of a given absolute day
+
+describe('seasons', () => {
+  it('cycles through four seasons and wraps at year end', () => {
+    g.time = dayToTime(1);
+    expect(g.season().id).toBe('spring');
+    g.time = dayToTime(SEASON_DAYS + 1);
+    expect(g.season().id).toBe('summer');
+    g.time = dayToTime(YEAR_DAYS + 1);        // new year
+    expect(g.season().id).toBe('spring');
+  });
+
+  it('applies seasonal demand multipliers', () => {
+    const store = g.storeAt('s1');
+    g.time = dayToTime(3 * SEASON_DAYS + 2);  // winter
+    expect(g.demandMult(store, 'pantry')).toBeCloseTo(1.2, 6);
+    expect(g.demandMult(store, 'beverages')).toBeCloseTo(0.85, 6);
+    g.time = dayToTime(SEASON_DAYS + 2);      // summer
+    expect(g.demandMult(store, 'beverages')).toBeCloseTo(1.35, 6);
+  });
+
+  it('moves procurement costs with the season', () => {
+    g.time = dayToTime(2 * SEASON_DAYS + 2);  // fall harvest
+    const fall = g.unitCost('produce', 'freshfields');
+    g.time = dayToTime(3 * SEASON_DAYS + 2);  // winter
+    const winter = g.unitCost('produce', 'freshfields');
+    expect(winter).toBeGreaterThan(fall);
+  });
+
+  it('gates seasonal events: no heat waves in winter', () => {
+    g.time = dayToTime(3 * SEASON_DAYS + 5);  // winter
+    const seen = new Set();
+    for (let i = 0; i < 60; i++) {
+      g.activeEvents = [];
+      g.spawnEvent();
+      for (const e of g.activeEvents) seen.add(e.type);
+    }
+    expect(seen.has('heat_wave')).toBe(false);
+    expect(seen.has('farmers_market')).toBe(false);
+  });
+});
+
+describe('holidays', () => {
+  const harvest = HOLIDAYS.find((h) => h.id === 'harvest');
+
+  it('activates during its window with stacked demand', () => {
+    g.time = dayToTime(harvest.start + 1);
+    expect(g.currentHoliday()?.id).toBe('harvest');
+    const store = g.storeAt('s1');
+    const fallPantry = SEASONS.find((s) => s.id === 'fall').demand.pantry ?? 1;
+    expect(g.demandMult(store, 'pantry')).toBeCloseTo(1.25 * fallPantry, 4);
+  });
+
+  it('announces ahead of time in the log', () => {
+    g.time = dayToTime(harvest.start - 4);   // yearDay = start-5, exactly the announce lead
+    g.dayTick();
+    expect(g.logEntries.some((e) => e.icon === '📅' && e.text.includes('Harvest'))).toBe(true);
+  });
+
+  it('applies the post-Winterfest slump', () => {
+    const wf = HOLIDAYS.find((h) => h.id === 'winterfest');
+    g.time = dayToTime(wf.start + wf.days + 1);
+    expect(g.holidayAftermath()?.id).toBe('winterfest');
+    const store = g.storeAt('s1');
+    // slump 0.8 times winter pantry 1.2 = 0.96
+    expect(g.demandMult(store, 'pantry')).toBeCloseTo(0.8 * 1.2, 4);
+  });
+});
+
+describe('new distribution events', () => {
+  it('food scares crater one product only', () => {
+    g.activeEvents = [{ type: 'food_scare', daysLeft: 2, product: 'seafood' }];
+    const store = g.storeAt('s1');
+    expect(g.demandMult(store, 'seafood')).toBeCloseTo(0.35 * (g.season().demand.seafood ?? 1), 4);
+    expect(g.demandMult(store, 'pantry')).toBeCloseTo(g.season().demand.pantry ?? 1, 4);
+  });
+
+  it('port congestion adds a day to every vendor lead time', () => {
+    g.activeEvents = [{ type: 'port_delay', daysLeft: 2 }];
+    g.placeOrder('produce', 'freshfields', 100);
+    const order = g.orders.find((o) => o.product === 'produce');
+    expect(order.arriveDay).toBe(g.day() + VDS.freshfields.leadTime + 1);
+  });
+
+  it('fuel spikes raise every vendor price', () => {
+    const base = g.unitCost('pantry', 'consolidated');
+    g.activeEvents = [{ type: 'fuel_spike', daysLeft: 2 }];
+    expect(g.unitCost('pantry', 'consolidated')).toBeCloseTo(base * 1.12, 4);
+  });
+
+  it('farmers markets discount produce procurement', () => {
+    const base = g.unitCost('produce', 'freshfields');
+    g.activeEvents = [{ type: 'farmers_market', daysLeft: 2 }];
+    expect(g.unitCost('produce', 'freshfields')).toBeCloseTo(base * 0.7, 4);
+  });
+});
+
+describe('flu season', () => {
+  it('reduces effective service so sales dip', () => {
+    const store = g.storeAt('s1');
+    for (const p of Object.keys(store.inv)) store.inv[p] = 60;
+    const healthy = new Game();
+    const sick = new Game();
+    for (const gg of [healthy, sick]) {
+      const s = gg.storeAt('s1');
+      for (const p of Object.keys(s.inv)) s.inv[p] = 60;
+      gg.warehouse.inv = { ...gg.warehouse.inv };
+    }
+    sick.activeEvents = [{ type: 'flu_season', daysLeft: 5 }];
+    for (let i = 0; i < 600; i++) { healthy.tick(1 / 600); sick.tick(1 / 600); }
+    expect(sick.stores[0].servedToday ?? 0).toBeLessThan(healthy.stores[0].servedToday ?? 1);
+  });
+});
