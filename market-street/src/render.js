@@ -120,7 +120,7 @@ export class Renderer {
 
   // Zoom toward a screen anchor so the point under the cursor stays put.
   setZoom(nz, ax = this.w / 2, ay = this.h / 2) {
-    nz = Math.max(0.55, Math.min(2.6, nz));
+    nz = Math.max(0.55, Math.min(3.6, nz));
     const ratio = (this.baseScale * nz) / this.scale;
     const nOx = ax - (ax - this.originX) * ratio;
     const nOy = ay - (ay - this.originY) * ratio;
@@ -211,6 +211,41 @@ export class Renderer {
     ctx.lineTo(sx + hw, sy);
     ctx.lineTo(sx + hw, sy - h);
     ctx.stroke();
+  }
+
+  // Axis-aligned "rectangle" drawn onto an iso wall face as a sheared quad —
+  // the building block for windows, doors, trim bands, and siding.
+  // side: -1 = left (SW) face, +1 = right (SE) face. t runs 0→1 from the
+  // outer corner toward the bottom corner; y0/y1 are heights above the base.
+  wallRect(sx, sy, scale, side, t0, t1, y0, y1, color) {
+    const ctx = this.ctx;
+    const hw = (this.tw / 2) * scale, hh = (this.th / 2) * scale;
+    const px = (t) => sx + side * hw * (1 - t);
+    const py = (t) => sy + hh * t;
+    y0 *= this.scale; y1 *= this.scale;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(px(t0), py(t0) - y0);
+    ctx.lineTo(px(t1), py(t1) - y0);
+    ctx.lineTo(px(t1), py(t1) - y1);
+    ctx.lineTo(px(t0), py(t0) - y1);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // A framed window on a wall face: frame, glass (lit or dark), and a sill.
+  // Lit windows get a warm tint that varies per-window.
+  wallWindow(sx, sy, scale, side, t0, t1, y0, y1, lit, warm = 0.5) {
+    this.wallRect(sx, sy, scale, side, t0 - 0.015, t1 + 0.015, y0 - 0.5, y1 + 0.5, 'rgba(245, 240, 228, 0.55)');
+    const glass = lit
+      ? (warm < 0.5 ? 'rgba(255, 214, 140, 0.92)' : 'rgba(255, 236, 180, 0.88)')
+      : 'rgba(30, 38, 50, 0.72)';
+    this.wallRect(sx, sy, scale, side, t0, t1, y0, y1, glass);
+    if (!lit) {
+      // Sky reflection in the top pane keeps dark glass from reading as a hole.
+      this.wallRect(sx, sy, scale, side, t0, t1, y0 + (y1 - y0) * 0.55, y1, 'rgba(160, 190, 215, 0.30)');
+    }
+    this.wallRect(sx, sy, scale, side, t0 - 0.03, t1 + 0.03, y0 - 1.1, y0 - 0.4, 'rgba(235, 228, 212, 0.6)');
   }
 
   // Sun shadow that swings with the time of day: west in the morning,
@@ -877,7 +912,6 @@ export class Renderer {
     ctx.restore();
     // Diorama slab: the city block floats like a model on earth strata.
     const D = 30 * this.scale;
-    const north = this.toScreen(0, 0);
     const east = this.toScreen(GRID - 1, 0);
     const south = this.toScreen(GRID - 1, GRID - 1);
     const west = this.toScreen(0, GRID - 1);
@@ -1691,34 +1725,132 @@ export class Renderer {
         ctx.lineTo(sx, baseY - ridge);
         ctx.closePath();
         ctx.fill();
-        // Chimney on some houses.
-        if (hash(d.x + 5, d.y + 5) < 0.45) {
-          ctx.fillStyle = '#7a5a4a';
-          ctx.fillRect(sx + hw * 0.35 - 1.5, baseY - ridge - 5 * this.scale, 3, 6 * this.scale);
-          ctx.fillStyle = '#5c4438';
-          ctx.fillRect(sx + hw * 0.35 - 2, baseY - ridge - 5 * this.scale - 1.5, 4, 1.8);
+        // Shingle course lines + a sunlit ridge cap.
+        ctx.strokeStyle = 'rgba(30, 24, 20, 0.18)';
+        ctx.lineWidth = 0.8;
+        for (let i = 1; i <= 2; i++) {
+          const f = i / 3;
+          ctx.beginPath();
+          ctx.moveTo(sx - hw * (1 - f), baseY - ridge * f + hh * 0 - (1 - f) * 0);
+          ctx.lineTo(sx, baseY + hh - (hh + ridge) * f);
+          ctx.lineTo(sx + hw * (1 - f), baseY - ridge * f);
+          ctx.stroke();
         }
-        // Door and a window on the front face.
-        ctx.fillStyle = 'rgba(40, 32, 26, 0.75)';
-        ctx.fillRect(sx - hw * 0.35 - 1.5, sy - 6.5 * this.scale, 3.2, 6 * this.scale);
-        ctx.fillStyle = winter || hash(d.x, d.y + 1) < 0.5 ? 'rgba(250, 240, 200, 0.8)' : 'rgba(180, 205, 225, 0.75)';
-        ctx.fillRect(sx + hw * 0.18, sy - 6 * this.scale, 4, 3.2);
+        ctx.strokeStyle = 'rgba(255, 246, 220, 0.45)';
+        ctx.lineWidth = 1.1;
+        ctx.beginPath();
+        ctx.moveTo(sx - 0.5, baseY - ridge);
+        ctx.lineTo(sx + 0.5, baseY - ridge);
+        ctx.stroke();
+        // Chimney on some houses — with drifting smoke on cold mornings.
+        if (hash(d.x + 5, d.y + 5) < 0.45) {
+          const chx = sx + hw * 0.35, chTop = baseY - ridge - 5 * this.scale;
+          ctx.fillStyle = '#7a5a4a';
+          ctx.fillRect(chx - 1.5, chTop, 3, 6 * this.scale);
+          ctx.strokeStyle = 'rgba(40, 30, 24, 0.35)';
+          ctx.lineWidth = 0.7;
+          ctx.strokeRect(chx - 1.5, chTop, 3, 6 * this.scale);
+          ctx.fillStyle = '#5c4438';
+          ctx.fillRect(chx - 2, chTop - 1.5, 4, 1.8);
+          const cold = winter || g.season?.().id === 'fall';
+          if (cold && hash(d.x + 1, d.y + 6) < 0.7) {
+            const t = performance.now() / 1000 + d.r * 40;
+            for (let i = 0; i < 3; i++) {
+              const p = (t * 0.35 + i / 3) % 1;
+              ctx.fillStyle = `rgba(225, 228, 235, ${0.30 * (1 - p)})`;
+              ctx.beginPath();
+              ctx.arc(chx + Math.sin(t + i * 2.1) * 2 + p * 5, chTop - 2 - p * 12 * this.scale, (1.2 + p * 2.4) * this.scale, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+        }
+        // Clapboard siding: thin horizontal shadow courses on both faces.
+        for (let i = 1; i <= 3; i++) {
+          const wy = (h / 4) * i;
+          this.wallRect(sx, sy, footprint, -1, 0.04, 0.96, wy, wy + 0.5, 'rgba(30, 26, 22, 0.10)');
+          this.wallRect(sx, sy, footprint, 1, 0.04, 0.96, wy, wy + 0.5, 'rgba(30, 26, 22, 0.13)');
+        }
+        // Front door with frame, a step, and framed windows on both faces.
+        const night = this.darkness() > 0.12;
+        this.wallRect(sx, sy, footprint, -1, 0.30, 0.46, 0, h * 0.62, 'rgba(240, 234, 220, 0.55)');
+        this.wallRect(sx, sy, footprint, -1, 0.32, 0.44, 0, h * 0.58, hash(d.x + 2, d.y) < 0.5 ? '#6d4a38' : '#3f5a6d');
+        this.wallRect(sx, sy, footprint, -1, 0.28, 0.48, -0.9, 0, 'rgba(200, 200, 200, 0.55)');
+        this.wallWindow(sx, sy, footprint, -1, 0.62, 0.82, h * 0.28, h * 0.60, night && hash(d.x, d.y + 1) < 0.65, d.r);
+        this.wallWindow(sx, sy, footprint, 1, 0.20, 0.42, h * 0.28, h * 0.60, night && hash(d.x + 4, d.y + 2) < 0.55, d.r);
+        this.wallWindow(sx, sy, footprint, 1, 0.58, 0.80, h * 0.28, h * 0.60, night && hash(d.x + 9, d.y + 5) < 0.45, 1 - d.r);
+        // Window boxes with flowers on a few summery houses.
+        if (!winter && hash(d.x + 6, d.y + 8) < 0.35) {
+          this.wallRect(sx, sy, footprint, 1, 0.18, 0.44, h * 0.24, h * 0.28, '#7a5a40');
+          this.wallRect(sx, sy, footprint, 1, 0.19, 0.43, h * 0.28, h * 0.31, hash(d.x, d.y + 3) < 0.5 ? '#d0607a' : '#d8a04a');
+        }
       } else {
-        // Flat parapet roof + window grids on both faces.
+        // Flat parapet roof with a raised rim.
         ctx.fillStyle = 'rgba(255, 255, 255, 0.10)';
         this.diamond(sx, sy - (h + 1) * this.scale, footprint * 0.85);
         ctx.fill();
-        const rows = Math.floor(h / 6);
-        for (let i = 1; i <= rows; i++) {
-          const wy = sy - i * 5.4 * this.scale - 2;
-          const lit = hash(d.x + i, d.y) < 0.4;
-          ctx.fillStyle = lit ? 'rgba(205, 220, 235, 0.65)' : 'rgba(30, 36, 46, 0.55)';
-          ctx.fillRect(sx - 8 * this.scale, wy, 3, 2.2);
-          ctx.fillRect(sx - 3 * this.scale, wy, 3, 2.2);
-          ctx.fillRect(sx + 3 * this.scale, wy, 3, 2.2);
+        ctx.strokeStyle = 'rgba(20, 24, 32, 0.30)';
+        ctx.lineWidth = 1;
+        this.diamond(sx, sy - (h + 1) * this.scale, footprint * 0.98);
+        ctx.stroke();
+        const night = this.darkness() > 0.12;
+        const floors = Math.max(2, Math.floor(h / 8));
+        const floorH = (h - 4) / floors;
+        for (let i = 0; i < floors; i++) {
+          const y0 = 3 + i * floorH;
+          // Floor band between storeys.
+          if (i > 0) {
+            this.wallRect(sx, sy, footprint, -1, 0.03, 0.97, y0 - 0.7, y0, 'rgba(24, 22, 26, 0.16)');
+            this.wallRect(sx, sy, footprint, 1, 0.03, 0.97, y0 - 0.7, y0, 'rgba(24, 22, 26, 0.20)');
+          }
+          for (let c = 0; c < 3; c++) {
+            const t0 = 0.14 + c * 0.28;
+            const seed = d.x * 3 + d.y * 7 + i * 5 + c;
+            const litL = night && hash(seed, i + c) < 0.45;
+            const litR = night && hash(seed + 2, i - c) < 0.45;
+            // Ground floor on the left face is the lobby door, not a window.
+            if (i === 0 && c === 1) continue;
+            this.wallWindow(sx, sy, footprint, -1, t0, t0 + 0.16, y0 + floorH * 0.25, y0 + floorH * 0.78, litL, hash(seed, 3));
+            this.wallWindow(sx, sy, footprint, 1, t0, t0 + 0.16, y0 + floorH * 0.25, y0 + floorH * 0.78, litR, hash(seed, 4));
+            // A few units get a small balcony with a railing.
+            if (i > 0 && hash(seed + 5, c) < 0.22) {
+              this.wallRect(sx, sy, footprint, 1, t0 - 0.03, t0 + 0.19, y0 + floorH * 0.12, y0 + floorH * 0.25, 'rgba(60, 62, 70, 0.85)');
+              this.wallRect(sx, sy, footprint, 1, t0 - 0.03, t0 + 0.19, y0 + floorH * 0.25, y0 + floorH * 0.52, 'rgba(30, 32, 40, 0.30)');
+            }
+          }
         }
-        // Rooftop: water tower on some, AC unit on others.
+        // Lobby: framed double door with a small awning and a step.
+        this.wallRect(sx, sy, footprint, -1, 0.38, 0.62, 0, floorH * 0.9, 'rgba(238, 232, 218, 0.55)');
+        this.wallRect(sx, sy, footprint, -1, 0.40, 0.60, 0, floorH * 0.82, night ? 'rgba(255, 224, 150, 0.85)' : 'rgba(46, 54, 66, 0.85)');
+        this.wallRect(sx, sy, footprint, -1, 0.495, 0.505, 0, floorH * 0.82, 'rgba(20, 22, 28, 0.5)');
+        this.wallRect(sx, sy, footprint, -1, 0.34, 0.66, floorH * 0.9, floorH * 1.05, 'rgba(70, 90, 80, 0.9)');
+        this.wallRect(sx, sy, footprint, -1, 0.34, 0.68, -0.9, 0, 'rgba(200, 200, 200, 0.5)');
+        // Fire escape zig-zagging down the right face.
+        if (hash(d.x + 11, d.y + 4) < 0.5) {
+          ctx.strokeStyle = 'rgba(30, 32, 38, 0.55)';
+          ctx.lineWidth = 0.9;
+          const hwF = (this.tw / 2) * footprint, hhF = (this.th / 2) * footprint;
+          const fx = (t) => sx + hwF * (1 - t), fy = (t) => sy + hhF * t;
+          for (let i = 1; i < floors; i++) {
+            const y0 = (3 + i * floorH) * this.scale;
+            ctx.beginPath();
+            ctx.moveTo(fx(0.64), fy(0.64) - y0);
+            ctx.lineTo(fx(0.92), fy(0.92) - y0);
+            ctx.lineTo(fx(0.92), fy(0.92) - y0 + floorH * this.scale * 0.9);
+            ctx.stroke();
+          }
+        }
+        // Rooftop: water tower on some, AC unit on others — plus an antenna.
         const roofY = sy - h * this.scale;
+        if (hash(d.x + 3, d.y + 13) < 0.4) {
+          ctx.strokeStyle = 'rgba(40, 44, 52, 0.8)';
+          ctx.lineWidth = 0.9;
+          ctx.beginPath();
+          ctx.moveTo(sx + 6 * this.scale, roofY - 1);
+          ctx.lineTo(sx + 6 * this.scale, roofY - 7 * this.scale);
+          ctx.moveTo(sx + 4.5 * this.scale, roofY - 5.5 * this.scale);
+          ctx.lineTo(sx + 7.5 * this.scale, roofY - 5.5 * this.scale);
+          ctx.stroke();
+        }
         if (hash(d.x + 8, d.y + 2) < 0.3) {
           ctx.fillStyle = '#8a7360';
           ctx.fillRect(sx - 2.5, roofY - 8 * this.scale, 5, 6 * this.scale);
@@ -1771,6 +1903,22 @@ export class Renderer {
         ctx.fillRect(ds.sx + 2, ds.sy - 1, 4, 3);
       }
       this.box(sx, sy, 26, '#4a5f7d', '#33425a', '#3d4f6b', 0.95);
+      // Corrugated steel: vertical rib lines down both faces.
+      for (let i = 1; i < 10; i++) {
+        const t = i / 10;
+        this.wallRect(sx, sy, 0.95, -1, t, t + 0.012, 1, 24.5, 'rgba(16, 22, 32, 0.16)');
+        this.wallRect(sx, sy, 0.95, 1, t, t + 0.012, 1, 24.5, 'rgba(16, 22, 32, 0.20)');
+      }
+      // Company stripe + roll-up dock doors on the yard face.
+      this.wallRect(sx, sy, 0.95, -1, 0.02, 0.98, 20.5, 23, 'rgba(242, 193, 78, 0.75)');
+      this.wallRect(sx, sy, 0.95, 1, 0.02, 0.98, 20.5, 23, 'rgba(242, 193, 78, 0.65)');
+      for (const t0 of [0.12, 0.42, 0.72]) {
+        this.wallRect(sx, sy, 0.95, 1, t0 - 0.02, t0 + 0.18, 0, 10.5, 'rgba(30, 38, 50, 0.5)');
+        this.wallRect(sx, sy, 0.95, 1, t0, t0 + 0.16, 0, 10, '#7d8a9c');
+        for (let s = 1; s < 5; s++) {
+          this.wallRect(sx, sy, 0.95, 1, t0, t0 + 0.16, s * 2, s * 2 + 0.4, 'rgba(30, 36, 46, 0.35)');
+        }
+      }
       // Roof vents and a skylight strip.
       this.box(sx - this.tw * 0.16, sy - 26 * this.scale, 4, '#6a7f9d', '#4a5a72', '#586a84', 0.14);
       this.box(sx + this.tw * 0.10, sy - 26 * this.scale, 4, '#6a7f9d', '#4a5a72', '#586a84', 0.14);
@@ -1892,13 +2040,26 @@ export class Renderer {
       this.diamond(sx + this.tw * 0.18, sy + this.th * 0.22, 0.55);
       ctx.fill();
       this.castShadow(sx, sy, h, plus ? 1.02 : 0.95);
-      this.box(sx, sy, h, '#b9bcc2', '#83868e', '#9da0a8', plus ? 0.98 : 0.9);
-      // Red fascia band + entrance.
-      const hw2 = (this.tw / 2) * (plus ? 0.98 : 0.9);
-      ctx.fillStyle = '#c0392b';
-      ctx.fillRect(sx - hw2 * 0.6, sy - h * this.scale + 1.5, hw2 * 1.2, 4);
-      ctx.fillStyle = 'rgba(30, 34, 40, 0.8)';
-      ctx.fillRect(sx - hw2 * 0.12, sy - 8 * this.scale, hw2 * 0.24, 7 * this.scale);
+      const fpR = plus ? 0.98 : 0.9;
+      this.box(sx, sy, h, '#b9bcc2', '#83868e', '#9da0a8', fpR);
+      // Concrete pilaster lines down both faces.
+      for (const t of [0.25, 0.5, 0.75]) {
+        this.wallRect(sx, sy, fpR, -1, t, t + 0.02, 0.5, h - 4, 'rgba(20, 24, 30, 0.14)');
+        this.wallRect(sx, sy, fpR, 1, t, t + 0.02, 0.5, h - 4, 'rgba(20, 24, 30, 0.18)');
+      }
+      // Red fascia band wrapping both faces.
+      this.wallRect(sx, sy, fpR, -1, 0.02, 0.98, h - 4, h - 1, '#a83226');
+      this.wallRect(sx, sy, fpR, 1, 0.02, 0.98, h - 4, h - 1, '#c0392b');
+      // Glass entrance with a canopy and cart corral out front.
+      const nightR = this.darkness() > 0.12;
+      this.wallRect(sx, sy, fpR, 1, 0.36, 0.64, 0, h * 0.5, nightR ? 'rgba(200, 230, 255, 0.85)' : 'rgba(150, 175, 200, 0.85)');
+      this.wallRect(sx, sy, fpR, 1, 0.495, 0.505, 0, h * 0.5, 'rgba(30, 36, 44, 0.6)');
+      this.wallRect(sx, sy, fpR, 1, 0.32, 0.68, h * 0.5, h * 0.5 + 1.6, '#c0392b');
+      this.wallRect(sx, sy, fpR, 1, 0.10, 0.24, 0, 3.5, 'rgba(150, 158, 168, 0.9)');
+      this.wallRect(sx, sy, fpR, 1, 0.11, 0.23, 1.2, 3.0, 'rgba(90, 98, 108, 0.9)');
+      // Rooftop HVAC units.
+      this.box(sx - this.tw * 0.16, sy - h * this.scale, 3.5, '#a8b0ba', '#7a828c', '#919aa4', 0.13);
+      this.box(sx + this.tw * 0.12, sy - h * this.scale, 3.5, '#a8b0ba', '#7a828c', '#919aa4', 0.13);
       ctx.fillStyle = '#fff0ee';
       ctx.textAlign = 'center';
       ctx.font = `800 ${7.5 * this.scale + 3}px system-ui, sans-serif`;
@@ -1909,6 +2070,14 @@ export class Renderer {
     if (!store) {
       ctx.globalAlpha = unlocked ? 0.85 : 0.35;
       this.box(sx, sy, 12, '#565e6c', '#3d434e', '#484f5c', 0.72);
+      // Boarded-up windows and a realtor sign on the empty shopfront.
+      for (const t0 of [0.14, 0.60]) {
+        this.wallRect(sx, sy, 0.72, 1, t0, t0 + 0.26, 3, 8.5, 'rgba(140, 110, 78, 0.85)');
+        this.wallRect(sx, sy, 0.72, 1, t0 + 0.02, t0 + 0.24, 4.8, 5.6, 'rgba(96, 74, 52, 0.9)');
+        this.wallRect(sx, sy, 0.72, 1, t0 + 0.02, t0 + 0.24, 6.6, 7.4, 'rgba(96, 74, 52, 0.9)');
+      }
+      this.wallRect(sx, sy, 0.72, -1, 0.30, 0.70, 4, 9, 'rgba(226, 220, 208, 0.9)');
+      this.wallRect(sx, sy, 0.72, -1, 0.34, 0.66, 6.8, 8.2, 'rgba(200, 60, 50, 0.9)');
       ctx.textAlign = 'center';
       ctx.font = `700 ${9 * this.scale + 3}px system-ui, sans-serif`;
       ctx.fillStyle = unlocked ? '#f2c14e' : '#8b96a6';
@@ -1917,21 +2086,56 @@ export class Renderer {
       return;
     }
 
-    // Owned store: green grocer with awning stripes, shopfront, and sign.
+    // Owned store: green grocer with a full glass shopfront, striped awning,
+    // produce displays, and a rooftop sign.
     this.castShadow(sx, sy, 22, 0.92);
     this.box(sx, sy, 22, '#588a62', '#3a5a41', '#47704f', 0.85);
-    const hw = (this.tw / 2) * 0.85;
-    // Striped awning.
-    for (let i = 0; i < 5; i++) {
-      ctx.fillStyle = i % 2 === 0 ? '#eee9dd' : '#c95f52';
-      ctx.fillRect(sx - hw * 0.55 + i * (hw * 1.1 / 5), sy - 22 * this.scale + 2, hw * 1.1 / 5, 3.5);
+    const fp = 0.85;
+    const nightS = this.darkness() > 0.12;
+    // Base course of brick along both faces.
+    this.wallRect(sx, sy, fp, -1, 0.02, 0.98, 0, 2.2, 'rgba(122, 84, 62, 0.85)');
+    this.wallRect(sx, sy, fp, 1, 0.02, 0.98, 0, 2.2, 'rgba(104, 70, 52, 0.85)');
+    // Right face is the shopfront: two big display windows + a glass door.
+    const glassCol = nightS ? 'rgba(255, 234, 170, 0.92)' : 'rgba(226, 240, 226, 0.85)';
+    this.wallRect(sx, sy, fp, 1, 0.06, 0.94, 2.2, 11.5, 'rgba(238, 234, 222, 0.6)');
+    this.wallRect(sx, sy, fp, 1, 0.09, 0.40, 3.6, 10.8, glassCol);
+    this.wallRect(sx, sy, fp, 1, 0.60, 0.91, 3.6, 10.8, glassCol);
+    this.wallRect(sx, sy, fp, 1, 0.435, 0.565, 2.2, 10.8, nightS ? 'rgba(255, 224, 150, 0.9)' : 'rgba(30, 40, 32, 0.85)');
+    this.wallRect(sx, sy, fp, 1, 0.497, 0.503, 2.2, 10.8, 'rgba(20, 26, 22, 0.6)');
+    // Produce displays glimpsed through the glass.
+    for (const [t0, cA, cB] of [[0.12, '#c9563e', '#6da54e'], [0.63, '#e0a63e', '#8a4f9e']]) {
+      this.wallRect(sx, sy, fp, 1, t0, t0 + 0.115, 3.6, 5.4, cA);
+      this.wallRect(sx, sy, fp, 1, t0 + 0.135, t0 + 0.25, 3.6, 5.4, cB);
+      this.wallRect(sx, sy, fp, 1, t0 - 0.005, t0 + 0.255, 5.4, 5.9, 'rgba(120, 90, 60, 0.9)');
     }
-    // Shop windows + door under the awning.
-    ctx.fillStyle = 'rgba(232, 242, 218, 0.8)';
-    ctx.fillRect(sx - hw * 0.48, sy - 12 * this.scale, hw * 0.34, 5 * this.scale);
-    ctx.fillRect(sx + hw * 0.14, sy - 12 * this.scale, hw * 0.34, 5 * this.scale);
-    ctx.fillStyle = 'rgba(26, 34, 26, 0.85)';
-    ctx.fillRect(sx - hw * 0.09, sy - 12 * this.scale, hw * 0.18, 9 * this.scale);
+    // Window mullions.
+    this.wallRect(sx, sy, fp, 1, 0.24, 0.253, 3.6, 10.8, 'rgba(238, 234, 222, 0.7)');
+    this.wallRect(sx, sy, fp, 1, 0.748, 0.76, 3.6, 10.8, 'rgba(238, 234, 222, 0.7)');
+    // Scalloped striped awning over the shopfront.
+    for (let i = 0; i < 8; i++) {
+      const t0 = 0.06 + i * 0.11;
+      this.wallRect(sx, sy, fp, 1, t0, t0 + 0.11, 11.5, 14.2, i % 2 === 0 ? '#eee9dd' : '#c95f52');
+      this.wallRect(sx, sy, fp, 1, t0 + 0.01, t0 + 0.10, 11.0, 11.5, i % 2 === 0 ? '#d9d4c6' : '#b04d42');
+    }
+    // Awning shade line on the glass below.
+    this.wallRect(sx, sy, fp, 1, 0.06, 0.94, 10.4, 11.5, 'rgba(20, 26, 30, 0.25)');
+    // Left face: a small office window and stacked delivery crates.
+    this.wallWindow(sx, sy, fp, -1, 0.60, 0.80, 8, 13, nightS, 0.3);
+    this.wallRect(sx, sy, fp, -1, 0.14, 0.30, 0, 3.4, '#a8845a');
+    this.wallRect(sx, sy, fp, -1, 0.16, 0.28, 3.4, 6.2, '#96744e');
+    // OPEN sign glowing above the door at night.
+    if (nightS) {
+      this.wallRect(sx, sy, fp, 1, 0.40, 0.60, 12.6, 14.6, 'rgba(120, 255, 170, 0.20)');
+      this.wallRect(sx, sy, fp, 1, 0.43, 0.57, 13.0, 14.2, 'rgba(140, 255, 190, 0.85)');
+    }
+    // Rooftop clutter: an AC unit and a vent pipe.
+    this.box(sx - this.tw * 0.14, sy - 22 * this.scale, 3, '#9aa4ae', '#6d757e', '#828a94', 0.12);
+    ctx.strokeStyle = 'rgba(60, 66, 74, 0.9)';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(sx + this.tw * 0.16, sy - 22 * this.scale);
+    ctx.lineTo(sx + this.tw * 0.16, sy - 22 * this.scale - 4 * this.scale);
+    ctx.stroke();
     // Rooftop signboard with the store number.
     const num = (store.name.match(/#(\d+)/) || [])[1] || '';
     const signW = 26 * this.scale + 8;
