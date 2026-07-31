@@ -2,12 +2,13 @@
 // vendor relationships, staff & managers, city events, P&L ledger, save/load.
 
 import {
-  GRID, START_CASH, WIN_CASH, WIN_STORES, POP_FACTOR, SHELF_CAP, STAFF_WAGE,
+  GRID, WIN_CASH, WIN_STORES, POP_FACTOR, SHELF_CAP, STAFF_WAGE,
   HIRE_ROLE_COST, TRUCK_COST, TRUCK_CAP, TRUCK_SPEED, TRUCK_UNLOAD, WAREHOUSE_CAP,
   WAREHOUSE_UPGRADE, WAREHOUSE, MANAGER_SALARY, START_SLOTS, REMODEL,
   isRoad, PRODUCTS, VENDORS, DISTRICTS, SITES, ROLES, EVENTS, TRAITS,
   DELEGATIONS, PEOPLE_NAMES, RIVAL, DEBT_INTEREST, DEBT_GRACE_DAYS,
-  DEBT_HARD_LIMIT, WAGE_DRIFT, GOALS,
+  DEBT_HARD_LIMIT, WAGE_DRIFT, GOALS, DIFFICULTY, CONTRACT, STORE_UPGRADES,
+  CAMPAIGN, ACHIEVEMENTS,
 } from './defs.js';
 
 const SAVE_KEY = 'market-street-save-v2';
@@ -17,9 +18,11 @@ const PERISHABLE = PROD_IDS.filter((p) => PRODUCTS[p].spoil > 0);
 export class Game {
   constructor() { this.reset(); }
 
-  reset() {
-    this.cash = START_CASH;
-    this.peakCash = START_CASH;
+  reset(diffId) {
+    this.diffId = DIFFICULTY[diffId] ? diffId : (DIFFICULTY[this.diffId] ? this.diffId : 'standard');
+    const D = DIFFICULTY[this.diffId];
+    this.cash = D.cash;
+    this.peakCash = D.cash;
     this.time = 0;              // in days (fractional)
     this.speed = 1;
     this.won = false;
@@ -48,7 +51,7 @@ export class Game {
 
     this.vendors = {};
     for (const v of Object.keys(VENDORS)) {
-      this.vendors[v] = { rel: 30, discount: 0, lastNegDay: -1 };
+      this.vendors[v] = { rel: 30, discount: 0, lastNegDay: -1, contract: null };
     }
 
     this.purchasing = {};
@@ -71,15 +74,25 @@ export class Game {
     for (const [id, d] of Object.entries(DELEGATIONS)) this.delegation[id] = d.defaultOn;
     // Demand measurement for the buyer's reorder tuning.
     this.soldToday = {};
+    this.revToday = {};
     this.demandEma = {};
-    for (const p of PROD_IDS) { this.soldToday[p] = 0; this.demandEma[p] = 0; }
+    for (const p of PROD_IDS) { this.soldToday[p] = 0; this.revToday[p] = 0; this.demandEma[p] = 0; }
+    this.yesterdayByProduct = {};   // p -> { units, revenue }
+    // Weekly digest accumulators.
+    this.week = { start: 1, events: [], staffActions: 0, storeProfit: {} };
+    this.lastWeekReport = null;
+    this.weekReportId = 0;
     this.whFullStreak = 0;
 
     // The rival chain, and the stakes.
-    this.rival = { stores: [], nextBuyDay: RIVAL.firstBuyDay };
+    this.rival = { stores: [], nextBuyDay: D.rivalFirst, openedDay: {}, plus: {} };
     this.debtDays = 0;
     this.gameOver = false;
     this.goalIndex = 0;
+    this.deliveryPing = 0;      // bumped on each completed delivery (for SFX)
+    this.lastCampaignDay = {};  // district -> day a campaign last started
+    this.achieved = {};         // achievement id -> day earned
+    this.stats = { customersServed: 0, totalRevenue: 0, trucksBought: 0, storesOpened: 2, eventsWeathered: 0 };
   }
 
   blankLedger() {
@@ -94,6 +107,7 @@ export class Game {
       manager: null,
       range: {}, slots: START_SLOTS, remodels: 0,
       delegate: { staffing: true, pricing: true },   // used only with a manager
+      upgrades: {},
       today: { revenue: 0, cogs: 0 },
       yesterday: { revenue: 0, cogs: 0, profit: 0 },
       servedToday: 0, lostToday: 0,
@@ -127,7 +141,9 @@ export class Game {
     const district = this.site(store.siteId).district;
     const sisters = this.stores.filter((s) => this.site(s.siteId).district === district).length;
     const sharing = 1 / (1 + 0.18 * (sisters - 1));
-    const rivals = this.rival.stores.filter((id) => this.site(id).district === district).length;
+    const rivals = this.rival.stores
+      .filter((id) => this.site(id).district === district)
+      .reduce((s, id) => s + (this.rival.plus?.[id] ? 1.35 : 1), 0);
     let competition = 1;
     if (rivals > 0) {
       let penalty = Math.max(0.05, Math.min(0.20, 0.08 + 0.25 * (store.markup - 0.90)));
@@ -135,6 +151,12 @@ export class Game {
       competition = 1 - Math.min(0.55, rivals * penalty);
     }
     return sharing * competition;
+  }
+
+  effStaff(store) {
+    return store.staff
+      + (store.manager ? 0.5 * store.manager.skill : 0)
+      + (store.upgrades?.selfcheckout ? 1 : 0);
   }
 
   roleSkill(role) { return this.hq[role] ? this.hq[role].skill : 0; }
@@ -152,7 +174,8 @@ export class Game {
 
   unitCost(product, vendorId) {
     const v = VENDORS[vendorId];
-    const disc = this.vendors[vendorId].discount;
+    const vs = this.vendors[vendorId];
+    const disc = Math.max(vs.discount, vs.contract ? CONTRACT.discount : 0);
     const buyer = 1 - 0.02 * this.roleSkill('buyer');
     const trait = this.hasTrait('buyer', 'pennypincher') ? 0.985 : 1;
     return PRODUCTS[product].cost * v.priceMult * (1 - disc) * buyer * trait;
@@ -293,6 +316,7 @@ export class Game {
     if (this.cash < site.price) return false;
     this.cash -= site.price;
     const store = this.addStore(siteId);
+    this.stats.storesOpened++;
     this.addFloater(site.x, site.y, 'Grand opening!', '#f2c14e');
     this.log('🎉', `${store.name} opened in ${this.district(site.district).name}.`);
     return true;
@@ -330,6 +354,18 @@ export class Game {
     return true;
   }
 
+  buyUpgrade(siteId, upgradeId) {
+    const store = this.storeAt(siteId);
+    const def = STORE_UPGRADES[upgradeId];
+    if (!store || !def || store.upgrades?.[upgradeId]) return false;
+    if (this.cash < def.cost) return false;
+    this.cash -= def.cost;
+    store.upgrades ??= {};
+    store.upgrades[upgradeId] = true;
+    this.log(def.icon, `${store.name} installed ${def.name}.`);
+    return true;
+  }
+
   remodelStore(siteId) {
     const store = this.storeAt(siteId);
     if (!store || store.slots >= PROD_IDS.length) return false;
@@ -360,6 +396,7 @@ export class Game {
     });
     const vs = this.vendors[vendorId];
     vs.rel = Math.min(100, vs.rel + Math.min(4, qty / 150));
+    if (vs.contract) vs.contract.weekOrdered += qty;
     return true;
   }
 
@@ -379,10 +416,40 @@ export class Game {
     return { success: false };
   }
 
+  signContract(vendorId) {
+    const vs = this.vendors[vendorId];
+    if (!vs || vs.contract) return { already: true };
+    if (vs.rel < CONTRACT.relRequired) return { lowRel: true };
+    const day = this.day();
+    vs.contract = {
+      until: day + CONTRACT.days,
+      weekEnd: day + 7,
+      weekOrdered: 0,
+    };
+    this.log('📜', `Signed a ${CONTRACT.days}-day supply contract with ${VENDORS[vendorId].name}: ${Math.round(CONTRACT.discount * 100)}% off for ${CONTRACT.weeklyMin} units/week.`);
+    return { success: true };
+  }
+
+  runCampaign(districtId) {
+    if (!this.hq.marketing) return { needsLead: true };
+    if (!this.districtUnlocked(districtId)) return { locked: true };
+    const last = this.lastCampaignDay[districtId] ?? -Infinity;
+    if (this.day() - last < CAMPAIGN.cooldown) {
+      return { cooldown: CAMPAIGN.cooldown - (this.day() - last) };
+    }
+    if (this.cash < CAMPAIGN.cost) return { poor: true };
+    this.cash -= CAMPAIGN.cost;
+    this.lastCampaignDay[districtId] = this.day();
+    this.activeEvents.push({ type: 'campaign', daysLeft: CAMPAIGN.days, district: districtId });
+    this.log('📣', `Ad campaign launched in ${this.district(districtId).name} — ${this.hq.marketing.name} expects a ${Math.round((CAMPAIGN.boost - 1) * 100)}% traffic bump.`);
+    return { success: true };
+  }
+
   buyTruck() {
     if (this.cash < TRUCK_COST) return false;
     this.cash -= TRUCK_COST;
     this.trucks.push({ state: 'idle', path: null, pos: 0, cargo: null, storeId: null });
+    this.stats.trucksBought++;
     this.log('🚚', `Truck #${this.trucks.length} joined the fleet.`);
     return true;
   }
@@ -400,6 +467,11 @@ export class Game {
   log(icon, text) {
     this.logEntries.push({ day: this.day(), icon, text });
     if (this.logEntries.length > 120) this.logEntries.shift();
+    if (this.week) {
+      if (icon === '🧠' || icon === '💼') this.week.staffActions++;
+      const EVENT_ICONS = ['❄️', '🔥', '✊', '🚧', '🎪', '⚔️', '🧾', '🧊', '🏪'];
+      if (EVENT_ICONS.includes(icon)) this.week.events.push(text);
+    }
   }
 
   addFloater(x, y, text, color) {
@@ -445,6 +517,24 @@ export class Game {
     }
   }
 
+  unlockAchievement(id) {
+    if (this.achieved[id]) return;
+    const a = ACHIEVEMENTS.find((x) => x.id === id);
+    if (!a) return;
+    this.achieved[id] = this.day();
+    this.log('🏅', `Achievement: ${a.icon} ${a.name} — ${a.desc}.`);
+  }
+
+  checkAchievements() {
+    if (this.history.some((h) => h.profit >= 2000)) this.unlockAchievement('black_friday');
+    if (this.stores.some((s) => this.rangeCount(s) >= PROD_IDS.length)) this.unlockAchievement('full_house');
+    if (Object.values(this.vendors).filter((v) => v.discount >= 0.249).length >= 4) this.unlockAchievement('dealmaker');
+    if (this.cash >= 100000) this.unlockAchievement('tycoon');
+    if (new Set(this.stores.map((s) => this.site(s.siteId).district)).size >= 4) this.unlockAchievement('city_slicker');
+    if (this.trucks.length >= 5) this.unlockAchievement('fleet_admiral');
+    if (this.stores.filter((s) => s.manager).length >= 4) this.unlockAchievement('people_person');
+  }
+
   checkGoals() {
     const goal = GOALS[this.goalIndex];
     if (!goal || !this.goalMet(goal.id)) return;
@@ -469,6 +559,8 @@ export class Game {
         m *= 1.6;
       } else if (e.type === 'price_war' && e.district === site.district) {
         if (store.markup > 0.92) m *= 0.65;
+      } else if (e.type === 'campaign' && e.district === site.district) {
+        m *= CAMPAIGN.boost;
       }
     }
     return m;
@@ -493,7 +585,7 @@ export class Game {
 
       const market = this.marketFactor(store);
       const baseDaily = site.pop * POP_FACTOR * market;
-      const effStaff = store.staff + (store.manager ? 0.5 * store.manager.skill : 0);
+      const effStaff = this.effStaff(store);
       // A wider assortment brings in more traffic — and needs more hands.
       const staffNeeded = (baseDaily * this.enabledWeight(store)) / 55;
       const staffRatio = Math.min(1, effStaff / staffNeeded);
@@ -502,6 +594,7 @@ export class Game {
       const repF = 0.6 + 0.8 * store.rep;
 
       let spoilMult = heatWave ? 2 : 1;
+      if (store.upgrades?.coldstorage) spoilMult *= 0.5;
       if (store.manager) spoilMult *= 1 - 0.12 * store.manager.skill * (this.managerTrait(store, 'shelfhawk') ? 2 : 1);
       spoilMult = Math.max(0.2, spoilMult);
 
@@ -520,11 +613,13 @@ export class Game {
         const revenue = sold * PRODUCTS[p].retail * store.markup;
         const cogs = sold * this.avgCost[p];
         this.cash += revenue;
+        this.stats.totalRevenue += revenue;
         this.today.revenue += revenue;
         this.today.cogs += cogs;
         store.today.revenue += revenue;
         store.today.cogs += cogs;
         this.soldToday[p] += sold;
+        this.revToday[p] += revenue;
         servedTick += sold;
         lostTick += want - sold;
         if (PRODUCTS[p].spoil) store.inv[p] *= 1 - PRODUCTS[p].spoil * spoilMult * dt;
@@ -536,6 +631,8 @@ export class Game {
       }
       store.servedToday += servedTick;
       store.lostToday += lostTick;
+      this.stats.customersServed += servedTick / 2.5;   // ~basket size
+      this.stats.totalRevenue = (this.stats.totalRevenue ?? 0);
 
       const instAvail = servedTick + lostTick > 0 ? servedTick / (servedTick + lostTick) : 1;
       store.avail += (instAvail - store.avail) * Math.min(1, 2 * dt);
@@ -598,6 +695,7 @@ export class Game {
 
   finishUnload(truck, delivered) {
     if (delivered > 0.5) {
+      this.deliveryPing++;
       const site = this.site(truck.storeId);
       if (site) this.addFloater(site.x, site.y, `+${Math.round(delivered)} stock`, '#9ec7ef');
     }
@@ -713,6 +811,7 @@ export class Game {
 
   spawnEvent() {
     const pool = Object.keys(EVENTS).filter((t) => {
+      if (EVENTS[t].player) return false;         // campaigns are yours to launch
       if (t === 'strike') return this.day() >= 8;
       return true;
     });
@@ -723,7 +822,7 @@ export class Game {
       if (!this.stores.length) return;
       const store = this.stores[Math.floor(Math.random() * this.stores.length)];
       const site = this.site(store.siteId);
-      const effStaff = store.staff + (store.manager ? 0.5 * store.manager.skill : 0);
+      const effStaff = this.effStaff(store);
       const ok = effStaff / (site.pop * POP_FACTOR * this.marketFactor(store) * this.enabledWeight(store) / 55) >= 0.85;
       if (ok) {
         store.rep = Math.min(1, store.rep + 0.08);
@@ -936,13 +1035,20 @@ export class Game {
     // Update measured demand (for the buyer's reorder tuning), then reset.
     for (const p of PROD_IDS) {
       const sold = this.soldToday[p];
+      this.yesterdayByProduct[p] = { units: sold, revenue: this.revToday[p] ?? 0 };
       this.demandEma[p] = this.demandEma[p] > 0
         ? 0.75 * this.demandEma[p] + 0.25 * sold
         : sold;
       this.soldToday[p] = 0;
+      this.revToday[p] = 0;
     }
 
     for (const store of this.stores) {
+      this.week.storeProfit[store.siteId] =
+        (this.week.storeProfit[store.siteId] ?? 0)
+        + store.today.revenue - store.today.cogs
+        - this.site(store.siteId).rent - store.staff * STAFF_WAGE * this.wageMult()
+        - (store.manager ? store.manager.salary * this.wageMult() : 0);
       store.yesterday = {
         revenue: store.today.revenue,
         cogs: store.today.cogs,
@@ -1029,17 +1135,26 @@ export class Game {
     // Events: age out, then maybe spawn one (only one running at a time).
     for (const e of this.activeEvents) e.daysLeft--;
     for (const e of this.activeEvents) {
-      if (e.daysLeft <= 0) this.log('✅', `${EVENTS[e.type].name} is over.`);
+      if (e.daysLeft <= 0) {
+        this.log('✅', `${EVENTS[e.type].name} is over.`);
+        this.stats.eventsWeathered++;
+        if (e.type === 'strike' && this.stores.length) {
+          const avail = this.stores.reduce((s, st) => s + st.avail, 0) / this.stores.length;
+          if (avail > 0.9) this.unlockAchievement('ironclad');
+        }
+      }
     }
     this.activeEvents = this.activeEvents.filter((e) => e.daysLeft > 0);
-    if (this.activeEvents.length === 0 && day >= 4 && Math.random() < 0.28) {
+    const randomActive = this.activeEvents.some((e) => !EVENTS[e.type].player);
+    if (!randomActive && day >= 4
+      && Math.random() < DIFFICULTY[this.diffId].eventChance) {
       this.spawnEvent();
     }
 
     // The rival chain shops for real estate. Unlike you, they aren't gated
     // by district unlocks — a discounter grabs empty markets first and only
     // contests your turf when the easy lots are gone.
-    if (day >= this.rival.nextBuyDay && this.rival.stores.length < RIVAL.maxStores) {
+    if (day >= this.rival.nextBuyDay && this.rival.stores.length < DIFFICULTY[this.diffId].rivalMax) {
       const vacant = SITES.filter((s) => !this.storeAt(s.id) && !this.rivalAt(s.id));
       if (vacant.length) {
         const weighted = [];
@@ -1049,6 +1164,7 @@ export class Game {
         }
         const pick = weighted[Math.floor(Math.random() * weighted.length)];
         this.rival.stores.push(pick.id);
+        this.rival.openedDay[pick.id] = day;
         const dname = this.district(pick.district).name;
         const contested = this.stores.some((st) => this.site(st.siteId).district === pick.district);
         this.log('🏪', contested
@@ -1056,9 +1172,79 @@ export class Game {
           : `${RIVAL.name} claimed a prime lot in ${dname} before you got there.`);
         this.addFloater(pick.x, pick.y, `${RIVAL.name} opens!`, '#e8828c');
       }
-      const [lo, hi] = RIVAL.buyInterval;
+      const [lo, hi] = DIFFICULTY[this.diffId].rivalInterval;
       this.rival.nextBuyDay = day + lo + Math.floor(Math.random() * (hi - lo + 1));
     }
+
+    // Close out the week every 7 days: snapshot a digest for the report.
+    if (day > 1 && (day - 1) % 7 === 0) {
+      const days = this.history.slice(-7);
+      const profit = days.reduce((s, h) => s + h.profit, 0);
+      const revenue = days.reduce((s, h) => s + h.revenue, 0);
+      const ranked = Object.entries(this.week.storeProfit)
+        .map(([sid, p]) => ({ name: this.storeAt(sid)?.name ?? 'closed store', profit: p }))
+        .sort((a, b) => b.profit - a.profit);
+      this.lastWeekReport = {
+        weekEndingDay: day - 1,
+        profit, revenue,
+        best: ranked[0] ?? null,
+        worst: ranked.length > 1 ? ranked[ranked.length - 1] : null,
+        events: this.week.events.slice(0, 5),
+        staffActions: this.week.staffActions,
+        rivalStores: this.rival.stores.length,
+      };
+      this.weekReportId++;
+      this.week = { start: day, events: [], staffActions: 0, storeProfit: {} };
+    }
+
+    // BuyLow invests: a store older than 20 days becomes a BuyLow+ superstore.
+    for (const sid of this.rival.stores) {
+      if (!this.rival.plus[sid] && day - (this.rival.openedDay[sid] ?? day) >= 20) {
+        this.rival.plus[sid] = true;
+        const dname = this.district(this.site(sid).district).name;
+        this.log('🏪', `BuyLow upgraded its ${dname} location to a BuyLow+ superstore — expect a harder squeeze there.`);
+      }
+    }
+
+    // People grow: a day worked is a day learned. Promotions at 15/40 XP.
+    const people = [
+      ...Object.entries(this.hq).filter(([, p]) => p).map(([role, p]) => [p, `your ${ROLES[role].name}`]),
+      ...this.stores.filter((s) => s.manager).map((s) => [s.manager, `${s.name}'s manager`]),
+    ];
+    for (const [p, title] of people) {
+      p.xp = (p.xp || 0) + 1;
+      const threshold = p.skill === 1 ? 15 : p.skill === 2 ? 40 : Infinity;
+      if (p.xp >= threshold) {
+        p.skill++;
+        p.salary = Math.round(p.salary * 1.25);
+        this.log('🎓', `${p.name} grew into the job — now ${'★'.repeat(p.skill)} (${title}, salary $${p.salary}/day).`);
+      }
+    }
+
+    // Supply contracts: weekly volume checks, expiry, breaches.
+    for (const [vid, vs] of Object.entries(this.vendors)) {
+      const c = vs.contract;
+      if (!c) continue;
+      if (day >= c.weekEnd) {
+        if (c.weekOrdered < CONTRACT.weeklyMin) {
+          this.cash -= CONTRACT.penalty;
+          this.today.fines += CONTRACT.penalty;
+          vs.rel = Math.max(0, vs.rel - 15);
+          vs.contract = null;
+          this.log('📜', `Contract breached with ${VENDORS[vid].name} — only ${Math.round(c.weekOrdered)}/${CONTRACT.weeklyMin} units ordered. $${CONTRACT.penalty} penalty.`);
+          continue;
+        }
+        c.weekOrdered = 0;
+        c.weekEnd = day + 7;
+      }
+      if (day >= c.until) {
+        vs.contract = null;
+        vs.rel = Math.min(100, vs.rel + 10);
+        this.log('📜', `Contract with ${VENDORS[vid].name} completed in full — they remember that.`);
+      }
+    }
+
+    this.checkAchievements();
 
     // Relationships drift toward neutral; a connected buyer counteracts it.
     const connected = this.hasTrait('buyer', 'connected');
@@ -1090,6 +1276,10 @@ export class Game {
       debtDays: this.debtDays,
       gameOver: this.gameOver,
       goalIndex: this.goalIndex,
+      diffId: this.diffId,
+      lastCampaignDay: this.lastCampaignDay,
+      achieved: this.achieved,
+      stats: this.stats,
     };
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch { /* ignore */ }
   }
@@ -1098,7 +1288,7 @@ export class Game {
     let d;
     try { d = JSON.parse(localStorage.getItem(SAVE_KEY)); } catch { return false; }
     if (!d || !Array.isArray(d.stores)) return false;
-    this.reset();
+    this.reset(d.diffId);
     this.cash = d.cash; this.peakCash = d.peakCash ?? d.cash;
     this.time = d.time; this.won = !!d.won;
     this.nameCursor = d.nameCursor ?? 0;
@@ -1116,6 +1306,7 @@ export class Game {
       s.slots ??= START_SLOTS;
       s.remodels ??= 0;
       s.delegate ??= { staffing: true, pricing: true };
+      s.upgrades ??= {};
       s.range ??= {};
       for (const p of PROD_IDS) {
         s.range[p] ??= !!PRODUCTS[p].core;
@@ -1140,13 +1331,31 @@ export class Game {
     this.delegation = { ...this.delegation, ...(d.delegation ?? {}) };
     this.demandEma = { ...this.demandEma, ...(d.demandEma ?? {}) };
     this.rival = d.rival ?? this.rival;
+    this.rival.openedDay ??= {};
+    this.rival.plus ??= {};
     this.debtDays = d.debtDays ?? 0;
     this.gameOver = !!d.gameOver;
     this.goalIndex = d.goalIndex ?? 0;
+    this.lastCampaignDay = d.lastCampaignDay ?? {};
+    this.achieved = d.achieved ?? {};
+    this.stats = { ...this.stats, ...(d.stats ?? {}) };
     return true;
   }
 
   clearSave() {
     try { localStorage.removeItem(SAVE_KEY); } catch { /* ignore */ }
+  }
+
+  exportSave() {
+    this.save();
+    try { return localStorage.getItem(SAVE_KEY) || ''; } catch { return ''; }
+  }
+
+  importSave(text) {
+    let parsed;
+    try { parsed = JSON.parse(text); } catch { return false; }
+    if (!parsed || !Array.isArray(parsed.stores)) return false;
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(parsed)); } catch { return false; }
+    return this.load();
   }
 }

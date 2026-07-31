@@ -2,7 +2,7 @@
 // ambient traffic and shoppers — plus stores, warehouse, trucks, rivals.
 
 import {
-  TILE_W, TILE_H, GRID, isRoad, WAREHOUSE, PRODUCTS, DISTRICTS, SITES,
+  TILE_W, TILE_H, GRID, isRoad, WAREHOUSE, PRODUCTS, DISTRICTS,
   SHELF_CAP, RIVAL,
 } from './defs.js';
 
@@ -44,6 +44,7 @@ export class Renderer {
       s: 0.6 + Math.random() * 0.7, v: 0.008 + Math.random() * 0.010,
     }));
     this.boat = { t: Math.random(), dir: 1 };
+    this.puffs = [];
     this.resize();
   }
 
@@ -57,11 +58,48 @@ export class Renderer {
     this.h = rect.height;
     const mapW = GRID * TILE_W + 40;
     const mapH = GRID * TILE_H + 120;
-    this.scale = Math.min(1, this.w / mapW, this.h / mapH);
+    this.baseScale = Math.min(1, this.w / mapW, this.h / mapH);
+    this.zoom ??= 1;
+    this.panX ??= 0;
+    this.panY ??= 0;
+    this.applyView();
+  }
+
+  applyView() {
+    this.scale = this.baseScale * this.zoom;
     this.tw = TILE_W * this.scale;
     this.th = TILE_H * this.scale;
-    this.originX = this.w / 2;
-    this.originY = (this.h - GRID * this.th) / 2 + this.th;
+    this.panX = Math.max(-GRID * this.tw * 0.6, Math.min(GRID * this.tw * 0.6, this.panX));
+    this.panY = Math.max(-GRID * this.th * 0.9, Math.min(GRID * this.th * 0.9, this.panY));
+    this.originX = this.w / 2 + this.panX;
+    this.originY = (this.h - GRID * this.th) / 2 + this.th + this.panY;
+  }
+
+  // Zoom toward a screen anchor so the point under the cursor stays put.
+  setZoom(nz, ax = this.w / 2, ay = this.h / 2) {
+    nz = Math.max(0.55, Math.min(2.6, nz));
+    const ratio = (this.baseScale * nz) / this.scale;
+    const nOx = ax - (ax - this.originX) * ratio;
+    const nOy = ay - (ay - this.originY) * ratio;
+    this.zoom = nz;
+    this.scale = this.baseScale * this.zoom;
+    this.th = TILE_H * this.scale;
+    this.panX = nOx - this.w / 2;
+    this.panY = nOy - ((this.h - GRID * this.th) / 2 + this.th);
+    this.applyView();
+  }
+
+  pan(dx, dy) {
+    this.panX += dx;
+    this.panY += dy;
+    this.applyView();
+  }
+
+  resetView() {
+    this.zoom = 1;
+    this.panX = 0;
+    this.panY = 0;
+    this.applyView();
   }
 
   toScreen(x, y) {
@@ -235,6 +273,17 @@ export class Renderer {
     for (const p of this.walkers) p.age += dt;
     this.walkers = this.walkers.filter((p) => p.age < p.ttl);
 
+    // Exhaust puffs trail moving trucks.
+    for (const t of g.trucks) {
+      if ((t.state === 'toStore' || t.state === 'return') && t.path && Math.random() < dt * 6) {
+        const i = Math.min(t.path.length - 1, Math.floor(t.pos));
+        const a = t.path[i];
+        this.puffs.push({ x: a.x + (Math.random() - 0.5) * 0.3, y: a.y + (Math.random() - 0.5) * 0.3, age: 0 });
+      }
+    }
+    for (const p of this.puffs) p.age += dt;
+    this.puffs = this.puffs.filter((p) => p.age < 1.1);
+
     // Clouds drift; a rowboat plies the river.
     for (const c of this.clouds) {
       c.x += c.v * dt;
@@ -348,6 +397,16 @@ export class Renderer {
       }
     }
 
+    // Truck exhaust puffs (ground-level, before buildings).
+    for (const p of this.puffs) {
+      const { sx, sy } = this.toScreen(p.x, p.y);
+      const t = p.age / 1.1;
+      ctx.fillStyle = `rgba(190, 195, 205, ${0.25 * (1 - t)})`;
+      ctx.beginPath();
+      ctx.arc(sx, sy - 4 - t * 8, 2 + t * 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
     // Cloud shadows sweep the ground.
     for (const c of this.clouds) {
       ctx.fillStyle = 'rgba(8, 12, 20, 0.10)';
@@ -422,7 +481,7 @@ export class Renderer {
       drawables.push({ key: x + y + 0.03, kind: 'walker', fx: x, fy: y, w: p });
     }
     drawables.sort((a, b) => a.key - b.key);
-    for (const d of drawables) this.drawThing(d, selectedSiteId, dark);
+    for (const d of drawables) this.drawThing(d, selectedSiteId);
 
     // Midday warmth, then night overlay with glowing lights.
     const warm = Math.max(0, 0.05 - dark * 0.15);
@@ -551,7 +610,7 @@ export class Renderer {
     }
   }
 
-  drawThing(d, selectedSiteId, dark) {
+  drawThing(d, selectedSiteId) {
     const ctx = this.ctx;
     const g = this.game;
 
@@ -747,11 +806,13 @@ export class Renderer {
 
     if (g.rivalAt(site.id)) {
       this.castShadow(sx, sy, 18, 0.9);
-      this.box(sx, sy, 18, '#8a4438', '#5e2d26', '#733830', 0.85);
+      const plus = g.rival.plus?.[site.id];
+      const h = plus ? 24 : 18;
+      this.box(sx, sy, h, plus ? '#9a4a38' : '#8a4438', '#5e2d26', '#733830', plus ? 0.92 : 0.85);
       ctx.fillStyle = '#f0c4b8';
       ctx.textAlign = 'center';
       ctx.font = `700 ${8 * this.scale + 3}px system-ui, sans-serif`;
-      ctx.fillText(RIVAL.name.toUpperCase(), sx, sy - 18 * this.scale - 4);
+      ctx.fillText(RIVAL.name.toUpperCase() + (plus ? '+' : ''), sx, sy - h * this.scale - 4);
       return;
     }
 

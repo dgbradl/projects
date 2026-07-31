@@ -42,6 +42,27 @@ export const PRODUCTS = {
 export const START_SLOTS = 6;      // product lines a fresh store can carry
 export const REMODEL = { slots: 2, baseCost: 2500, stepCost: 1800 };
 
+// Per-store equipment upgrades.
+export const STORE_UPGRADES = {
+  coldstorage: {
+    name: 'Cold storage', cost: 3000, icon: '🧊',
+    desc: 'Halves spoilage in this store. Pays for itself on deli & seafood.',
+  },
+  selfcheckout: {
+    name: 'Self-checkout', cost: 4500, icon: '🤖',
+    desc: 'Counts as one extra staffer, forever, without the wage.',
+  },
+};
+
+// Supply contracts: commit to weekly volume for a locked-in discount.
+export const CONTRACT = {
+  days: 14,          // contract length
+  discount: 0.20,    // flat price cut while active (replaces, not stacks)
+  weeklyMin: 350,    // units you must order per 7 days
+  penalty: 400,      // breach fee
+  relRequired: 50,   // relationship needed to sign
+};
+
 // The rival discount chain contesting the city.
 export const RIVAL = {
   name: 'BuyLow',
@@ -190,7 +211,13 @@ export const EVENTS = {
     icon: '🧊', name: 'Fridge breakdown', instant: true,
     desc: 'A store loses half its dairy, meat, and frozen stock.',
   },
+  campaign: {
+    icon: '📣', name: 'Ad campaign', player: true,
+    desc: 'Your marketing blitz: +25% demand in this district while it runs.',
+  },
 };
+
+export const CAMPAIGN = { cost: 1500, days: 5, boost: 1.25, cooldown: 10 };
 
 // One trait per candidate, drawn from their role's list. Every trait has a
 // real mechanical effect (wired in game.js).
@@ -217,6 +244,25 @@ export const TRAITS = {
   ],
 };
 
+// Difficulty presets, chosen in Settings; applies to the next new game.
+export const DIFFICULTY = {
+  relaxed: {
+    name: 'Relaxed', cash: 32000, rivalFirst: 22, rivalInterval: [10, 15],
+    rivalMax: 3, eventChance: 0.18,
+    desc: 'More starting cash, a sleepy rival, calmer city.',
+  },
+  standard: {
+    name: 'Standard', cash: 25000, rivalFirst: 14, rivalInterval: [7, 12],
+    rivalMax: 4, eventChance: 0.28,
+    desc: 'The intended experience.',
+  },
+  ruthless: {
+    name: 'Ruthless', cash: 20000, rivalFirst: 10, rivalInterval: [5, 9],
+    rivalMax: 4, eventChance: 0.36,
+    desc: 'Thin cash, an aggressive rival, an eventful city.',
+  },
+};
+
 // Onboarding goal ladder: sequential objectives with cash rewards.
 // Completion checks live in game.js (checkGoals).
 export const GOALS = [
@@ -238,6 +284,18 @@ export const GOALS = [
     desc: 'Sister stores share shoppers; fresh neighborhoods don\'t.' },
   { id: 'five', title: 'Run five stores', reward: 2000,
     desc: 'BuyLow is buying lots. Claim the good corners first.' },
+];
+
+// Achievements: earned once per run, shown in HQ Records.
+export const ACHIEVEMENTS = [
+  { id: 'black_friday', icon: '🛍️', name: 'Black Friday', desc: 'Bank $2,000 profit in a single day' },
+  { id: 'full_house', icon: '🏬', name: 'Full House', desc: 'One store carrying all 11 product lines' },
+  { id: 'dealmaker', icon: '🤝', name: 'Dealmaker', desc: '25% discounts with four vendors at once' },
+  { id: 'tycoon', icon: '💰', name: 'Tycoon', desc: 'Hold $100,000 in cash' },
+  { id: 'city_slicker', icon: '🌆', name: 'City Slicker', desc: 'Stores in all four districts' },
+  { id: 'fleet_admiral', icon: '🚚', name: 'Fleet Admiral', desc: 'Run five trucks' },
+  { id: 'people_person', icon: '👥', name: 'People Person', desc: 'Managers at four stores' },
+  { id: 'ironclad', icon: '🛡️', name: 'Ironclad', desc: 'A vendor strike ends with chain availability above 90%' },
 ];
 
 export const PEOPLE_NAMES = [

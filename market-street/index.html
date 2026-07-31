@@ -16,12 +16,14 @@
     <div class="stat" id="stat-stores">2 stores</div>
     <div class="stat" id="stat-net">+$0 today</div>
     <div class="spacer"></div>
+    <button id="btn-sound" title="Toggle sound">🔊</button>
     <div class="speeds">
       <button data-speed="0" title="Pause">⏸</button>
       <button data-speed="1" class="active">1×</button>
       <button data-speed="3">3×</button>
       <button data-speed="8">8×</button>
     </div>
+    <button id="btn-settings" title="Settings">⚙️</button>
     <button id="btn-reset">Reset</button>
   </header>
 
@@ -29,6 +31,11 @@
     <div id="canvas-wrap">
       <canvas id="game"></canvas>
       <div id="toast" class="hidden"></div>
+      <div id="zoom-controls">
+        <button id="zoom-in" title="Zoom in">＋</button>
+        <button id="zoom-out" title="Zoom out">－</button>
+        <button id="zoom-reset" title="Reset view">⌂</button>
+      </div>
       <div id="events-bar"></div>
       <div id="feed"></div>
       <div id="hint">Click stores &amp; FOR SALE lots on the map · manage the chain from the panels on the right</div>
@@ -36,6 +43,39 @@
         <h2>🏆 Regional powerhouse!</h2>
         <p>Eight stores and a fat bank account — the board approves the <b>multi-state expansion</b>. That's the next prototype milestone. Keep playing or Reset for a fresh run.</p>
         <button id="btn-win-close">Keep playing</button>
+      </div>
+      <div id="welcome-banner" class="hidden">
+        <h2>🛒 Welcome to Market Street</h2>
+        <p>You've inherited <b>two corner grocery stores</b> and a small warehouse.
+        Keep the shelves stocked, keep the customers happy, and grow into the
+        chain this city deserves — before <b>BuyLow</b> beats you to it.</p>
+        <p class="fine">Follow the 🎯 objective in the top-right to learn the ropes.
+        Drag the map to pan, scroll to zoom.</p>
+        <button id="btn-welcome-close" class="primary">Open the doors</button>
+      </div>
+      <div id="settings-modal" class="hidden">
+        <h2>Settings</h2>
+        <label class="set-row"><input type="checkbox" id="set-pause-event"> Pause when a city event starts</label>
+        <label class="set-row"><input type="checkbox" id="set-weekly"> Show the weekly report</label>
+        <label class="set-row">Difficulty (next new game)
+          <select id="set-difficulty">
+            <option value="relaxed">Relaxed</option>
+            <option value="standard">Standard</option>
+            <option value="ruthless">Ruthless</option>
+          </select>
+        </label>
+        <div class="set-row">
+          <button id="btn-export">Export save</button>
+          <button id="btn-import">Import save</button>
+        </div>
+        <textarea id="save-io" class="hidden" rows="4" placeholder="Paste a save here, then press Import again."></textarea>
+        <button id="btn-settings-close">Close</button>
+      </div>
+      <div id="week-report" class="hidden">
+        <h2>📊 Weekly report</h2>
+        <p class="fine" id="wr-title"></p>
+        <div id="wr-body"></div>
+        <button id="btn-week-close" class="primary">Back to work</button>
       </div>
       <div id="lose-banner" class="hidden">
         <h2>💥 Bankrupt</h2>

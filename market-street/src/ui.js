@@ -4,22 +4,128 @@
 import {
   PRODUCTS, VENDORS, DISTRICTS, ROLES, EVENTS, SHELF_CAP, STAFF_WAGE,
   TRUCK_COST, WAREHOUSE_UPGRADE, HIRE_ROLE_COST, WIN_CASH, WIN_STORES,
-  REMODEL, DELEGATIONS, GOALS,
+  REMODEL, DELEGATIONS, GOALS, CONTRACT, STORE_UPGRADES, CAMPAIGN, ACHIEVEMENTS,
 } from './defs.js';
+import { sfx, setMuted, isMuted } from './audio.js';
+
+// Which activity-log icons make which noise.
+const LOG_SFX = {
+  '🎯': 'goal', '🤝': 'dealYes', '🏅': 'goal', '🎓': 'hire',
+  '🏪': 'event', '❄️': 'event', '🔥': 'event', '✊': 'event', '🚧': 'event',
+  '🎪': 'event', '⚔️': 'event', '🧾': 'event', '🧊': 'event',
+  '🏦': 'alert', '⚠️': 'alert', '💥': 'lose',
+};
 
 const PROD_IDS = Object.keys(PRODUCTS);
 const fmt = (n) => `$${Math.round(n).toLocaleString()}`;
 const signFmt = (n) => `${n < 0 ? '−' : ''}$${Math.abs(Math.round(n)).toLocaleString()}`;
 
+const SETTINGS_KEY = 'market-street-settings';
+
 export class UI {
-  constructor(game) {
+  constructor(game, { fresh = false } = {}) {
     this.game = game;
     this.tab = 'stores';
     this.selectedSite = null;
     this.winShown = false;
     this.toast = null;
+    this.settings = { pauseOnEvent: false, weeklyReport: true, difficulty: 'standard' };
+    try {
+      Object.assign(this.settings, JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {});
+    } catch { /* defaults are fine */ }
     this.bindTop();
     this.bindTabs();
+    this.bindChips();
+    this.bindSettings();
+    this.buildSupplyTab();
+    this.buildVendorsTab();
+    this.buildHqTab();
+    this.buildBooksTab();
+    this.renderStoreList();
+    if (fresh) document.getElementById('welcome-banner').classList.remove('hidden');
+    document.getElementById('btn-welcome-close').addEventListener('click', () => {
+      document.getElementById('welcome-banner').classList.add('hidden');
+    });
+    document.getElementById('btn-week-close').addEventListener('click', () => this.closeWeeklyReport());
+  }
+
+  saveSettings() {
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(this.settings)); } catch { /* ignore */ }
+  }
+
+  newGame() {
+    this.game.clearSave();
+    this.game.reset(this.settings.difficulty);
+    this.selectedSite = null;
+    this.winShown = false;
+    this.loseShown = false;
+    document.getElementById('win-banner').classList.add('hidden');
+    document.getElementById('lose-banner').classList.add('hidden');
+    this.buildSupplyTab();
+    this.buildVendorsTab();
+    this.buildHqTab();
+    this.buildBooksTab();
+    this.renderStoreList();
+  }
+
+  bindSettings() {
+    const modal = document.getElementById('settings-modal');
+    document.getElementById('btn-settings').addEventListener('click', () => {
+      modal.classList.toggle('hidden');
+    });
+    document.getElementById('btn-settings-close').addEventListener('click', () => {
+      modal.classList.add('hidden');
+    });
+    const pause = document.getElementById('set-pause-event');
+    pause.checked = this.settings.pauseOnEvent;
+    pause.addEventListener('change', () => {
+      this.settings.pauseOnEvent = pause.checked;
+      this.saveSettings();
+    });
+    const weekly = document.getElementById('set-weekly');
+    weekly.checked = this.settings.weeklyReport;
+    weekly.addEventListener('change', () => {
+      this.settings.weeklyReport = weekly.checked;
+      this.saveSettings();
+    });
+    const diff = document.getElementById('set-difficulty');
+    diff.value = this.settings.difficulty;
+    diff.addEventListener('change', () => {
+      this.settings.difficulty = diff.value;
+      this.saveSettings();
+      this.say('Difficulty applies when you start a new game (Reset).');
+    });
+    const io = document.getElementById('save-io');
+    document.getElementById('btn-export').addEventListener('click', () => {
+      io.classList.remove('hidden');
+      io.value = this.game.exportSave();
+      io.select();
+      try { navigator.clipboard.writeText(io.value); this.say('Save copied to clipboard.'); }
+      catch { this.say('Save shown below — copy it somewhere safe.'); }
+    });
+    document.getElementById('btn-import').addEventListener('click', () => {
+      if (io.classList.contains('hidden') || !io.value.trim()) {
+        io.classList.remove('hidden');
+        io.value = '';
+        io.placeholder = 'Paste a save here, then press Import again.';
+        io.focus();
+        return;
+      }
+      if (this.game.importSave(io.value.trim())) {
+        modal.classList.add('hidden');
+        this.newGameUiOnly();
+        this.say('Save imported.');
+      } else {
+        this.say('That doesn\'t look like a valid save.');
+      }
+    });
+  }
+
+  // Rebuild panels around an externally loaded game state.
+  newGameUiOnly() {
+    this.selectedSite = null;
+    this.winShown = this.game.won;
+    this.loseShown = this.game.gameOver;
     this.buildSupplyTab();
     this.buildVendorsTab();
     this.buildHqTab();
@@ -30,6 +136,16 @@ export class UI {
   // ---- chrome -----------------------------------------------------------
 
   bindTop() {
+    // Sound toggle, persisted.
+    const soundBtn = document.getElementById('btn-sound');
+    setMuted(localStorage.getItem('market-street-muted') === '1');
+    soundBtn.textContent = isMuted() ? '🔇' : '🔊';
+    soundBtn.addEventListener('click', () => {
+      setMuted(!isMuted());
+      soundBtn.textContent = isMuted() ? '🔇' : '🔊';
+      try { localStorage.setItem('market-street-muted', isMuted() ? '1' : '0'); } catch { /* ignore */ }
+      if (!isMuted()) sfx.cash();
+    });
     document.querySelectorAll('.speeds button').forEach((btn) => {
       btn.addEventListener('click', () => {
         this.game.speed = Number(btn.dataset.speed);
@@ -39,32 +155,27 @@ export class UI {
     });
     document.getElementById('btn-reset').addEventListener('click', () => {
       if (!confirm('Wipe the save and start a new chain?')) return;
-      this.game.clearSave();
-      this.game.reset();
-      this.selectedSite = null;
-      this.winShown = false;
-      document.getElementById('win-banner').classList.add('hidden');
-      this.buildSupplyTab();
-      this.buildVendorsTab();
-      this.buildHqTab();
-      this.buildBooksTab();
-      this.renderStoreList();
+      this.newGame();
     });
     document.getElementById('btn-win-close').addEventListener('click', () => {
       document.getElementById('win-banner').classList.add('hidden');
     });
-    document.getElementById('btn-lose-reset').addEventListener('click', () => {
-      this.game.clearSave();
-      this.game.reset();
-      this.selectedSite = null;
-      this.winShown = false;
-      this.loseShown = false;
-      document.getElementById('lose-banner').classList.add('hidden');
-      this.buildSupplyTab();
-      this.buildVendorsTab();
-      this.buildHqTab();
-      this.buildBooksTab();
-      this.renderStoreList();
+    document.getElementById('btn-lose-reset').addEventListener('click', () => this.newGame());
+  }
+
+  bindChips() {
+    document.getElementById('events-bar').addEventListener('click', (e) => {
+      const district = e.target.dataset?.matchwar;
+      if (!district) return;
+      let n = 0;
+      for (const s of this.game.stores) {
+        if (this.game.site(s.siteId).district === district && s.markup > 0.9) {
+          s.markup = 0.9;
+          n++;
+        }
+      }
+      this.say(`Dropped prices to 90% at ${n} store${n === 1 ? '' : 's'} to fight the discounter.`);
+      document.getElementById('events-bar').dataset.key = '';   // force chip rebuild
     });
   }
 
@@ -81,6 +192,37 @@ export class UI {
       .forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
     document.querySelectorAll('.tab-page')
       .forEach((p) => p.classList.toggle('hidden', p.id !== `tab-${tab}`));
+  }
+
+  closeOverlays() {
+    for (const id of ['settings-modal', 'welcome-banner', 'win-banner']) {
+      document.getElementById(id).classList.add('hidden');
+    }
+    this.closeWeeklyReport();
+  }
+
+  closeWeeklyReport() {
+    const el = document.getElementById('week-report');
+    if (!el.classList.contains('hidden')) {
+      el.classList.add('hidden');
+      if (this.game.speed === 0) this.game.speed = this.reportPrevSpeed ?? 1;
+    }
+  }
+
+  confetti() {
+    const wrap = document.getElementById('canvas-wrap');
+    const colors = ['#f2c14e', '#6fd08c', '#9ec7ef', '#e8828c', '#b28ae0'];
+    for (let i = 0; i < 26; i++) {
+      const bit = document.createElement('div');
+      bit.className = 'confetti';
+      bit.style.left = `${35 + Math.random() * 30}%`;
+      bit.style.background = colors[i % colors.length];
+      bit.style.setProperty('--dx', `${(Math.random() - 0.5) * 260}px`);
+      bit.style.setProperty('--rot', `${Math.random() * 720 - 360}deg`);
+      bit.style.animationDelay = `${Math.random() * 0.25}s`;
+      wrap.appendChild(bit);
+      setTimeout(() => bit.remove(), 2400);
+    }
   }
 
   say(text) {
@@ -240,6 +382,24 @@ export class UI {
         this.renderStoreDetail();
       }
     });
+    // Equipment upgrades.
+    for (const [uid, udef] of Object.entries(STORE_UPGRADES)) {
+      const btn = document.createElement('button');
+      btn.style.marginTop = '6px';
+      btn.style.marginRight = '6px';
+      if (store.upgrades?.[uid]) {
+        btn.textContent = `${udef.icon} ${udef.name} ✓`;
+        btn.disabled = true;
+      } else {
+        btn.textContent = `${udef.icon} ${udef.name} (${fmt(udef.cost)})`;
+        btn.title = udef.desc;
+        btn.addEventListener('click', () => {
+          if (g.buyUpgrade(site.id, uid)) this.renderStoreDetail();
+          else this.say('Not enough cash.');
+        });
+      }
+      rangeWrap.appendChild(btn);
+    }
     if (store.slots < PROD_IDS.length) {
       const btn = document.createElement('button');
       btn.id = 'sd-remodel';
@@ -440,11 +600,21 @@ export class UI {
         <div class="kv"><span>Quality</span><b>${'★'.repeat(Math.round(v.quality * 3))}</b></div>
         <div class="kv"><span>Relationship</span><div class="meter"><i data-rel="${id}"></i></div></div>
         <div class="kv"><span>Negotiated discount</span><b data-disc="${id}"></b></div>
-        <button data-neg="${id}">Negotiate</button>`;
+        <div class="kv"><span>Contract</span><b data-contract="${id}" class="fine"></b></div>
+        <button data-neg="${id}">Negotiate</button>
+        <button data-sign="${id}" title="Commit to ${CONTRACT.weeklyMin} units/week for ${CONTRACT.days} days at ${Math.round(CONTRACT.discount * 100)}% off. Breaching costs $${CONTRACT.penalty} and sours the relationship.">Sign supply contract</button>`;
       page.appendChild(card);
     }
     page.addEventListener('click', (e) => {
       const id = e.target.dataset?.neg;
+      const signId = e.target.dataset?.sign;
+      if (signId) {
+        const r = g.signContract(signId);
+        if (r.success) this.say(`Contract signed with ${VENDORS[signId].name}.`);
+        else if (r.lowRel) this.say(`${VENDORS[signId].name} wants a relationship of ${CONTRACT.relRequired}+ before committing.`);
+        else this.say('A contract is already running with them.');
+        return;
+      }
       if (!id) return;
       const r = g.negotiate(id);
       if (r.done) this.say(`${VENDORS[id].name} won't renegotiate twice in one day.`);
@@ -490,10 +660,42 @@ export class UI {
       if (id) this.game.delegation[id] = e.target.checked;
     });
 
+    const mkt = document.createElement('div');
+    mkt.className = 'panel';
+    mkt.innerHTML = `<h3>Marketing</h3>
+      <p class="fine">With a Marketing Lead, run a district ad campaign: ${fmt(CAMPAIGN.cost)} for +${Math.round((CAMPAIGN.boost - 1) * 100)}% demand over ${CAMPAIGN.days} days (${CAMPAIGN.cooldown}-day cooldown per district).</p>
+      <div id="campaigns"></div>`;
+    page.appendChild(mkt);
+    const cWrap = mkt.querySelector('#campaigns');
+    for (const dd of DISTRICTS) {
+      const btn = document.createElement('button');
+      btn.dataset.campaign = dd.id;
+      btn.style.marginRight = '6px';
+      btn.style.marginTop = '4px';
+      btn.textContent = dd.name;
+      cWrap.appendChild(btn);
+    }
+    cWrap.addEventListener('click', (e) => {
+      const did = e.target.dataset?.campaign;
+      if (!did) return;
+      const r = this.game.runCampaign(did);
+      if (r.success) this.say(`📣 Campaign running in ${this.game.district(did).name}!`);
+      else if (r.needsLead) this.say('Hire a Marketing Lead first.');
+      else if (r.locked) this.say('That district isn\'t unlocked yet.');
+      else if (r.cooldown) this.say(`That district needs ${r.cooldown} more day${r.cooldown > 1 ? 's' : ''} before another campaign.`);
+      else this.say('Not enough cash.');
+    });
+
     const miles = document.createElement('div');
     miles.className = 'panel';
     miles.innerHTML = '<h3>Expansion plan</h3><div id="milestones"></div>';
     page.appendChild(miles);
+
+    const records = document.createElement('div');
+    records.className = 'panel';
+    records.innerHTML = '<h3>Records &amp; achievements</h3><div id="rec-stats"></div><div id="rec-achievements" class="ach-grid"></div>';
+    page.appendChild(records);
+
     this.refreshRoles(true);
     this.refreshDelegations();
   }
@@ -575,6 +777,12 @@ export class UI {
         <div id="bstores"></div>
       </div>
       <div class="panel">
+        <h3>By product <span class="fine">(yesterday)</span></h3>
+        <div id="bproducts"></div>
+        <p class="fine">Margin uses current average unit cost. Lines that can't
+        pay their way are candidates to drop from store ranges.</p>
+      </div>
+      <div class="panel">
         <h3>Activity log</h3>
         <div id="log-list"></div>
       </div>`;
@@ -621,6 +829,22 @@ export class UI {
     }
     if (!g.stores.length) bHtml = '<div class="fine">No stores.</div>';
     if (bs.dataset.key !== bHtml) { bs.dataset.key = bHtml; bs.innerHTML = bHtml; }
+
+    const bp = document.getElementById('bproducts');
+    let pHtml = '';
+    for (const p of PROD_IDS) {
+      const d = g.yesterdayByProduct?.[p];
+      if (!d || d.units < 0.5) continue;
+      const cogs = d.units * g.avgCost[p];
+      const margin = d.revenue > 0 ? (d.revenue - cogs) / d.revenue : 0;
+      pHtml += `<div class="bstore-row">
+        <span><span class="swatch" style="background:${PRODUCTS[p].color};display:inline-block;margin-right:5px"></span>${PRODUCTS[p].name}</span>
+        <span>${Math.round(d.units)} u</span>
+        <span>${fmt(d.revenue)}</span>
+        <span class="${margin >= 0.25 ? 'pos' : margin >= 0.1 ? '' : 'neg'}">${Math.round(margin * 100)}%</span></div>`;
+    }
+    if (!pHtml) pHtml = '<div class="fine">No sales recorded yet.</div>';
+    if (bp.dataset.key !== pHtml) { bp.dataset.key = pHtml; bp.innerHTML = pHtml; }
 
     const logWrap = document.getElementById('log-list');
     const entries = g.logEntries.slice(-40).reverse();
@@ -680,6 +904,7 @@ export class UI {
       const done = GOALS[this.lastGoalIndex];
       if (done && g.goalIndex > this.lastGoalIndex) {
         this.say(`🎯 Objective complete: ${done.title} — +${fmt(done.reward)} bonus!`);
+        this.confetti();
       }
       this.lastGoalIndex = g.goalIndex;
     }
@@ -699,6 +924,48 @@ export class UI {
     }
   }
 
+  // New log entries and completed deliveries make noise.
+  refreshSounds() {
+    const g = this.game;
+    this.lastLogLen ??= g.logEntries.length;
+    this.lastDeliveryPing ??= g.deliveryPing ?? 0;
+    if (g.logEntries.length > this.lastLogLen) {
+      // Play at most one sound per frame batch; latest entry wins.
+      const fresh = g.logEntries.slice(this.lastLogLen);
+      const hit = fresh.map((e) => LOG_SFX[e.icon]).filter(Boolean).pop();
+      if (hit && sfx[hit]) sfx[hit]();
+      // Optionally stop the clock when a city event lands.
+      const DURATION_EVENTS = ['❄️', '🔥', '✊', '🚧', '🎪', '⚔️'];
+      if (this.settings.pauseOnEvent && g.speed > 0
+        && fresh.some((e) => DURATION_EVENTS.includes(e.icon))) {
+        g.speed = 0;
+        this.say('⏸ Paused — a city event needs your attention (Space to resume).');
+      }
+    }
+    this.lastLogLen = g.logEntries.length;
+    if ((g.deliveryPing ?? 0) > this.lastDeliveryPing) sfx.delivery();
+    this.lastDeliveryPing = g.deliveryPing ?? 0;
+  }
+
+  showWeeklyReport(r) {
+    this.reportPrevSpeed = this.game.speed || 1;
+    this.game.speed = 0;
+    const el = document.getElementById('week-report');
+    el.querySelector('#wr-title').textContent = `Week ending day ${r.weekEndingDay}`;
+    const lines = [];
+    lines.push(`<div class="pl-row"><span>Revenue</span><b>${fmt(r.revenue)}</b></div>`);
+    lines.push(`<div class="pl-row"><span>Profit</span><b class="${r.profit >= 0 ? 'pos' : 'neg'}">${signFmt(r.profit)}</b></div>`);
+    if (r.best) lines.push(`<div class="pl-row"><span>Best store</span><b>${r.best.name} (${signFmt(r.best.profit)})</b></div>`);
+    if (r.worst) lines.push(`<div class="pl-row"><span>Weakest store</span><b>${r.worst.name} (${signFmt(r.worst.profit)})</b></div>`);
+    lines.push(`<div class="pl-row"><span>Team decisions</span><b>${r.staffActions}</b></div>`);
+    lines.push(`<div class="pl-row"><span>BuyLow stores</span><b>${r.rivalStores}</b></div>`);
+    if (r.events.length) {
+      lines.push(`<div class="fine" style="margin-top:6px"><b>This week:</b><br>${r.events.map((e) => `· ${e}`).join('<br>')}</div>`);
+    }
+    el.querySelector('#wr-body').innerHTML = lines.join('');
+    el.classList.remove('hidden');
+  }
+
   // ---- map overlays -----------------------------------------------------
 
   refreshOverlays() {
@@ -713,9 +980,14 @@ export class UI {
         let where = '';
         if (e.vendor) where = ` — ${VENDORS[e.vendor].name}`;
         if (e.district) where = ` — ${g.district(e.district).name}`;
-        return `<div class="event-chip">${def.icon} <b>${def.name}</b>${where}
+        let action = '';
+        if (e.type === 'price_war'
+          && g.stores.some((s) => g.site(s.siteId).district === e.district && s.markup > 0.92)) {
+          action = `<br><button class="chip-action" data-matchwar="${e.district}">Match their prices (90%)</button>`;
+        }
+        return `<div class="event-chip ${def.player ? 'player' : ''}">${def.icon} <b>${def.name}</b>${where}
           <span class="ev-days">· ${e.daysLeft}d left</span><br>
-          <span class="ev-days">${def.desc}</span></div>`;
+          <span class="ev-days">${def.desc}</span>${action}</div>`;
       }).join('');
     }
     // Activity feed: last 4 log entries.
@@ -745,6 +1017,37 @@ export class UI {
     netEl.classList.toggle('pos', net >= 0);
     netEl.classList.toggle('neg', net < 0);
 
+    // Attention badges on tabs.
+    const badges = {
+      stores: g.stores.filter((s) => Object.values(s.stockoutLogged ?? {}).some(Boolean)).length,
+      vendors: Object.keys(VENDORS).filter((id) =>
+        g.vendors[id].lastNegDay !== g.day()
+        && g.vendors[id].discount < 0.249
+        && g.carriedProducts().some((p) => g.purchasing[p].vendor === id)).length,
+      hq: (g.cash >= HIRE_ROLE_COST)
+        ? Object.values(g.hq).filter((r) => !r).length
+        : 0,
+    };
+    document.querySelectorAll('#tabs button').forEach((b) => {
+      const n = badges[b.dataset.tab] ?? 0;
+      let dot = b.querySelector('.tab-badge');
+      if (n > 0) {
+        if (!dot) {
+          dot = document.createElement('span');
+          dot.className = 'tab-badge';
+          b.appendChild(dot);
+        }
+        if (dot.textContent !== String(n)) dot.textContent = String(n);
+      } else if (dot) {
+        dot.remove();
+      }
+    });
+
+    // Keep speed buttons in sync (keyboard shortcuts change speed too).
+    document.querySelectorAll('.speeds button').forEach((b) => {
+      b.classList.toggle('active', Number(b.dataset.speed) === g.speed);
+    });
+
     const toastEl = document.getElementById('toast');
     if (this.toast && performance.now() < this.toast.until) {
       toastEl.textContent = this.toast.text;
@@ -755,15 +1058,28 @@ export class UI {
 
     this.refreshOverlays();
     this.refreshGoal();
+    this.refreshSounds();
 
     if (this.tab === 'stores') this.refreshStores();
     if (this.tab === 'supply') this.refreshSupply();
     if (this.tab === 'vendors') this.refreshVendors();
-    if (this.tab === 'hq') { this.refreshRoles(); this.refreshMilestones(); this.refreshDelegations(); }
+    if (this.tab === 'hq') { this.refreshRoles(); this.refreshMilestones(); this.refreshDelegations(); this.refreshRecords(); }
     if (this.tab === 'books') this.refreshBooks();
+
+    // Weekly report.
+    this.lastWeekSeen ??= g.weekReportId ?? 0;
+    if (this.settings.weeklyReport && (g.weekReportId ?? 0) > this.lastWeekSeen && g.lastWeekReport) {
+      this.lastWeekSeen = g.weekReportId;
+      this.showWeeklyReport(g.lastWeekReport);
+    } else {
+      this.lastWeekSeen = Math.max(this.lastWeekSeen, g.weekReportId ?? 0);
+    }
 
     if (g.won && !this.winShown) {
       this.winShown = true;
+      sfx.win();
+      this.confetti();
+      this.confetti();
       document.getElementById('win-banner').classList.remove('hidden');
     }
     if (g.gameOver && !this.loseShown) {
@@ -893,6 +1209,42 @@ export class UI {
         const label = used ? 'Negotiated today' : 'Negotiate';
         if (btn.textContent !== label) btn.textContent = label;
       }
+      const cEl = document.querySelector(`[data-contract="${id}"]`);
+      const sBtn = document.querySelector(`[data-sign="${id}"]`);
+      const c = g.vendors[id].contract;
+      if (cEl) {
+        setEl(cEl, c
+          ? `${Math.round(c.weekOrdered)}/${CONTRACT.weeklyMin} this week · ends day ${c.until}`
+          : g.vendors[id].rel >= CONTRACT.relRequired ? 'available' : `needs ${CONTRACT.relRequired}+ relationship`);
+        cEl.style.color = c && c.weekOrdered < CONTRACT.weeklyMin * 0.5 ? 'var(--accent)' : '';
+      }
+      if (sBtn) sBtn.disabled = !!c || g.vendors[id].rel < CONTRACT.relRequired;
+    }
+  }
+
+  refreshRecords() {
+    const g = this.game;
+    const st = g.stats ?? {};
+    const wrap = document.getElementById('rec-stats');
+    if (!wrap) return;
+    const html = [
+      ['Days in business', g.day()],
+      ['Customers served', Math.round(st.customersServed ?? 0).toLocaleString()],
+      ['Lifetime revenue', fmt(st.totalRevenue ?? 0)],
+      ['Peak cash', fmt(g.peakCash)],
+      ['Stores opened', st.storesOpened ?? g.stores.length],
+      ['Events weathered', st.eventsWeathered ?? 0],
+    ].map(([k, v]) => `<div class="pl-row"><span>${k}</span><b>${v}</b></div>`).join('');
+    if (wrap.dataset.key !== html) { wrap.dataset.key = html; wrap.innerHTML = html; }
+    const aWrap = document.getElementById('rec-achievements');
+    const aKey = Object.keys(g.achieved ?? {}).join('|');
+    if (aWrap.dataset.key !== aKey) {
+      aWrap.dataset.key = aKey;
+      aWrap.innerHTML = ACHIEVEMENTS.map((a) => {
+        const got = g.achieved?.[a.id];
+        return `<div class="ach ${got ? 'got' : ''}" title="${a.desc}${got ? ` — earned day ${got}` : ''}">
+          <span class="ach-icon">${a.icon}</span><span>${a.name}</span></div>`;
+      }).join('');
     }
   }
 

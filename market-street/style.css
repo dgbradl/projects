@@ -258,3 +258,104 @@ select {
 .deleg-item .dinfo { font-size: 13px; }
 .deleg-item .ctrait { display: block; font-size: 11px; color: var(--dim); }
 .deleg-item input:disabled + .dinfo { opacity: 0.5; }
+
+/* ---- phone / small screens: stack the map above the panels ---- */
+@media (max-width: 860px) {
+  #main { flex-direction: column; }
+  #canvas-wrap { flex: 1 1 52%; min-height: 44vh; }
+  #sidebar {
+    width: 100%; flex: 1 1 48%; max-height: 48vh;
+    border-left: none; border-top: 1px solid var(--border);
+  }
+  #topbar { flex-wrap: wrap; gap: 6px; padding: 6px 8px; }
+  .brand { font-size: 14px; }
+  .stat { padding: 3px 8px; font-size: 13px; }
+  button { padding: 7px 12px; }               /* friendlier touch targets */
+  .stepper button { padding: 4px 12px; }
+  #hint { display: none; }
+  #feed { bottom: 8px; max-width: 70%; }
+  .feed-entry { font-size: 10px; }
+  #events-bar { top: 6px; left: 8px; }
+  .event-chip { max-width: 230px; font-size: 11px; }
+  #win-banner, #lose-banner { width: min(340px, 92vw); }
+}
+
+#zoom-controls {
+  position: absolute; right: 12px; bottom: 12px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+#zoom-controls button {
+  width: 34px; height: 34px; padding: 0; font-size: 16px;
+  background: rgba(29, 35, 45, 0.9);
+}
+
+#welcome-banner, #settings-modal {
+  position: absolute; inset: 0; margin: auto;
+  width: min(400px, 92vw); height: fit-content;
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 12px; padding: 20px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+  z-index: 5;
+}
+#welcome-banner { text-align: center; border-color: var(--accent); }
+#welcome-banner h2 { margin-bottom: 10px; }
+#welcome-banner p { color: var(--dim); margin-bottom: 10px; }
+#welcome-banner.hidden, #settings-modal.hidden { display: none; }
+#settings-modal h2 { margin-bottom: 10px; }
+.set-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+.set-row input[type="checkbox"] { accent-color: var(--accent); }
+#save-io { width: 100%; margin: 6px 0; background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px; font: 11px monospace; padding: 6px; }
+#save-io.hidden { display: none; }
+#btn-settings-close { margin-top: 8px; width: 100%; }
+
+#events-bar { pointer-events: auto; }
+.event-chip.player { border-color: var(--good); }
+.chip-action {
+  margin-top: 4px; padding: 3px 8px; font-size: 11px;
+  background: var(--accent); color: #1a1a1a; border: none; font-weight: 700;
+}
+
+#week-report {
+  position: absolute; inset: 0; margin: auto;
+  width: min(380px, 92vw); height: fit-content;
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 12px; padding: 20px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5); z-index: 5;
+}
+#week-report.hidden { display: none; }
+#week-report h2 { margin-bottom: 4px; }
+#week-report #btn-week-close { margin-top: 12px; width: 100%; }
+
+#tabs button { position: relative; }
+.tab-badge {
+  position: absolute; top: -5px; right: -4px;
+  min-width: 15px; height: 15px; border-radius: 8px;
+  background: var(--bad); color: #fff;
+  font-size: 10px; font-weight: 700; line-height: 15px; text-align: center;
+  padding: 0 3px; pointer-events: none;
+}
+.ach-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 8px; }
+.ach {
+  display: flex; align-items: center; gap: 6px; padding: 4px 6px;
+  border: 1px solid var(--border); border-radius: 6px;
+  font-size: 11px; color: var(--dim); opacity: 0.55;
+}
+.ach.got { opacity: 1; color: var(--text); border-color: var(--accent); }
+.ach-icon { font-size: 14px; }
+
+.confetti {
+  position: absolute; top: 18%; width: 8px; height: 8px;
+  border-radius: 2px; pointer-events: none; z-index: 6;
+  animation: confetti-fall 2.1s ease-in forwards;
+}
+@keyframes confetti-fall {
+  0% { transform: translate(0, 0) rotate(0); opacity: 1; }
+  100% { transform: translate(var(--dx), 62vh) rotate(var(--rot)); opacity: 0; }
+}
+.event-chip { animation: chip-in 0.35s ease-out; }
+@keyframes chip-in {
+  from { transform: translateX(-14px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+button:active:not(:disabled) { transform: scale(0.96); }

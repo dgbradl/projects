@@ -1,121 +1,94 @@
-# Market Street — Grocery Chain Tycoon (prototype)
+# 🛒 Market Street
 
-An isometric, web-based **management** game: you run a small grocery chain from
-the head office. Game Dev Story-style people-and-decisions management, with the
-Factorio DNA living in the supply chain — goods flow **vendors → warehouse →
-trucks → store shelves → customers**, and every link can be the bottleneck.
+An isometric, browser-based **grocery-chain management game**. Start with two
+corner stores, and grow into a citywide chain: keep shelves stocked, negotiate
+with vendors, run a warehouse and truck fleet, hire people who can make
+decisions for you — and out-compete **BuyLow**, the discount rival buying up
+the best lots in town.
 
-Start with 2 corner stores in Old Town; end as a citywide chain ready to go
-multi-state.
+Vanilla JavaScript + Canvas. No frameworks, no assets — the whole city is
+drawn procedurally.
 
-## Run it
+## Play
 
-No build step, no dependencies — vanilla JS with ES modules (needs any static
-server; modules don't load from `file://`):
+- **Dev server:** `npm install && npm run dev` → http://localhost:5173
+- **Production build:** `npm run build` (output in `dist/`), `npm run preview` to serve it.
+- **GitHub Pages:** pushes to `main` build and deploy automatically via
+  `.github/workflows/deploy.yml`. Enable it once in the repo settings:
+  *Settings → Pages → Source: GitHub Actions.* The game then runs at
+  `https://<user>.github.io/market-street/` — including on phones (the layout
+  stacks map-over-panels on small screens).
+
+## How the game works
+
+Goods flow **vendors → warehouse → trucks → shelves → customers**, and every
+link can be the bottleneck.
+
+| System | What you manage |
+| --- | --- |
+| **Stores** | Staffing, price level, product assortment (limited shelf slots; remodel to widen), reputation, morale |
+| **Supply** | Standing orders per product (vendor / reorder point / quantity), warehouse capacity, truck fleet — watch trucks park and unload crate by crate |
+| **Vendors** | Six suppliers with different prices, quality, and lead times; relationships and negotiated discounts up to 25% |
+| **People** | Department heads and store managers hired from candidate pools — each with skill (★–★★★), a salary ask, and a trait with a real mechanical effect. Delegate staffing, pricing, negotiation, sourcing, reorder tuning, even fleet capex |
+| **Books** | A real P&L (weighted-average COGS), 30-day profit chart, per-store profitability, activity log |
+| **Events** | Cold snaps, heat waves, vendor strikes, roadworks, festivals, price wars, inspections, fridge breakdowns |
+| **Stakes** | BuyLow buys lots and siphons shoppers; sister stores cannibalize; wages drift up; debt accrues interest and the bank has limits |
+
+**Win:** 8 stores and $200k banked. **Lose:** the bank calls your debt.
+A goal ladder walks you through the systems on the way.
+
+## Development
 
 ```sh
-cd market-street
-python3 -m http.server 8000
-# open http://localhost:8000
+npm install
+npm run dev        # Vite dev server with hot reload
+npm run lint       # ESLint
+npm test           # Vitest unit suite over the simulation
+npm run build      # production build
+npm run test:e2e   # Playwright smoke tests against the built app
 ```
 
-## The game
+The simulation (`src/game.js` + `src/defs.js`) is DOM-free and fully unit
+tested — economy, logistics, vendors, delegation, stakes, save/load, and a
+60-day NaN/crash soak. Rendering (`src/render.js`), panels (`src/ui.js`), and
+the game loop (`src/main.js`) are covered by Playwright end-to-end tests,
+including the phone-sized layout.
 
-You watch the city on an isometric map; all decisions happen in the four
-office panels on the right.
+CI (`.github/workflows/ci.yml`) runs lint + unit + build + e2e on every push
+and pull request.
 
-- **Stores** — Each store serves its neighborhood. Shoppers buy whatever's on
-  the shelf; empty shelves mean lost sales and sinking reputation. Per store
-  you set staffing (understaffed stores serve fewer customers) and a price
-  level (cheaper = more traffic, thinner margins). Buy FOR SALE lots to open
-  new stores.
-- **Product range** — 11 product lines, from the core six (produce, dairy,
-  bakery, meat, frozen, pantry) to optional ones: beverages, snacks,
-  household, deli, seafood. Every store has limited shelf slots — pick its
-  assortment line by line, and **remodel** (escalating cost) to fit more.
-  A wider range means more traffic, but also more staff, more truck volume,
-  and more warehouse pressure; deli and seafood have fat margins and brutal
-  spoilage. Household goods are only sold by the slow, low-quality national
-  distributor — a deliberate monopoly.
-- **Supply** — Your warehouse feeds the chain. Set standing orders per
-  product: pick a vendor, a reorder point, and an order size, and the office
-  reorders automatically. Trucks shuttle stock to whichever store needs it
-  most — watch them drive the road grid. Buy trucks and warehouse expansions
-  as you grow. Perishables spoil, so overstocking produce is its own tax.
-- **Vendors** — Four suppliers with different prices, quality, and delivery
-  lead times (the cheap national distributor takes 3 days; local farms
-  deliver overnight). Ordering builds relationships; negotiate to lock in
-  discounts up to 25%. Failed negotiations sour the relationship.
-- **HQ** — Hire department heads from candidate pools: a Head Buyer (better
-  negotiation, cheaper goods), a Logistics Manager (faster, bigger trucks),
-  and a Marketing Lead (more customer demand). Every candidate has a skill
-  level, a salary ask, and a trait with a real mechanical effect (Haggler,
-  Tetris master, Couponer, …). Salaries are daily.
-- **Store managers & morale** — Each store can hire a named manager who adds
-  floor coverage, lifts team morale, and cuts spoilage. Morale rises with
-  good staffing and sinks when the team is stretched — and it multiplies
-  sales.
-- **Delegation** — Your people don't just buff numbers; they can make the
-  decisions. Store managers can be trusted with staffing and pricing (they
-  cut prices to fight a price war in their district, discount to win back
-  shoppers, and hold higher prices when skilled). The Head Buyer can run
-  vendor negotiations, switch suppliers on price/quality — re-sourcing
-  instantly around strikes — and retune standing orders from measured
-  demand. The Logistics Manager can be given capex authority to buy trucks
-  and expand the warehouse (off by default). Skill governs how often they
-  act and how sharp the calls are: a ★ manager makes rough calls every few
-  days, a ★★★ manager plays near-optimally daily. Every decision lands in
-  the activity feed with their name on it, and every toggle is yours.
-- **Books** — A real P&L: revenue, cost of goods (weighted-average COGS, so
-  vendor discounts show up in your margins), rent, wages, salaries, fines;
-  today vs yesterday, a 30-day profit chart, per-store profitability, and an
-  activity log of everything that happened.
-- **City events** — Roughly weekly, something happens: cold snaps and heat
-  waves shift demand, vendor strikes freeze deliveries (source elsewhere!),
-  roadworks slow trucks, festivals spike a district, discounters start price
-  wars you can only win by cutting prices, health inspections reward
-  well-staffed stores and fine sloppy ones, and fridges break. Active events
-  show as chips on the map with a countdown.
+### Code layout
 
-### Stakes
-
-You are not alone in this city. **BuyLow**, a discount rival, starts buying
-lots on day ~14 — grabbing prime sites in districts you haven't reached yet
-first, then contesting your turf. Their stores siphon shoppers from yours in
-the same district (worse if your prices are high, softened by strong
-reputation), and every lot they take is one you can't have. Your own stores
-also share their district's shoppers, so carpeting one neighborhood pays
-worse than spreading out — the buy panel warns you before you crowd in.
-
-The bank is real too: negative cash accrues **2% daily interest**, and four
-day-ends in the red (or a deep enough hole) ends the game. Wages and
-salaries creep up ~0.3% per day, so a chain that stops improving slowly
-bleeds out.
-
-### Expansion arc
-
-Districts unlock as your peak cash grows: **Old Town** (start) → **Westside**
-($35k) → **Riverside** ($65k) → **Downtown** ($110k). Win by running **8
-stores** with **$200k** banked — at which point the board approves multi-state
-expansion (the hook for the next prototype milestone).
-
-Progress autosaves to `localStorage`; **Reset** wipes it.
-
-## Code layout
-
-| File | What it does |
+| File | Role |
 | --- | --- |
-| `src/defs.js` | Static data: products, vendors, city map, districts, sites, tuning |
-| `src/game.js` | Simulation: store demand, warehouse, truck logistics (BFS road routing), vendors, day cycle, save/load |
-| `src/render.js` | Isometric city renderer: roads, districts, stores, warehouse, animated trucks |
-| `src/ui.js` | Office panels: stores / supply / vendors / HQ tabs, store inspector |
-| `src/main.js` | Fixed-step game loop, map input, autosave |
+| `src/defs.js` | All static data & tuning: products, vendors, city map, districts, events, traits, goals |
+| `src/game.js` | The simulation: demand, market, logistics, people, delegation, rival, ledger, persistence |
+| `src/render.js` | Procedural isometric renderer: city, day/night, traffic, deliveries, ambience |
+| `src/ui.js` | DOM panels: stores / supply / vendors / HQ / books, inspector, overlays |
+| `src/main.js` | Fixed-step loop, input, autosave |
 
-## Ideas for the next iteration
+## Feature highlights (v0.2)
 
-- Multi-state map: second city with its own warehouse, inter-city freight
-- Contracts & promotions: weekly specials that spike demand for one product
-- Store formats (corner store / supermarket / superstore) with upgrade paths
-- Named store managers with traits, morale, and training (more Game Dev Story)
-- Events: road closures, vendor strikes, cold snaps that spike demand
-- Competitor chains bidding on the same lots
+- **Camera**: wheel/pinch-button zoom anchored at the cursor, drag to pan, double-click to reset
+- **Sound**: procedural WebAudio SFX (deals, deliveries, events, fanfares) with a persisted mute
+- **Settings**: pause-on-event, weekly report toggle, difficulty presets (Relaxed / Standard / Ruthless), save export/import
+- **Vendor contracts**: commit to weekly volume for a locked 20% discount — breach and pay
+- **Staff progression**: everyone earns XP and promotes (with raises) at 15/40 XP
+- **Store upgrades**: cold storage (half spoilage) and self-checkout (free staffer)
+- **Marketing campaigns**: paid district demand boosts on a cooldown
+- **Actionable events**: one-click "match prices" during price wars; optional auto-pause on events
+- **BuyLow+**: rival stores that survive 20 days upgrade into stronger superstores
+- **Books**: per-product margins expose which lines earn their shelf slots
+- **Weekly report**: a pausing digest of profit, best/worst stores, team activity, and events
+- **Achievements & records**: 8 trophies plus lifetime stats in HQ
+- **Juice**: confetti, truck exhaust, animated event chips
+
+## Roadmap
+
+- Ambient music bed and richer soundscape
+- Multi-city expansion — the "board approves multi-state" ending is the hook
+- Rival counter-moves (poaching staff, bidding on your lots)
+
+## License
+
+MIT
