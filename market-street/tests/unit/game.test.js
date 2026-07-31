@@ -604,3 +604,58 @@ describe('dice negotiation', () => {
     expect(g.unitCost('pantry', 'consolidated')).toBeLessThan(frozenCost);
   });
 });
+
+describe('delivery negotiation & supply balance', () => {
+  let realRandom;
+  beforeEach(() => { realRandom = Math.random; });
+  afterEach(() => { Math.random = realRandom; });
+  const allCrits = () => { Math.random = () => 5 / 6 + 0.001; };
+
+  it('delivery stake wins a timed −1 day priority window', () => {
+    allCrits();
+    g.startNegotiation('consolidated', 'delivery');
+    const r = g.negoAccept();
+    expect(r.stake).toBe('delivery');
+    expect(r.won.days).toBe(28);
+    expect(r.won.split).toBe(true);
+    expect(g.vendors.consolidated.rushUntil).toBe(g.day() + 28);
+    expect(g.vendors.consolidated.splitUntil).toBe(g.day() + 28);
+    // Orders now arrive a day sooner (3-day vendor -> 2 days).
+    g.placeOrder('pantry', 'consolidated', 90);
+    const o = g.orders.find((x) => x.product === 'pantry');
+    expect(o.arriveDay).toBe(g.day() + 2);
+  });
+
+  it('split shipments halve big orders with the first half early', () => {
+    g.vendors.consolidated.splitUntil = g.day() + 10;
+    g.placeOrder('pantry', 'consolidated', 200);
+    const orders = g.orders.filter((x) => x.product === 'pantry');
+    expect(orders.length).toBe(2);
+    expect(orders[0].qty + orders[1].qty).toBe(200);
+    expect(orders[0].arriveDay).toBe(orders[1].arriveDay - 1);
+  });
+
+  it('price stake still pays discounts by default', () => {
+    allCrits();
+    g.startNegotiation('freshfields');
+    const r = g.negoAccept();
+    expect(r.disc).toBeCloseTo(0.06, 5);
+    expect(g.vendors.freshfields.rushUntil ?? 0).toBe(0);
+  });
+
+  it('default standing orders are shaped by demand and vendor lead', () => {
+    // Produce (heavy, 1-day lead) vs household (light, 3-day lead):
+    // produce should have the bigger order quantity.
+    expect(g.purchasing.produce.qty).toBeGreaterThan(g.purchasing.household.qty);
+    // Slow-vendor dairy carries a deeper point than its demand alone implies.
+    const est = () => 1580 * 0.18 * 0.18;   // chain pop x factor x dairy weight
+    expect(g.purchasing.dairy.point).toBeGreaterThanOrEqual(est() * 3 - 26);
+  });
+
+  it('buying a store deepens auto standing orders', () => {
+    const before = g.purchasing.produce.qty;
+    g.cash = 50000; g.peakCash = 50000;
+    g.buyStore('s3');
+    expect(g.purchasing.produce.qty).toBeGreaterThan(before);
+  });
+});

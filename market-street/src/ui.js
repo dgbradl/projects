@@ -70,6 +70,9 @@ export class UI {
       this.renderNego();
     });
     document.getElementById('btn-nego-done').addEventListener('click', () => this.closeNegotiation());
+    document.querySelectorAll('#nego-stake button').forEach((b) => {
+      b.addEventListener('click', () => this.startNego(b.dataset.stake));
+    });
   }
 
   runWeek() {
@@ -320,21 +323,39 @@ export class UI {
 
   openNegotiation(id) {
     const g = this.game;
-    const r = g.startNegotiation(id);
-    if (r.done) { this.say(`${VENDORS[id].name} won't renegotiate twice in one day.`); return; }
-    if (r.struck) { this.say(`${VENDORS[id].name} is on strike — nobody's at the table.`); return; }
+    const can = g.canNegotiate(id);
+    if (can.done) { this.say(`${VENDORS[id].name} won't renegotiate twice in one day.`); return; }
+    if (can.struck) { this.say(`${VENDORS[id].name} is on strike — nobody's at the table.`); return; }
     this.negoPrevSpeed = g.speed || 1;
     g.speed = 0;
-    this.negoKeep = new Set();
+    this.negoVendor = id;
     const v = VENDORS[id];
+    const { count, bonus } = g.negoDiceCount(id);
     document.getElementById('nego-title').textContent = `🤝 ${v.name}`;
     document.getElementById('nego-temper').textContent = v.temper ?? '';
     document.getElementById('nego-bonus').innerHTML =
-      [`${r.dice.length} dice`, ...r.bonus.map((b) => `+1 ${b}`)]
+      [`${count} dice`, ...bonus.map((b) => `+1 ${b}`)]
         .map((b) => `<span>${b}</span>`).join('');
-    document.getElementById('btn-nego-done').classList.add('hidden');
+    // Stake chooser phase: the table isn't sat (and the daily sitting isn't
+    // burned) until an ask is chosen.
+    document.getElementById('nego-stake').classList.remove('hidden');
+    document.getElementById('nego-dice').innerHTML = '';
+    document.getElementById('nego-patience').innerHTML = '';
+    document.getElementById('nego-lev').textContent = '';
+    document.getElementById('nego-chatter').textContent = '';
+    for (const b of ['btn-nego-take', 'btn-nego-roll', 'btn-nego-done']) {
+      document.getElementById(b).classList.add('hidden');
+    }
     document.getElementById('nego-modal').classList.remove('hidden');
     sfx.event?.();
+  }
+
+  startNego(stake) {
+    const g = this.game;
+    const r = g.startNegotiation(this.negoVendor, stake);
+    if (r.done || r.struck) return;
+    this.negoKeep = new Set();
+    document.getElementById('nego-stake').classList.add('hidden');
     this.renderNego(true);
   }
 
@@ -370,9 +391,13 @@ export class UI {
     });
     document.getElementById('nego-patience').innerHTML =
       Array.from({ length: n.patience }, (_, i) => `<i class="${i < n.warns ? 'burnt' : ''}"></i>`).join('');
-    const disc = g.negoTierDisc();
+    const won = g.negoTierValue();
+    const wonLabel = !won ? null
+      : n.stake === 'delivery'
+        ? `−1 day for ${won.days}d${won.split ? ' + split shipments' : ''}`
+        : `+${Math.round(won.disc * 100)}%`;
     document.getElementById('nego-lev').textContent =
-      `${g.negoLeverage()} → ${disc ? `+${Math.round(disc * 100)}%` : 'no deal yet'}`;
+      `${g.negoLeverage()} → ${wonLabel ?? 'no deal yet'}`;
 
     const take = document.getElementById('btn-nego-take');
     const roll = document.getElementById('btn-nego-roll');
@@ -388,6 +413,9 @@ export class UI {
         chat.classList.add('walked');
         chat.textContent = `"We're done here." They walk out — relationship takes a hit and your negotiated discount is frozen for ${r.freezeDays} days.`;
         sfx.alert?.();
+      } else if (r.stake === 'delivery' && r.won) {
+        chat.textContent = `Handshake. Priority routing: −1 day lead for ${r.won.days} days${r.won.split ? ', split shipments' : ''}${r.perk ? ` — and ${r.perk.text}` : ''}.`;
+        sfx.dealYes?.();
       } else if (r.disc > 0) {
         chat.textContent = `Handshake. +${Math.round(r.disc * 100)}% off (now ${Math.round(r.total * 100)}% total)${r.perk ? ` — and they threw in ${r.perk.text}.` : '.'}`;
         sfx.dealYes?.();
@@ -400,7 +428,11 @@ export class UI {
     roll.classList.remove('hidden');
     done.classList.add('hidden');
     if (n.counter) {
-      chat.textContent = `"Tell you what — take the ${Math.round(n.counter.disc * 100)}% right now and we're square." (accepting a counter adds bonus relationship)`;
+      const cv = n.counter.value;
+      const cLabel = n.stake === 'delivery' && cv
+        ? `the priority route (−1 day, ${cv.days} days)`
+        : `the ${Math.round((cv?.disc ?? 0) * 100)}%`;
+      chat.textContent = `"Tell you what — take ${cLabel} right now and we're square." (accepting a counter adds bonus relationship)`;
     } else if (n.warns >= n.patience) {
       chat.textContent = 'The room has gone very quiet. One more slip and this meeting is over.';
     } else if (n.warns === n.patience - 1 && n.patience > 1) {
@@ -408,7 +440,7 @@ export class UI {
     } else {
       chat.textContent = 'Keep the dice you like, press for the rest — or shake on it.';
     }
-    take.textContent = disc ? `Take the deal (+${Math.round(disc * 100)}%)` : 'Wrap up politely';
+    take.textContent = wonLabel ? `Take the deal (${wonLabel})` : 'Wrap up politely';
     roll.textContent = n.rollsLeft > 0
       ? `Press harder (${n.rollsLeft} roll${n.rollsLeft === 1 ? '' : 's'} left)`
       : 'No rolls left';
@@ -829,7 +861,7 @@ export class UI {
   buildVendorsTab() {
     const g = this.game;
     const page = document.getElementById('tab-vendors');
-    page.innerHTML = '<p class="fine pad">Negotiating opens the dice table: roll 🤝 leverage for the discount, 💬 goodwill for the relationship — but ⚠️ offense locks in, and past a vendor\'s patience they walk (frozen discount, soured relationship). Relationship, a Head Buyer, and contracts add dice. Once per vendor per day; max 25% off.</p>';
+    page.innerHTML = '<p class="fine pad">Negotiating opens the dice table — choose your ask first: 💰 price (discounts up to 25%) or 🚚 delivery (−1 day lead windows, split shipments). Roll 🤝 leverage for the deal, 💬 goodwill for the relationship — but ⚠️ offense locks in, and past a vendor\'s patience they walk (frozen discount, soured relationship). Relationship, a Head Buyer, and contracts add dice. Once per vendor per day; max 25% off.</p>';
     for (const [id, v] of Object.entries(VENDORS)) {
       const card = document.createElement('div');
       card.className = 'panel vendor-card';
@@ -843,7 +875,7 @@ export class UI {
             <div class="v-chips">
               <span class="v-chip" title="Price tier">${priceTier}</span>
               <span class="v-chip" title="Quality">${'★'.repeat(Math.round(v.quality * 3))}</span>
-              <span class="v-chip" title="Delivery lead time">🚚 ${v.leadTime}d</span>
+              <span class="v-chip" data-lead="${id}" title="Delivery lead time">🚚 ${v.leadTime}d</span>
             </div>
           </div>
         </div>
@@ -1561,6 +1593,15 @@ export class UI {
       if (pips) {
         const n = Math.round(g.vendors[id].discount / 0.05);
         [...pips.children].forEach((pip, i) => pip.classList.toggle('on', i < n));
+      }
+      const leadEl = document.querySelector(`[data-lead="${id}"]`);
+      if (leadEl) {
+        const rushLeft = (g.vendors[id].rushUntil ?? 0) - g.day();
+        const v = VENDORS[id];
+        setEl(leadEl, rushLeft > 0
+          ? `🚚 ${Math.max(1, v.leadTime - 1)}d ⚡${rushLeft}d`
+          : `🚚 ${v.leadTime}d`);
+        leadEl.style.color = rushLeft > 0 ? 'var(--gold, #f2c14e)' : '';
       }
       const struck = document.querySelector(`[data-struck="${id}"]`);
       if (struck) setEl(struck, g.vendorStruck(id) ? '✊ ON STRIKE' : '');

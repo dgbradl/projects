@@ -14,7 +14,7 @@ export const STAFF_WAGE = 28;      // per store staffer per day
 export const HIRE_ROLE_COST = 200; // signing bonus for HQ department heads
 export const TRUCK_UNLOAD = 0.08; // days a truck spends parked at the store unloading
 export const TRUCK_COST = 4000;
-export const TRUCK_CAP = 110;      // units per trip (before logistics bonus)
+export const TRUCK_CAP = 125;      // units per trip (before logistics bonus)
 export const TRUCK_SPEED = 110;    // road tiles per day (before logistics bonus)
 export const WAREHOUSE_CAP = 1500;
 export const WAREHOUSE_UPGRADE = { units: 1000, cost: 8000 };
@@ -134,6 +134,13 @@ export const NEGO = {
     { lev: 6, disc: 0.06 },
     { lev: 4, disc: 0.04 },
     { lev: 2, disc: 0.02 },
+  ],
+  // Delivery stake: leverage buys a -1 day lead window instead of a discount.
+  // Top tier also splits orders into two half-shipments (first half early).
+  deliveryTiers: [
+    { lev: 6, days: 28, split: true },
+    { lev: 4, days: 14 },
+    { lev: 2, days: 7 },
   ],
   counterAt: 3,        // leverage at which the vendor floats a counter-offer
   counterRel: 2,       // extra relationship for taking the counter graciously

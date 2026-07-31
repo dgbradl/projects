@@ -589,3 +589,13 @@ button:active:not(:disabled) { transform: scale(0.96); }
 #nego-chatter { min-height: 32px; font-style: italic; color: #aeb9c8; }
 #nego-chatter.walked { color: var(--bad, #e8828c); font-weight: 600; }
 #nego-modal .wr-actions button:disabled { opacity: 0.45; cursor: default; }
+
+#nego-stake { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 4px; }
+#nego-stake.hidden { display: none; }
+#nego-stake button {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  text-align: left; background: #29303d; border: 1px solid #3a4356;
+  border-radius: 9px; padding: 9px 12px; cursor: pointer; color: inherit;
+}
+#nego-stake button:hover { border-color: var(--gold, #f2c14e); }
+#nego-stake button span { font-size: 11.5px; color: #aeb9c8; }

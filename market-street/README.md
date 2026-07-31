@@ -33,7 +33,7 @@ link can be the bottleneck.
 | --- | --- |
 | **Stores** | Staffing, price level, product assortment (limited shelf slots; remodel to widen), reputation, morale |
 | **Supply** | Standing orders per product (vendor / reorder point / quantity), warehouse capacity, truck fleet — watch trucks park and unload crate by crate |
-| **Vendors** | Six suppliers with different prices, quality, and lead times; haggle at a push-your-luck **dice table** — keep 🤝 leverage, bank 💬 goodwill, and stop pressing before ⚠️ offense outruns the vendor's patience. Big wins pay perks (rush shipping, free pallets); blow-ups freeze your discount for a week |
+| **Vendors** | Six suppliers with different prices, quality, and lead times; haggle at a push-your-luck **dice table** — keep 🤝 leverage, bank 💬 goodwill, and stop pressing before ⚠️ offense outruns the vendor's patience. Negotiate **price** (discounts to 25%) or **delivery** (−1 day lead windows, split shipments). Big wins pay perks; blow-ups freeze your discount for a week |
 | **People** | Department heads and store managers hired from candidate pools — each with skill (★–★★★), a salary ask, and a trait with a real mechanical effect. Delegate staffing, pricing, negotiation, sourcing, reorder tuning, even fleet capex |
 | **Books** | A real P&L (weighted-average COGS), 30-day profit chart, per-store profitability, activity log |
 | **Events** | Cold snaps, heat waves, vendor strikes, roadworks, festivals, price wars, inspections, fridge breakdowns |

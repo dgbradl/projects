@@ -56,13 +56,18 @@ export class Game {
     }
 
     this.purchasing = {};
+    const chainPop = this.stores.reduce((s2, st) => s2 + this.site(st.siteId).pop, 0);
     for (const p of PROD_IDS) {
-      const core = !!PRODUCTS[p].core;
+      const vendor = this.cheapestVendor(p);
+      // Expected chain demand/day if every store carries the line, buffered
+      // by that vendor's lead time — slow vendors get deeper reorder points.
+      const est = chainPop * POP_FACTOR * PRODUCTS[p].weight;
+      const lead = VENDORS[vendor].leadTime;
       this.purchasing[p] = {
         auto: true,
-        vendor: this.cheapestVendor(p),
-        point: core ? 180 : 120,
-        qty: core ? 350 : 250,
+        vendor,
+        point: Math.max(75, Math.round(est * (lead + 1.5) / 25) * 25),
+        qty: Math.max(150, Math.round(est * 4 / 25) * 25),
       };
     }
 
@@ -295,7 +300,7 @@ export class Game {
 
   makeCandidates(role) {
     const traits = TRAITS[role];
-    const baseSalary = role === 'manager' ? MANAGER_SALARY : 60;
+    const baseSalary = role === 'manager' ? MANAGER_SALARY : 48;
     const out = [];
     for (let i = 0; i < 3; i++) {
       const skill = 1 + Math.floor(Math.random() * 3);
@@ -359,7 +364,16 @@ export class Game {
     if (!this.districtUnlocked(site.district)) return false;
     if (this.cash < site.price) return false;
     this.cash -= site.price;
+    const popBefore = this.stores.reduce((s, st) => s + this.site(st.siteId).pop, 0);
     const store = this.addStore(siteId);
+    // Auto standing orders grow with the chain: more mouths, deeper buffers.
+    const ratio = (popBefore + site.pop) / Math.max(1, popBefore);
+    for (const p of PROD_IDS) {
+      const pol = this.purchasing[p];
+      if (!pol.auto) continue;
+      pol.point = Math.round(pol.point * ratio / 25) * 25;
+      pol.qty = Math.round(pol.qty * ratio / 25) * 25;
+    }
     this.stats.storesOpened++;
     this.addFloater(site.x, site.y, 'Grand opening!', '#f2c14e');
     this.log('🎉', `${store.name} opened in ${this.district(site.district).name}.`);
@@ -435,13 +449,18 @@ export class Game {
     if (this.cash < cost) return false;
     this.cash -= cost;
     const vs = this.vendors[vendorId];
-    this.orders.push({
-      vendor: vendorId, product, qty,
-      arriveDay: this.day()
-        + Math.max(1, v.leadTime - (this.day() < (vs.rushUntil ?? 0) ? 1 : 0))
-        + this.leadDelta(),
-      unitCost: unit,
-    });
+    const arrive = this.day()
+      + Math.max(1, v.leadTime - (this.day() < (vs.rushUntil ?? 0) ? 1 : 0))
+      + this.leadDelta();
+    if (this.day() < (vs.splitUntil ?? 0) && qty >= 100) {
+      // Negotiated split shipments: half arrives a day early.
+      const half = Math.floor(qty / 2);
+      this.orders.push({ vendor: vendorId, product, qty: qty - half,
+        arriveDay: Math.max(this.day() + 1, arrive - 1), unitCost: unit });
+      this.orders.push({ vendor: vendorId, product, qty: half, arriveDay: arrive, unitCost: unit });
+    } else {
+      this.orders.push({ vendor: vendorId, product, qty, arriveDay: arrive, unitCost: unit });
+    }
     vs.rel = Math.min(100, vs.rel + Math.min(4, qty / 150));
     if (vs.contract) vs.contract.weekOrdered += qty;
     return true;
@@ -481,7 +500,13 @@ export class Game {
     return { count: Math.min(NEGO.maxDice, NEGO.baseDice + bonus.length), bonus };
   }
 
-  startNegotiation(vendorId) {
+  canNegotiate(vendorId) {
+    if (this.vendors[vendorId].lastNegDay === this.day()) return { done: true };
+    if (this.vendorStruck(vendorId)) return { struck: true };
+    return { ok: true };
+  }
+
+  startNegotiation(vendorId, stake = 'price') {
     const vs = this.vendors[vendorId];
     if (vs.lastNegDay === this.day()) return { done: true };
     if (this.vendorStruck(vendorId)) return { struck: true };
@@ -489,6 +514,7 @@ export class Game {
     const { count, bonus } = this.negoDiceCount(vendorId);
     this.nego = {
       vendor: vendorId,
+      stake,
       dice: Array.from({ length: count }, () => null),
       rollsLeft: NEGO.rolls,
       patience: VENDORS[vendorId].patience ?? 3,
@@ -521,7 +547,7 @@ export class Game {
     // With decent leverage on the table and presses left, the vendor floats
     // a counter: take this now, and we part as friends.
     if (n.rollsLeft > 0 && this.negoLeverage() >= NEGO.counterAt) {
-      n.counter = { disc: this.negoTierDisc() };
+      n.counter = { value: this.negoTierValue() };
     }
     return n;
   }
@@ -541,23 +567,51 @@ export class Game {
     return 0;
   }
 
+  // The current roll's winnings under the active stake: {disc} for price,
+  // {days, split} for delivery, or null below the first tier.
+  negoTierValue() {
+    if (!this.nego) return null;
+    if (this.nego.stake === 'delivery') {
+      const lev = this.negoLeverage();
+      for (const t of NEGO.deliveryTiers) if (lev >= t.lev) return { days: t.days, split: !!t.split };
+      return null;
+    }
+    const disc = this.negoTierDisc();
+    return disc > 0 ? { disc } : null;
+  }
+
   negoAccept(fromCounter = false) {
     const n = this.nego;
     if (!n || n.over) return n?.result;
     const vs = this.vendors[n.vendor];
-    const disc = this.negoTierDisc();
+    const won = this.negoTierValue();
     const good = this.negoGoodwill();
     n.counterAccepted = fromCounter;
-    if (disc > 0) vs.discount = Math.min(0.25, vs.discount + disc);
-    const relGain = good + (disc > 0 ? 2 : 0) + (fromCounter ? NEGO.counterRel : 0);
-    vs.rel = Math.min(100, vs.rel + relGain);
     let perk = null;
-    if (disc >= NEGO.tiers[0].disc) perk = this.negoPerk(n.vendor);
-    n.over = true;
-    n.result = { walked: false, disc, good, relGain, perk, total: vs.discount };
-    if (disc > 0) {
+    if (n.stake === 'delivery') {
+      if (won) {
+        vs.rushUntil = Math.max(vs.rushUntil ?? 0, this.day()) + won.days;
+        if (won.split) vs.splitUntil = Math.max(vs.splitUntil ?? 0, this.day()) + won.days;
+        // Top-tier delivery closes flourish with a small discount instead.
+        if (won.split) {
+          vs.discount = Math.min(0.25, vs.discount + 0.02);
+          perk = { kind: 'disc', text: 'an extra 2% off' };
+        }
+        this.log('🚚', `${VENDORS[n.vendor].name} bumped you up the route: −1 day lead for ${won.days} days${won.split ? ', shipments split for smoother arrivals' : ''}.`);
+      }
+    } else if (won) {
+      vs.discount = Math.min(0.25, vs.discount + won.disc);
+      if (won.disc >= NEGO.tiers[0].disc) perk = this.negoPerk(n.vendor);
       this.log('🤝', `${VENDORS[n.vendor].name} agreed to ${Math.round(vs.discount * 100)}% off${perk ? ` — plus ${perk.text}` : ''}.`);
     }
+    const relGain = good + (won ? 2 : 0) + (fromCounter ? NEGO.counterRel : 0);
+    vs.rel = Math.min(100, vs.rel + relGain);
+    n.over = true;
+    n.result = {
+      walked: false, stake: n.stake, won, good, relGain, perk,
+      disc: n.stake === 'price' && won ? won.disc : 0,
+      total: vs.discount,
+    };
     this.stats.negotiations = (this.stats.negotiations ?? 0) + 1;
     return n.result;
   }
