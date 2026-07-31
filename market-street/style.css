@@ -545,3 +545,47 @@ button:active:not(:disabled) { transform: scale(0.96); }
 @media (max-width: 860px) {
   #plan-bar { top: 8px; font-size: 11.5px; flex-wrap: wrap; justify-content: center; }
 }
+
+/* ---- dice negotiation ---- */
+#nego-modal {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: min(430px, 92%); background: #1d232d; border: 1px solid #3a4356;
+  border-radius: 12px; padding: 18px; z-index: 6;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+}
+#nego-modal.hidden { display: none; }
+#nego-bonus { margin: 4px 0 8px; }
+#nego-bonus span {
+  display: inline-block; background: rgba(242, 193, 78, 0.12); color: var(--gold, #f2c14e);
+  border: 1px solid rgba(242, 193, 78, 0.35); border-radius: 6px;
+  padding: 1px 7px; margin: 2px 3px 0 0; font-size: 11px;
+}
+.nego-meters { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+.nego-lev-label { margin-left: auto; }
+#nego-lev { color: var(--gold, #f2c14e); }
+#nego-patience i {
+  display: inline-block; width: 11px; height: 11px; border-radius: 50%;
+  background: #3a4356; margin-right: 4px; vertical-align: -1px;
+}
+#nego-patience i.burnt { background: #e8828c; }
+#nego-dice { display: flex; gap: 8px; justify-content: center; margin: 14px 0; flex-wrap: wrap; }
+.die {
+  width: 46px; height: 46px; border-radius: 10px; font-size: 22px;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  background: #29303d; border: 2px solid #3a4356; transition: transform 0.1s, border-color 0.1s;
+  user-select: none;
+}
+.die:hover { transform: translateY(-2px); }
+.die.kept { border-color: var(--gold, #f2c14e); background: rgba(242, 193, 78, 0.10); }
+.die.warn { border-color: #e8828c; background: rgba(232, 130, 140, 0.12); cursor: not-allowed; }
+.die.rolling { animation: die-shake 0.35s ease; }
+@keyframes die-shake {
+  0% { transform: rotate(0) translateY(0); }
+  25% { transform: rotate(-14deg) translateY(-6px); }
+  55% { transform: rotate(11deg) translateY(-3px); }
+  80% { transform: rotate(-5deg); }
+  100% { transform: rotate(0); }
+}
+#nego-chatter { min-height: 32px; font-style: italic; color: #aeb9c8; }
+#nego-chatter.walked { color: var(--bad, #e8828c); font-weight: 600; }
+#nego-modal .wr-actions button:disabled { opacity: 0.45; cursor: default; }

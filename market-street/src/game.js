@@ -9,7 +9,7 @@ import {
   DELEGATIONS, PEOPLE_NAMES, RIVAL, DEBT_INTEREST, DEBT_GRACE_DAYS,
   DEBT_HARD_LIMIT, WAGE_DRIFT, GOALS, DIFFICULTY, CONTRACT, STORE_UPGRADES,
   CAMPAIGN, ACHIEVEMENTS, SEASONS, SEASON_DAYS, YEAR_DAYS, HOLIDAYS,
-  HOLIDAY_ANNOUNCE,
+  HOLIDAY_ANNOUNCE, NEGO,
 } from './defs.js';
 
 const SAVE_KEY = 'market-street-save-v2';
@@ -207,7 +207,8 @@ export class Game {
   unitCost(product, vendorId) {
     const v = VENDORS[vendorId];
     const vs = this.vendors[vendorId];
-    const disc = Math.max(vs.discount, vs.contract ? CONTRACT.discount : 0);
+    const negotiated = this.day() < (vs.frozenUntil ?? 0) ? 0 : vs.discount;
+    const disc = Math.max(negotiated, vs.contract ? CONTRACT.discount : 0);
     const buyer = 1 - 0.02 * this.roleSkill('buyer');
     const trait = this.hasTrait('buyer', 'pennypincher') ? 0.985 : 1;
     let mult = this.season().cost?.[product] ?? 1;
@@ -433,16 +434,21 @@ export class Game {
     const cost = Math.round(unit * qty);
     if (this.cash < cost) return false;
     this.cash -= cost;
+    const vs = this.vendors[vendorId];
     this.orders.push({
       vendor: vendorId, product, qty,
-      arriveDay: this.day() + v.leadTime + this.leadDelta(), unitCost: unit,
+      arriveDay: this.day()
+        + Math.max(1, v.leadTime - (this.day() < (vs.rushUntil ?? 0) ? 1 : 0))
+        + this.leadDelta(),
+      unitCost: unit,
     });
-    const vs = this.vendors[vendorId];
     vs.rel = Math.min(100, vs.rel + Math.min(4, qty / 150));
     if (vs.contract) vs.contract.weekOrdered += qty;
     return true;
   }
 
+  // Background negotiation used by the delegated negotiator: no table, just
+  // your Head Buyer quietly working the phones for the small step.
   negotiate(vendorId) {
     const vs = this.vendors[vendorId];
     if (vs.lastNegDay === this.day()) return { done: true };
@@ -450,13 +456,143 @@ export class Game {
     let chance = 0.25 + vs.rel / 200 + 0.12 * this.roleSkill('buyer');
     if (this.hasTrait('buyer', 'haggler')) chance += 0.08;
     if (Math.random() < chance) {
-      vs.discount = Math.min(0.25, vs.discount + 0.05);
-      vs.rel = Math.min(100, vs.rel + 8);
+      vs.discount = Math.min(0.25, vs.discount + 0.03);
+      vs.rel = Math.min(100, vs.rel + 6);
       this.log('🤝', `${VENDORS[vendorId].name} agreed to ${Math.round(vs.discount * 100)}% off.`);
       return { success: true };
     }
     vs.rel = Math.max(0, vs.rel - 4);
     return { success: false };
+  }
+
+  // ---- dice negotiation --------------------------------------------------
+  // Sitting down at the table: roll a pool, keep dice, press your luck.
+  // ⚠️ dice lock in where they land; more of them than the vendor has
+  // patience for and they walk — relationship hit, discount frozen a week.
+
+  negoDiceCount(vendorId) {
+    const vs = this.vendors[vendorId];
+    const bonus = [];
+    if (vs.rel >= 50) bonus.push('Good relationship (rel 50+)');
+    if (vs.rel >= 80) bonus.push('Trusted partner (rel 80+)');
+    if (this.roleSkill('buyer') >= 1) bonus.push(`Head Buyer at the table (★${this.roleSkill('buyer')})`);
+    if (this.roleSkill('buyer') >= 3) bonus.push('Master buyer');
+    if (vs.contract) bonus.push('Active supply contract');
+    return { count: Math.min(NEGO.maxDice, NEGO.baseDice + bonus.length), bonus };
+  }
+
+  startNegotiation(vendorId) {
+    const vs = this.vendors[vendorId];
+    if (vs.lastNegDay === this.day()) return { done: true };
+    if (this.vendorStruck(vendorId)) return { struck: true };
+    vs.lastNegDay = this.day();
+    const { count, bonus } = this.negoDiceCount(vendorId);
+    this.nego = {
+      vendor: vendorId,
+      dice: Array.from({ length: count }, () => null),
+      rollsLeft: NEGO.rolls,
+      patience: VENDORS[vendorId].patience ?? 3,
+      warns: 0,
+      bonus,
+      counter: null,
+      counterAccepted: false,
+      over: false,
+      result: null,
+    };
+    this.negoRoll([]);
+    return this.nego;
+  }
+
+  negoRoll(keep = []) {
+    const n = this.nego;
+    if (!n || n.over || n.rollsLeft <= 0) return n;
+    n.rollsLeft--;
+    n.counter = null;
+    n.dice = n.dice.map((d, i) => {
+      // ⚠️ dice are locked where they land; kept dice stay by choice.
+      if (d && (d.face === 'warn' || keep.includes(i))) return d;
+      return { face: NEGO.faces[Math.floor(Math.random() * NEGO.faces.length)] };
+    });
+    n.warns = n.dice.filter((d) => d.face === 'warn').length;
+    if (n.warns > n.patience) {
+      this.negoWalk();
+      return n;
+    }
+    // With decent leverage on the table and presses left, the vendor floats
+    // a counter: take this now, and we part as friends.
+    if (n.rollsLeft > 0 && this.negoLeverage() >= NEGO.counterAt) {
+      n.counter = { disc: this.negoTierDisc() };
+    }
+    return n;
+  }
+
+  negoLeverage() {
+    return (this.nego?.dice ?? []).reduce(
+      (s, d) => s + (d?.face === 'lev' ? 1 : d?.face === 'crit' ? 2 : 0), 0);
+  }
+
+  negoGoodwill() {
+    return (this.nego?.dice ?? []).filter((d) => d?.face === 'good').length;
+  }
+
+  negoTierDisc() {
+    const lev = this.negoLeverage();
+    for (const t of NEGO.tiers) if (lev >= t.lev) return t.disc;
+    return 0;
+  }
+
+  negoAccept(fromCounter = false) {
+    const n = this.nego;
+    if (!n || n.over) return n?.result;
+    const vs = this.vendors[n.vendor];
+    const disc = this.negoTierDisc();
+    const good = this.negoGoodwill();
+    n.counterAccepted = fromCounter;
+    if (disc > 0) vs.discount = Math.min(0.25, vs.discount + disc);
+    const relGain = good + (disc > 0 ? 2 : 0) + (fromCounter ? NEGO.counterRel : 0);
+    vs.rel = Math.min(100, vs.rel + relGain);
+    let perk = null;
+    if (disc >= NEGO.tiers[0].disc) perk = this.negoPerk(n.vendor);
+    n.over = true;
+    n.result = { walked: false, disc, good, relGain, perk, total: vs.discount };
+    if (disc > 0) {
+      this.log('🤝', `${VENDORS[n.vendor].name} agreed to ${Math.round(vs.discount * 100)}% off${perk ? ` — plus ${perk.text}` : ''}.`);
+    }
+    this.stats.negotiations = (this.stats.negotiations ?? 0) + 1;
+    return n.result;
+  }
+
+  negoWalk() {
+    const n = this.nego;
+    const vs = this.vendors[n.vendor];
+    vs.rel = Math.max(0, vs.rel - NEGO.walkRel);
+    vs.frozenUntil = this.day() + NEGO.walkFreezeDays;
+    n.over = true;
+    n.result = { walked: true, freezeDays: NEGO.walkFreezeDays };
+    this.log('💢', `${VENDORS[n.vendor].name} walked out of the negotiation — your discount is suspended for ${NEGO.walkFreezeDays} days.`);
+    return n.result;
+  }
+
+  // Top-tier deals close with a flourish: a perk beyond the price cut.
+  negoPerk(vendorId) {
+    const vs = this.vendors[vendorId];
+    const v = VENDORS[vendorId];
+    const roll = Math.floor(Math.random() * 3);
+    if (roll === 0) {
+      vs.rushUntil = this.day() + NEGO.perkRushDays;
+      return { kind: 'rush', text: `rush shipping (−1 day lead) for ${NEGO.perkRushDays} days` };
+    }
+    if (roll === 1) {
+      const p = v.products[0];
+      const space = Math.max(0, this.warehouse.cap - this.warehouseUsed());
+      const qty = Math.min(NEGO.perkFreight, space);
+      if (qty > 0) {
+        this.warehouse.inv[p] = (this.warehouse.inv[p] ?? 0) + qty;
+        return { kind: 'freight', text: `${qty} units of ${PRODUCTS[p].name} on the house` };
+      }
+    }
+    vs.rel = Math.min(100, vs.rel + 8);
+    return { kind: 'goodwill', text: 'a warm handshake (+8 relationship)' };
   }
 
   signContract(vendorId) {
@@ -547,7 +683,7 @@ export class Game {
 
   goalMet(id) {
     switch (id) {
-      case 'negotiate': return Object.values(this.vendors).some((v) => v.discount >= 0.05);
+      case 'negotiate': return Object.values(this.vendors).some((v) => v.discount >= 0.02);
       case 'manager': return this.stores.some((s) => s.manager);
       case 'truck': return this.trucks.length >= 2;
       case 'range': return this.stores.some((s) =>

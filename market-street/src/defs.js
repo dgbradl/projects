@@ -121,6 +121,28 @@ export const CONTRACT = {
   relRequired: 50,   // relationship needed to sign
 };
 
+// Dice negotiation: a push-your-luck table sat once per vendor per day.
+// Roll a pool, keep what you like, press for more — every ⚠️ locks in, and
+// blowing past the vendor's patience means they walk.
+export const NEGO = {
+  baseDice: 3,
+  maxDice: 6,
+  rolls: 3,                                    // first roll + two presses
+  faces: ['lev', 'lev', 'good', 'good', 'warn', 'crit'],
+  // Leverage totals (🤝=1, ✨=2) → discount step won at the table.
+  tiers: [
+    { lev: 6, disc: 0.06 },
+    { lev: 4, disc: 0.04 },
+    { lev: 2, disc: 0.02 },
+  ],
+  counterAt: 3,        // leverage at which the vendor floats a counter-offer
+  counterRel: 2,       // extra relationship for taking the counter graciously
+  walkRel: 8,          // relationship lost when the vendor walks
+  walkFreezeDays: 7,   // negotiated discount suspended after a blow-up
+  perkRushDays: 7,     // "rush shipping" perk: -1 lead time for a week
+  perkFreight: 60,     // "free pallet" perk: units delivered gratis
+};
+
 // The rival discount chain contesting the city.
 export const RIVAL = {
   name: 'BuyLow',
@@ -142,32 +164,38 @@ export const VENDORS = {
     name: 'FreshFields Farms', products: ['produce', 'dairy', 'deli'],
     priceMult: 1.0, quality: 0.95, leadTime: 1,
     blurb: 'Local farms. Fast and fresh, but they know their worth.',
+    patience: 3, temper: 'Fair-minded, but they know what the restaurants pay.',
   },
   bakersguild: {
     name: "Baker's Guild", products: ['bakery'],
     priceMult: 0.95, quality: 1.0, leadTime: 1,
     blurb: 'Artisan co-op. Small batches, loyal once you earn their trust.',
+    patience: 4, temper: 'Patient listeners — they would rather talk than walk.',
   },
   ironox: {
     name: 'Iron Ox Meats', products: ['meat', 'frozen'],
     priceMult: 1.05, quality: 1.1, leadTime: 2,
     blurb: 'Premium cuts and cold chain. Pricey, but customers notice.',
+    patience: 2, temper: 'Proud of the product. Push too hard and the meeting is over.',
   },
   consolidated: {
     name: 'Consolidated Goods',
     products: ['pantry', 'frozen', 'dairy', 'beverages', 'snacks', 'household'],
     priceMult: 0.88, quality: 0.75, leadTime: 3,
     blurb: 'National distributor. Cheap and slow; quality is… fine. The only source for household goods.',
+    patience: 2, temper: 'Corporate reps with a quota. Zero sentiment, quick exits.',
   },
   vista: {
     name: 'Vista Beverage Co.', products: ['beverages', 'snacks'],
     priceMult: 0.92, quality: 0.85, leadTime: 2,
     blurb: 'Regional drinks & snacks distributor. Solid prices, decent speed.',
+    patience: 3, temper: 'Easygoing, commission-driven — they want a deal too.',
   },
   harborfresh: {
     name: 'Harbor Fresh', products: ['seafood', 'deli'],
     priceMult: 1.1, quality: 1.2, leadTime: 1,
     blurb: 'Dockside daily catch. Expensive, spoils fast, sells itself.',
+    patience: 2, temper: 'The boat leaves at four. Waste their time and so do they.',
   },
 };
 

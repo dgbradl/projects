@@ -82,6 +82,23 @@
         <textarea id="save-io" class="hidden" rows="4" placeholder="Paste a save here, then press Import again."></textarea>
         <button id="btn-settings-close">Close</button>
       </div>
+      <div id="nego-modal" class="hidden">
+        <button class="modal-x" data-close="nego-modal" aria-label="Leave negotiation">✕</button>
+        <h2 id="nego-title">🤝 Negotiation</h2>
+        <p class="fine" id="nego-temper"></p>
+        <div id="nego-bonus" class="fine"></div>
+        <div class="nego-meters">
+          <span class="fine">Patience</span><span id="nego-patience"></span>
+          <span class="fine nego-lev-label">Leverage</span><b id="nego-lev"></b>
+        </div>
+        <div id="nego-dice"></div>
+        <p id="nego-chatter" class="fine"></p>
+        <div class="wr-actions">
+          <button id="btn-nego-take"></button>
+          <button id="btn-nego-roll" class="primary"></button>
+          <button id="btn-nego-done" class="primary hidden">Done</button>
+        </div>
+      </div>
       <div id="week-report" class="hidden">
         <button class="modal-x" data-close="week-report" aria-label="Close report">✕</button>
         <h2>📊 Weekly report</h2>

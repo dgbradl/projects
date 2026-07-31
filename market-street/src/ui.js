@@ -57,6 +57,19 @@ export class UI {
     document.getElementById('btn-week-close').addEventListener('click', () => this.closeWeeklyReport());
     document.getElementById('btn-week-run').addEventListener('click', () => this.runWeek());
     document.getElementById('btn-run-week').addEventListener('click', () => this.runWeek());
+    document.getElementById('btn-nego-roll').addEventListener('click', () => {
+      const g = this.game;
+      if (!g.nego || g.nego.over) return;
+      g.negoRoll([...this.negoKeep]);
+      this.renderNego(true);
+    });
+    document.getElementById('btn-nego-take').addEventListener('click', () => {
+      const g = this.game;
+      if (!g.nego || g.nego.over) return;
+      g.negoAccept(!!g.nego.counter);
+      this.renderNego();
+    });
+    document.getElementById('btn-nego-done').addEventListener('click', () => this.closeNegotiation());
   }
 
   runWeek() {
@@ -190,7 +203,7 @@ export class UI {
   }
 
   syncBackdrop() {
-    const anyOpen = ['settings-modal', 'week-report', 'welcome-banner', 'win-banner', 'lose-banner']
+    const anyOpen = ['settings-modal', 'week-report', 'welcome-banner', 'win-banner', 'lose-banner', 'nego-modal']
       .some((id) => !document.getElementById(id).classList.contains('hidden'));
     document.getElementById('modal-backdrop').classList.toggle('hidden', !anyOpen);
   }
@@ -200,6 +213,7 @@ export class UI {
       btn.addEventListener('click', () => {
         const id = btn.dataset.close;
         if (id === 'week-report') this.closeWeeklyReport();
+        else if (id === 'nego-modal') this.closeNegotiation();
         else document.getElementById(id).classList.add('hidden');
       });
     });
@@ -209,6 +223,7 @@ export class UI {
       document.getElementById('welcome-banner').classList.add('hidden');
       document.getElementById('win-banner').classList.add('hidden');
       this.closeWeeklyReport();
+      this.closeNegotiation();
     });
   }
 
@@ -287,6 +302,7 @@ export class UI {
       document.getElementById(id).classList.add('hidden');
     }
     this.closeWeeklyReport();
+    this.closeNegotiation();
   }
 
   closeWeeklyReport() {
@@ -298,6 +314,117 @@ export class UI {
       if (this.game.planning) return;
       if (this.game.speed === 0) this.game.speed = this.reportPrevSpeed ?? 1;
     }
+  }
+
+  // ---- dice negotiation table -------------------------------------------
+
+  openNegotiation(id) {
+    const g = this.game;
+    const r = g.startNegotiation(id);
+    if (r.done) { this.say(`${VENDORS[id].name} won't renegotiate twice in one day.`); return; }
+    if (r.struck) { this.say(`${VENDORS[id].name} is on strike — nobody's at the table.`); return; }
+    this.negoPrevSpeed = g.speed || 1;
+    g.speed = 0;
+    this.negoKeep = new Set();
+    const v = VENDORS[id];
+    document.getElementById('nego-title').textContent = `🤝 ${v.name}`;
+    document.getElementById('nego-temper').textContent = v.temper ?? '';
+    document.getElementById('nego-bonus').innerHTML =
+      [`${r.dice.length} dice`, ...r.bonus.map((b) => `+1 ${b}`)]
+        .map((b) => `<span>${b}</span>`).join('');
+    document.getElementById('btn-nego-done').classList.add('hidden');
+    document.getElementById('nego-modal').classList.remove('hidden');
+    sfx.event?.();
+    this.renderNego(true);
+  }
+
+  renderNego(justRolled = false) {
+    const g = this.game;
+    const n = g.nego;
+    if (!n) return;
+    const FACE = { lev: '🤝', good: '💬', warn: '⚠️', crit: '✨' };
+    const TIP = {
+      lev: 'Leverage +1 — click to keep',
+      good: 'Goodwill: +1 relationship when you close — click to keep',
+      warn: 'Offense — locked in. Too many and they walk.',
+      crit: 'Critical: leverage +2 — click to keep',
+    };
+    const diceEl = document.getElementById('nego-dice');
+    diceEl.innerHTML = '';
+    n.dice.forEach((d, i) => {
+      const b = document.createElement('button');
+      const kept = this.negoKeep.has(i);
+      b.className = 'die'
+        + (d.face === 'warn' ? ' warn' : kept ? ' kept' : '')
+        + (justRolled && !kept && d.face !== 'warn' ? ' rolling' : '');
+      b.textContent = FACE[d.face];
+      b.title = TIP[d.face];
+      if (!n.over && d.face !== 'warn' && n.rollsLeft > 0) {
+        b.addEventListener('click', () => {
+          if (this.negoKeep.has(i)) this.negoKeep.delete(i);
+          else this.negoKeep.add(i);
+          this.renderNego();
+        });
+      }
+      diceEl.appendChild(b);
+    });
+    document.getElementById('nego-patience').innerHTML =
+      Array.from({ length: n.patience }, (_, i) => `<i class="${i < n.warns ? 'burnt' : ''}"></i>`).join('');
+    const disc = g.negoTierDisc();
+    document.getElementById('nego-lev').textContent =
+      `${g.negoLeverage()} → ${disc ? `+${Math.round(disc * 100)}%` : 'no deal yet'}`;
+
+    const take = document.getElementById('btn-nego-take');
+    const roll = document.getElementById('btn-nego-roll');
+    const done = document.getElementById('btn-nego-done');
+    const chat = document.getElementById('nego-chatter');
+    chat.classList.remove('walked');
+    if (n.over) {
+      take.classList.add('hidden');
+      roll.classList.add('hidden');
+      done.classList.remove('hidden');
+      const r = n.result;
+      if (r.walked) {
+        chat.classList.add('walked');
+        chat.textContent = `"We're done here." They walk out — relationship takes a hit and your negotiated discount is frozen for ${r.freezeDays} days.`;
+        sfx.alert?.();
+      } else if (r.disc > 0) {
+        chat.textContent = `Handshake. +${Math.round(r.disc * 100)}% off (now ${Math.round(r.total * 100)}% total)${r.perk ? ` — and they threw in ${r.perk.text}.` : '.'}`;
+        sfx.dealYes?.();
+      } else {
+        chat.textContent = `No new discount today${r.relGain > 0 ? ', but the goodwill kept things warm' : ''}. There's always next week.`;
+      }
+      return;
+    }
+    take.classList.remove('hidden');
+    roll.classList.remove('hidden');
+    done.classList.add('hidden');
+    if (n.counter) {
+      chat.textContent = `"Tell you what — take the ${Math.round(n.counter.disc * 100)}% right now and we're square." (accepting a counter adds bonus relationship)`;
+    } else if (n.warns >= n.patience) {
+      chat.textContent = 'The room has gone very quiet. One more slip and this meeting is over.';
+    } else if (n.warns === n.patience - 1 && n.patience > 1) {
+      chat.textContent = 'Eyebrows are rising. Careful how hard you push.';
+    } else {
+      chat.textContent = 'Keep the dice you like, press for the rest — or shake on it.';
+    }
+    take.textContent = disc ? `Take the deal (+${Math.round(disc * 100)}%)` : 'Wrap up politely';
+    roll.textContent = n.rollsLeft > 0
+      ? `Press harder (${n.rollsLeft} roll${n.rollsLeft === 1 ? '' : 's'} left)`
+      : 'No rolls left';
+    roll.disabled = n.rollsLeft <= 0;
+  }
+
+  closeNegotiation() {
+    const g = this.game;
+    const el = document.getElementById('nego-modal');
+    if (el.classList.contains('hidden')) return;
+    // Leaving mid-negotiation settles quietly at whatever is on the table.
+    if (g.nego && !g.nego.over) g.negoAccept(false);
+    g.nego = null;
+    el.classList.add('hidden');
+    if (g.speed === 0 && !g.planning) g.speed = this.negoPrevSpeed ?? 1;
+    g.save();
   }
 
   confetti() {
@@ -702,7 +829,7 @@ export class UI {
   buildVendorsTab() {
     const g = this.game;
     const page = document.getElementById('tab-vendors');
-    page.innerHTML = '<p class="fine pad">Relationships grow when you order; a strong relationship makes negotiations land. Each success locks in another 5% off (max 25%). A Head Buyer helps a lot.</p>';
+    page.innerHTML = '<p class="fine pad">Negotiating opens the dice table: roll 🤝 leverage for the discount, 💬 goodwill for the relationship — but ⚠️ offense locks in, and past a vendor\'s patience they walk (frozen discount, soured relationship). Relationship, a Head Buyer, and contracts add dice. Once per vendor per day; max 25% off.</p>';
     for (const [id, v] of Object.entries(VENDORS)) {
       const card = document.createElement('div');
       card.className = 'panel vendor-card';
@@ -747,10 +874,7 @@ export class UI {
         return;
       }
       if (!id) return;
-      const r = g.negotiate(id);
-      if (r.done) this.say(`${VENDORS[id].name} won't renegotiate twice in one day.`);
-      else if (r.success) this.say(`Deal! ${VENDORS[id].name} agreed to a better rate.`);
-      else this.say(`${VENDORS[id].name} didn't budge. Order more, build trust, try tomorrow.`);
+      this.openNegotiation(id);
     });
   }
 
@@ -1427,7 +1551,12 @@ export class UI {
         rel.style.background = 'var(--accent)';
       }
       const disc = document.querySelector(`[data-disc="${id}"]`);
-      if (disc) setEl(disc, `${Math.round(g.vendors[id].discount * 100)}%`);
+      if (disc) {
+        const frozenFor = (g.vendors[id].frozenUntil ?? 0) - g.day();
+        setEl(disc, frozenFor > 0
+          ? `${Math.round(g.vendors[id].discount * 100)}% ❄️ frozen ${frozenFor}d`
+          : `${Math.round(g.vendors[id].discount * 100)}%`);
+      }
       const pips = document.querySelector(`[data-pips="${id}"]`);
       if (pips) {
         const n = Math.round(g.vendors[id].discount / 0.05);

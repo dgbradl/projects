@@ -1,5 +1,5 @@
 // Simulation unit tests: economy, logistics, vendors, people, stakes, goals.
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { Game } from '../../src/game.js';
 import {
   PRODUCTS, VENDORS, GOALS, START_CASH, RIVAL, SHELF_CAP,
@@ -528,5 +528,79 @@ describe('weekly planning mode', () => {
     expect(g2.speed).toBe(0);
     expect(g2.weeklyMode).toBe(true);
     delete globalThis.localStorage;
+  });
+});
+
+describe('dice negotiation', () => {
+  // Math.random stub: feed exact face indexes (faces array is 6 long).
+  const FACE_IDX = { lev: 0, good: 2, warn: 4, crit: 5 };
+  let realRandom;
+  const feed = (faces) => {
+    const q = faces.map((f) => FACE_IDX[f] / 6 + 0.001);
+    Math.random = () => (q.length ? q.shift() : 0.001);
+  };
+  beforeEach(() => { realRandom = Math.random; });
+  afterEach(() => { Math.random = realRandom; });
+
+  it('is a once-per-day sitting per vendor', () => {
+    feed(['lev', 'lev', 'lev']);
+    expect(g.startNegotiation('freshfields').done).toBeUndefined();
+    expect(g.startNegotiation('freshfields').done).toBe(true);
+  });
+
+  it('grants bonus dice for relationship, buyer, and contract', () => {
+    expect(g.negoDiceCount('freshfields').count).toBe(3);
+    g.vendors.freshfields.rel = 85;
+    expect(g.negoDiceCount('freshfields').count).toBe(5);
+  });
+
+  it('closing with big leverage raises the discount and pays a perk', () => {
+    // 3 crits = leverage 6; the trailing 0.01 steers the perk roll.
+    const q = [5 / 6 + 0.001, 5 / 6 + 0.001, 5 / 6 + 0.001, 0.01];
+    Math.random = () => (q.length ? q.shift() : 0.01);
+    g.startNegotiation('freshfields');
+    const r = g.negoAccept();
+    expect(r.walked).toBe(false);
+    expect(r.disc).toBeCloseTo(0.06, 5);
+    expect(g.vendors.freshfields.discount).toBeCloseTo(0.06, 5);
+    expect(r.perk).toBeTruthy();
+  });
+
+  it('kept dice survive a press; unkept dice reroll', () => {
+    feed(['crit', 'good', 'good', 'lev', 'lev', 'lev']);
+    g.startNegotiation('freshfields');
+    expect(g.nego.dice[0].face).toBe('crit');
+    g.negoRoll([0]);                      // keep the crit, reroll the rest
+    expect(g.nego.dice[0].face).toBe('crit');
+    expect(g.nego.dice[1].face).toBe('lev');
+  });
+
+  it('too many warnings makes the vendor walk: rel hit and frozen discount', () => {
+    g.vendors.ironox.discount = 0.10;
+    const relBefore = (g.vendors.ironox.rel = 60);
+    const baseCost = g.unitCost('meat', 'ironox');
+    feed(['warn', 'warn', 'warn', 'warn', 'warn', 'warn']);
+    g.startNegotiation('ironox');         // ironox patience 2 -> 3 warns on the
+    expect(g.nego.result.walked).toBe(true);
+    expect(g.vendors.ironox.rel).toBe(relBefore - 8);
+    expect(g.vendors.ironox.frozenUntil).toBe(g.day() + 7);
+    expect(g.unitCost('meat', 'ironox')).toBeGreaterThan(baseCost);
+  });
+
+  it('warn dice are locked and cannot be rerolled away', () => {
+    feed(['warn', 'good', 'good', 'lev', 'lev']);
+    g.startNegotiation('freshfields');
+    expect(g.nego.dice[0].face).toBe('warn');
+    g.negoRoll([]);
+    expect(g.nego.dice[0].face).toBe('warn');   // still there
+    expect(g.nego.warns).toBeGreaterThanOrEqual(1);
+  });
+
+  it('a walkout freeze suspends the negotiated discount but not a contract', () => {
+    g.vendors.consolidated.discount = 0.10;
+    g.vendors.consolidated.frozenUntil = g.day() + 5;
+    const frozenCost = g.unitCost('pantry', 'consolidated');
+    g.vendors.consolidated.contract = { until: g.day() + 10, weekEnd: g.day() + 7, weekOrdered: 0 };
+    expect(g.unitCost('pantry', 'consolidated')).toBeLessThan(frozenCost);
   });
 });
