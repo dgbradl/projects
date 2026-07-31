@@ -11,11 +11,14 @@ const ROAD_LINES = [0, 4, 8, 12, 16, 20];
 const CAR_COLORS = ['#c8cdd6', '#8fa8c8', '#c8a08a', '#9ec09a', '#b0a0c8', '#d6c08a'];
 const WALKER_COLORS = ['#e8d8c0', '#c0d8e8', '#e8c0c8', '#c8e8c0', '#d8c8e8'];
 const HOUSE_TONES = [
-  ['#5a6270', '#3e4450', '#4c525e'],
-  ['#6b5f52', '#4a4238', '#5a5045'],
-  ['#556270', '#3a4450', '#485460'],
-  ['#635a6e', '#453e4e', '#544c5e'],
+  ['#8a93a3', '#5f6675', '#747d8c'],   // slate
+  ['#a3907a', '#6f6252', '#8b7b66'],   // tan
+  ['#93a08e', '#616c5e', '#7b8877'],   // sage
+  ['#a08a95', '#6d5c65', '#87737d'],   // mauve
+  ['#9aa3b8', '#6a7385', '#828da2'],   // powder blue
+  ['#b0a08a', '#7a6d5a', '#958772'],   // cream
 ];
+const ROOF_TONES = ['#8a5844', '#5d6470', '#726055', '#4f5e6e', '#7d6a4f'];
 
 // Deterministic per-tile hash for decorative variety.
 function hash(x, y) {
@@ -27,6 +30,12 @@ function hash(x, y) {
 // The river runs down Riverside's western edge; road rows cross it as bridges.
 function isRiver(x, y) {
   return x === 1 && y >= 13;
+}
+
+// Small public parks scattered across the city (lot tiles, never sites).
+const PARKS = [[9, 6], [18, 2], [5, 21], [21, 14]];
+function isPark(x, y) {
+  return PARKS.some(([px, py]) => px === x && py === y);
 }
 
 export class Renderer {
@@ -45,6 +54,11 @@ export class Renderer {
     }));
     this.boat = { t: Math.random(), dir: 1 };
     this.puffs = [];
+    this.birds = [];
+    this.birdClock = 0;
+    this.weather = null;          // { type: 'rain'|'snow', ttl }
+    this.weatherClock = 0;
+    this.drops = [];
     this.resize();
   }
 
@@ -156,16 +170,21 @@ export class Renderer {
     ctx.stroke();
   }
 
-  // Directional sun shadow (light from the north-west), scaled to height.
+  // Sun shadow that swings with the time of day: west in the morning,
+  // east in the evening, longest at golden hour, gone at night.
   castShadow(sx, sy, h, footprint = 0.8) {
     const ctx = this.ctx;
-    ctx.fillStyle = 'rgba(10, 14, 22, 0.30)';
+    const alpha = this.shadowAlpha ?? 0.3;
+    if (alpha <= 0.01) return;
+    const az = this.sunAz ?? 0.4;
+    const stretch = this.shadowStretch ?? 1;
+    ctx.fillStyle = `rgba(10, 14, 22, ${alpha})`;
     ctx.beginPath();
     ctx.ellipse(
-      sx + (5 + h * 0.30) * this.scale, sy + 2.5 * this.scale,
-      (this.tw / 2) * footprint * (0.85 + h * 0.005),
-      (this.th / 2) * footprint * 0.85,
-      -0.30, 0, Math.PI * 2,
+      sx + az * (6 + h * 0.35) * this.scale, sy + 2.5 * this.scale,
+      (this.tw / 2) * footprint * (0.75 + h * 0.005) * stretch,
+      (this.th / 2) * footprint * 0.8,
+      -0.30 * az, 0, Math.PI * 2,
     );
     ctx.fill();
   }
@@ -284,6 +303,47 @@ export class Renderer {
     for (const p of this.puffs) p.age += dt;
     this.puffs = this.puffs.filter((p) => p.age < 1.1);
 
+    // Passing weather: rain showers in the green seasons, snowfall in winter.
+    this.weatherClock += dt;
+    const sid2 = g.season?.().id;
+    if (!this.weather && this.weatherClock > 8) {
+      this.weatherClock = 0;
+      const chance = sid2 === 'winter' ? 0.30 : sid2 === 'summer' ? 0.08 : 0.16;
+      if (Math.random() < chance) {
+        this.weather = { type: sid2 === 'winter' ? 'snow' : 'rain', ttl: 12 + Math.random() * 14 };
+        this.drops = Array.from({ length: this.weather.type === 'snow' ? 70 : 90 }, () => ({
+          x: Math.random(), y: Math.random(), v: 0.5 + Math.random() * 0.7, ph: Math.random() * 6,
+        }));
+      }
+    }
+    if (this.weather) {
+      this.weather.ttl -= dt;
+      const fall = this.weather.type === 'snow' ? 0.06 : 0.55;
+      for (const p of this.drops) {
+        p.y += p.v * fall * dt;
+        if (this.weather.type === 'snow') p.x += Math.sin(performance.now() / 900 + p.ph) * dt * 0.02;
+        if (p.y > 1) { p.y = -0.02; p.x = Math.random(); }
+      }
+      if (this.weather.ttl <= 0) { this.weather = null; this.drops = []; }
+    }
+
+    // A flock of birds crosses the sky now and then.
+    this.birdClock += dt;
+    if (this.birdClock > 14 && this.birds.length === 0) {
+      this.birdClock = 0;
+      const y0 = 0.15 + Math.random() * 0.4;
+      const dir = Math.random() < 0.5 ? 1 : -1;
+      for (let i = 0; i < 4 + Math.floor(Math.random() * 3); i++) {
+        this.birds.push({
+          x: dir > 0 ? -0.05 - i * 0.02 : 1.05 + i * 0.02,
+          y: y0 + (i % 2) * 0.02 + i * 0.008,
+          dir, phase: Math.random() * 6,
+        });
+      }
+    }
+    for (const b of this.birds) b.x += b.dir * dt * 0.06;
+    this.birds = this.birds.filter((b) => b.x > -0.1 && b.x < 1.1);
+
     // Clouds drift; a rowboat plies the river.
     for (const c of this.clouds) {
       c.x += c.v * dt;
@@ -301,120 +361,21 @@ export class Renderer {
     const g = this.game;
     this.updateAmbient();
     const dark = this.darkness();
+    // Sun azimuth: shadows point west in the morning, east in the evening,
+    // stretch when the sun is low, and fade away at night.
+    const tf = g.dayFrac();
+    const az = Math.max(-1, Math.min(1, (tf - 0.5) * 3.2));
+    this.sunAz = az;
+    this.shadowStretch = 1 + Math.abs(az) * 0.7;
+    this.shadowAlpha = Math.max(0, 0.30 - dark * 0.55);
     ctx.clearRect(0, 0, this.w, this.h);
 
-    // Ground pass.
-    for (let y = 0; y < GRID; y++) {
-      for (let x = 0; x < GRID; x++) {
-        const { sx, sy } = this.toScreen(x, y);
-        const district = this.districtOf(x, y);
-        const locked = !g.districtUnlocked(district.id);
-        if (isRoad(x, y)) {
-          // Sidewalk border with an asphalt roadbed inset into it.
-          ctx.fillStyle = locked ? '#262a34' : '#454c58';
-          this.diamond(sx, sy);
-          ctx.fill();
-          ctx.fillStyle = locked ? '#20242c' : '#2e343d';
-          this.diamond(sx, sy, 0.80);
-          ctx.fill();
-          const intersection = x % 4 === 0 && y % 4 === 0;
-          if (!locked && !intersection) {
-            // Dashed center line along the street.
-            const vertical = x % 4 === 0;
-            const u = this.isoUnit(vertical ? 0 : 1, vertical ? 1 : 0);
-            ctx.strokeStyle = 'rgba(215, 200, 130, 0.35)';
-            ctx.lineWidth = 1.2;
-            for (const t of [-0.28, 0.08]) {
-              ctx.beginPath();
-              ctx.moveTo(sx + u.x * this.tw * t, sy + u.y * this.tw * t);
-              ctx.lineTo(sx + u.x * this.tw * (t + 0.18), sy + u.y * this.tw * (t + 0.18));
-              ctx.stroke();
-            }
-          } else if (!locked && intersection) {
-            // Zebra crosswalks on each approach.
-            ctx.strokeStyle = 'rgba(220, 225, 235, 0.25)';
-            ctx.lineWidth = 1.5;
-            for (const [ddx, ddy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-              const u = this.isoUnit(ddx, ddy);
-              const p = { x: -u.y, y: u.x };
-              for (const s of [-0.09, 0, 0.09]) {
-                const bx = sx + u.x * this.tw * 0.30 + p.x * this.tw * s;
-                const by = sy + u.y * this.tw * 0.30 + p.y * this.tw * s;
-                ctx.beginPath();
-                ctx.moveTo(bx - u.x * this.tw * 0.035, by - u.y * this.tw * 0.035);
-                ctx.lineTo(bx + u.x * this.tw * 0.035, by + u.y * this.tw * 0.035);
-                ctx.stroke();
-              }
-            }
-          }
-        } else if (isRiver(x, y)) {
-          const shimmer = Math.sin(g.time * 40 + x * 2 + y) * 7;
-          ctx.fillStyle = `rgb(${30 + shimmer}, ${72 + shimmer}, ${102 + shimmer})`;
-          this.diamond(sx, sy);
-          ctx.fill();
-          // Banks catch the light on both shores.
-          const hw = this.tw / 2, hh = this.th / 2;
-          ctx.strokeStyle = 'rgba(150, 200, 225, 0.30)';
-          ctx.lineWidth = 1.2;
-          ctx.beginPath();
-          ctx.moveTo(sx, sy - hh); ctx.lineTo(sx + hw, sy);
-          ctx.moveTo(sx - hw, sy); ctx.lineTo(sx, sy + hh);
-          ctx.stroke();
-          // A drifting sparkle.
-          const sq = ((g.time * 25 + hash(x, y) * 7) % 1);
-          ctx.fillStyle = `rgba(220, 240, 255, ${0.5 * Math.sin(sq * Math.PI)})`;
-          ctx.fillRect(sx - hw * 0.4 + sq * hw * 0.8, sy - 2 + hash(y, x) * 4, 4, 1.2);
-        } else {
-          // District-tinted grass/lot ground with per-tile and seasonal variation.
-          const r = hash(x, y);
-          const shade = r * 16 - 5;
-          let base;
-          if (district.id === 'oldtown') base = [56, 68, 52];
-          else if (district.id === 'westside') base = [54, 63, 64];
-          else if (district.id === 'riverside') base = [50, 71, 55];
-          else base = [58, 60, 66];
-          const sid = this.game.season?.().id;
-          if (sid === 'summer') base = [base[0] + 8, base[1] + 2, base[2] - 4];
-          else if (sid === 'fall') base = [base[0] + 16, base[1] + 2, base[2] - 8];
-          else if (sid === 'winter') {
-            base = [
-              base[0] * 0.45 + 205 * 0.55,
-              base[1] * 0.45 + 210 * 0.55,
-              base[2] * 0.45 + 220 * 0.55,
-            ];
-          }
-          ctx.fillStyle = `rgb(${base[0] + shade}, ${base[1] + shade}, ${base[2] + shade})`;
-          this.diamond(sx, sy);
-          ctx.fill();
-          // Occasional flower patches liven the lots.
-          if (r >= 0.44 && r < 0.50 && !locked) {
-            const colors = ['#e8a0b0', '#f0d080', '#b0c8f0'];
-            for (let i = 0; i < 3; i++) {
-              ctx.fillStyle = colors[(Math.floor(r * 100) + i) % 3];
-              ctx.fillRect(
-                sx + (hash(x + i, y) - 0.5) * this.tw * 0.5,
-                sy + (hash(x, y + i) - 0.5) * this.th * 0.5,
-                2, 2,
-              );
-            }
-          }
-        }
-        if (locked) {
-          ctx.fillStyle = 'rgba(10, 12, 18, 0.35)';
-          this.diamond(sx, sy);
-          ctx.fill();
-        }
-      }
-    }
-
-    // Truck exhaust puffs (ground-level, before buildings).
-    for (const p of this.puffs) {
-      const { sx, sy } = this.toScreen(p.x, p.y);
-      const t = p.age / 1.1;
-      ctx.fillStyle = `rgba(190, 195, 205, ${0.25 * (1 - t)})`;
-      ctx.beginPath();
-      ctx.arc(sx, sy - 4 - t * 8, 2 + t * 5, 0, Math.PI * 2);
-      ctx.fill();
+    // Ground: static layer from cache, animated river on top.
+    this.ensureGroundCache();
+    ctx.drawImage(this.groundCache, this.originX - this.groundOx, this.originY - this.groundOy,
+      this.groundCssW, this.groundCssH);
+    for (let y = 13; y < GRID; y++) {
+      if (!isRoad(1, y)) this.drawRiverTile(1, y);
     }
 
     // Cloud shadows sweep the ground.
@@ -425,8 +386,45 @@ export class Renderer {
       ctx.fill();
     }
 
+    // Dashed frontier around districts you haven't unlocked yet.
+    ctx.setLineDash([7, 6]);
+    ctx.lineWidth = 1.5;
+    for (const d of DISTRICTS) {
+      if (g.districtUnlocked(d.id)) continue;
+      const [x0, y0, x1, y1] = d.rect;
+      const c1 = this.toScreen(x0 - 0.5, y0 - 0.5);
+      const c2 = this.toScreen(x1 - 0.5, y0 - 0.5);
+      const c3 = this.toScreen(x1 - 0.5, y1 - 0.5);
+      const c4 = this.toScreen(x0 - 0.5, y1 - 0.5);
+      ctx.strokeStyle = 'rgba(232, 130, 140, 0.45)';
+      ctx.beginPath();
+      ctx.moveTo(c1.sx, c1.sy);
+      ctx.lineTo(c2.sx, c2.sy);
+      ctx.lineTo(c3.sx, c3.sy);
+      ctx.lineTo(c4.sx, c4.sy);
+      ctx.closePath();
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
     // World pass: everything with height, painter-sorted.
     const drawables = [];
+    // Streetlights on intersection corners; hydrants on some blocks.
+    for (const lx of ROAD_LINES) {
+      for (const ly of ROAD_LINES) {
+        const px = lx + 0.42, py = ly + 0.42;
+        if (px < GRID && py < GRID) {
+          drawables.push({ key: px + py, kind: 'lamp', fx: px, fy: py });
+        }
+      }
+    }
+    for (let x = 0; x < GRID; x++) {
+      for (let y = 0; y < GRID; y++) {
+        if (isRoad(x, y) && !(x % 4 === 0 && y % 4 === 0) && hash(x + 13, y + 4) < 0.06) {
+          drawables.push({ key: x + y + 0.005, kind: 'hydrant', fx: x + 0.38, fy: y + 0.38 });
+        }
+      }
+    }
     // The rowboat drifts along the river.
     {
       const by = 13.5 + this.boat.t * 9;
@@ -444,9 +442,14 @@ export class Renderer {
           drawables.push({ key: x + y, kind: 'site', x, y, site });
           continue;
         }
+        if (isPark(x, y)) {
+          drawables.push({ key: x + y, kind: 'park', x, y });
+          continue;
+        }
         const r = hash(x, y);
         if (r < 0.30) drawables.push({ key: x + y, kind: 'house', x, y, r });
         else if (r < 0.44) drawables.push({ key: x + y, kind: 'tree', x, y, r });
+        else if (r >= 0.50 && r < 0.55) drawables.push({ key: x + y, kind: 'hedge', x, y, r });
       }
     }
     for (const t of g.trucks) {
@@ -493,6 +496,40 @@ export class Renderer {
     drawables.sort((a, b) => a.key - b.key);
     for (const d of drawables) this.drawThing(d, selectedSiteId);
 
+    // Falling weather + overcast tint.
+    if (this.weather) {
+      ctx.fillStyle = 'rgba(60, 68, 84, 0.14)';
+      ctx.fillRect(0, 0, this.w, this.h);
+      if (this.weather.type === 'rain') {
+        ctx.strokeStyle = 'rgba(190, 215, 240, 0.45)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (const p of this.drops) {
+          const px = p.x * this.w, py = p.y * this.h;
+          ctx.moveTo(px, py);
+          ctx.lineTo(px - 2.5, py + 9);
+        }
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = 'rgba(245, 248, 252, 0.85)';
+        for (const p of this.drops) {
+          ctx.beginPath();
+          ctx.arc(p.x * this.w, p.y * this.h, 1.6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+
+    // Golden-hour grade at dawn and dusk.
+    const tFrac = g.dayFrac();
+    const glow1 = Math.max(0, 1 - Math.abs(tFrac - 0.26) / 0.07);
+    const glow2 = Math.max(0, 1 - Math.abs(tFrac - 0.74) / 0.07);
+    const golden = Math.max(glow1, glow2);
+    if (golden > 0.03) {
+      ctx.fillStyle = `rgba(255, 148, 72, ${golden * 0.13})`;
+      ctx.fillRect(0, 0, this.w, this.h);
+    }
+
     // Midday warmth, then night overlay with glowing lights.
     const warm = Math.max(0, 0.05 - dark * 0.15);
     if (warm > 0.004) {
@@ -503,6 +540,21 @@ export class Renderer {
       ctx.fillStyle = `rgba(8, 12, 38, ${dark})`;
       ctx.fillRect(0, 0, this.w, this.h);
       if (dark > 0.12) this.drawLights(drawables, dark);
+    }
+
+    // Birds overhead.
+    if (dark < 0.25) {
+      ctx.strokeStyle = `rgba(40, 46, 56, ${0.7 - dark * 2})`;
+      ctx.lineWidth = 1.4;
+      for (const b of this.birds) {
+        const bx = b.x * this.w, by = b.y * this.h;
+        const flap = Math.sin(performance.now() / 130 + b.phase) * 2.5;
+        ctx.beginPath();
+        ctx.moveTo(bx - 4, by - flap);
+        ctx.lineTo(bx, by + 1.5);
+        ctx.lineTo(bx + 4, by - flap);
+        ctx.stroke();
+      }
     }
 
     // Cloud puffs float above it all (dimmer at night).
@@ -525,7 +577,7 @@ export class Renderer {
       this.w / 2, this.h / 2, Math.max(this.w, this.h) * 0.72,
     );
     vg.addColorStop(0, 'rgba(0,0,0,0)');
-    vg.addColorStop(1, 'rgba(0,0,0,0.32)');
+    vg.addColorStop(1, 'rgba(0,0,0,0.18)');
     ctx.fillStyle = vg;
     ctx.fillRect(0, 0, this.w, this.h);
 
@@ -569,6 +621,284 @@ export class Renderer {
       ctx.fillText(f.text, sx, sy - 40 * this.scale - f.age * 16 - (f.stack || 0) * 15);
     }
     ctx.globalAlpha = 1;
+  }
+
+
+  // Paint every ground tile (called once per cache rebuild).
+  paintGround() {
+    const ctx = this.ctx;
+    const g = this.game;
+    for (let y = 0; y < GRID; y++) {
+      for (let x = 0; x < GRID; x++) {
+        const { sx, sy } = this.toScreen(x, y);
+        const district = this.districtOf(x, y);
+        const locked = !g.districtUnlocked(district.id);
+        if (isRoad(x, y)) {
+          // Concrete sidewalk ring with an asphalt roadbed inset into it.
+          ctx.fillStyle = locked ? '#565c66' : '#9aa1ab';
+          this.diamond(sx, sy);
+          ctx.fill();
+          ctx.fillStyle = locked ? '#343941' : '#5a616b';
+          this.diamond(sx, sy, 0.80);
+          ctx.fill();
+          // Sidewalk expansion seams.
+          if (!locked) {
+            const rv = hash(x, y);
+            ctx.strokeStyle = 'rgba(60, 66, 76, 0.35)';
+            ctx.lineWidth = 1;
+            const vertical0 = x % 4 === 0 && y % 4 !== 0;
+            const u0 = this.isoUnit(vertical0 ? 0 : 1, vertical0 ? 1 : 0);
+            const p0 = { x: -u0.y, y: u0.x };
+            for (const t of [-0.25, 0.25]) {
+              for (const side of [-0.44, 0.44]) {
+                const bx = sx + u0.x * this.tw * t + p0.x * this.tw * side;
+                const by = sy + u0.y * this.tw * t + p0.y * this.tw * side;
+                ctx.beginPath();
+                ctx.moveTo(bx - p0.x * this.tw * 0.05, by - p0.y * this.tw * 0.05);
+                ctx.lineTo(bx + p0.x * this.tw * 0.05, by + p0.y * this.tw * 0.05);
+                ctx.stroke();
+              }
+            }
+            // The odd manhole cover.
+            if (rv > 0.55 && rv < 0.62 && !(x % 4 === 0 && y % 4 === 0)) {
+              ctx.fillStyle = 'rgba(42, 47, 55, 0.8)';
+              ctx.beginPath();
+              ctx.ellipse(sx + (rv - 0.585) * 40, sy + 2, 3.2 * this.scale, 1.8 * this.scale, 0, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+          // Railings where the road bridges the river.
+          if (x === 1 && y >= 13) {
+            ctx.strokeStyle = 'rgba(180, 188, 198, 0.9)';
+            ctx.lineWidth = 1.6;
+            const hwb = this.tw / 2, hhb = this.th / 2;
+            ctx.beginPath();
+            ctx.moveTo(sx - hwb * 0.9, sy - 3 * this.scale);
+            ctx.lineTo(sx, sy + hhb * 0.9 - 3 * this.scale);
+            ctx.moveTo(sx, sy - hhb * 0.9 - 3 * this.scale);
+            ctx.lineTo(sx + hwb * 0.9, sy - 3 * this.scale);
+            ctx.stroke();
+          }
+          const intersection = x % 4 === 0 && y % 4 === 0;
+          if (!locked && !intersection) {
+            // Dashed center line along the street.
+            const vertical = x % 4 === 0;
+            const u = this.isoUnit(vertical ? 0 : 1, vertical ? 1 : 0);
+            ctx.strokeStyle = 'rgba(240, 220, 140, 0.55)';
+            ctx.lineWidth = 1.2;
+            for (const t of [-0.28, 0.08]) {
+              ctx.beginPath();
+              ctx.moveTo(sx + u.x * this.tw * t, sy + u.y * this.tw * t);
+              ctx.lineTo(sx + u.x * this.tw * (t + 0.18), sy + u.y * this.tw * (t + 0.18));
+              ctx.stroke();
+            }
+          } else if (!locked && intersection) {
+            // Zebra crosswalks on each approach.
+            ctx.strokeStyle = 'rgba(235, 240, 248, 0.40)';
+            ctx.lineWidth = 1.5;
+            for (const [ddx, ddy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+              const u = this.isoUnit(ddx, ddy);
+              const p = { x: -u.y, y: u.x };
+              for (const s of [-0.09, 0, 0.09]) {
+                const bx = sx + u.x * this.tw * 0.30 + p.x * this.tw * s;
+                const by = sy + u.y * this.tw * 0.30 + p.y * this.tw * s;
+                ctx.beginPath();
+                ctx.moveTo(bx - u.x * this.tw * 0.035, by - u.y * this.tw * 0.035);
+                ctx.lineTo(bx + u.x * this.tw * 0.035, by + u.y * this.tw * 0.035);
+                ctx.stroke();
+              }
+            }
+          }
+        } else if (isRiver(x, y)) {
+          const shimmer = Math.sin(g.time * 40 + x * 2 + y) * 8;
+          ctx.fillStyle = `rgb(${52 + shimmer}, ${118 + shimmer}, ${160 + shimmer})`;
+          this.diamond(sx, sy);
+          ctx.fill();
+          const hw = this.tw / 2, hh = this.th / 2;
+          // Sandy banks along both shores.
+          ctx.strokeStyle = 'rgba(214, 198, 156, 0.85)';
+          ctx.lineWidth = 2.6 * this.scale;
+          ctx.beginPath();
+          ctx.moveTo(sx, sy - hh); ctx.lineTo(sx + hw, sy);
+          ctx.moveTo(sx - hw, sy); ctx.lineTo(sx, sy + hh);
+          ctx.stroke();
+          // Flow streaks drifting downstream.
+          for (let i = 0; i < 2; i++) {
+            const fq = ((g.time * 18 + hash(x + i, y) * 9) % 1);
+            ctx.strokeStyle = `rgba(230, 245, 255, ${0.35 * Math.sin(fq * Math.PI)})`;
+            ctx.lineWidth = 1;
+            const fy = sy - hh * 0.5 + fq * hh;
+            ctx.beginPath();
+            ctx.moveTo(sx - hw * 0.3, fy);
+            ctx.lineTo(sx + hw * 0.15, fy + hh * 0.2);
+            ctx.stroke();
+          }
+          // The occasional duck paddling along.
+          if (hash(x, y + 40) < 0.25) {
+            const dq = ((g.time * 6 + hash(x, y) * 5) % 1);
+            const dxp = sx - hw * 0.3 + dq * hw * 0.6;
+            const dyp = sy + (hash(y, x + 2) - 0.5) * hh * 0.5;
+            ctx.fillStyle = '#f5f0e0';
+            ctx.beginPath();
+            ctx.ellipse(dxp, dyp, 2.2 * this.scale, 1.4 * this.scale, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#e8a53a';
+            ctx.fillRect(dxp + 1.8 * this.scale, dyp - 1.5, 1.4, 1);
+          }
+        } else {
+          // Sunny district-tinted grass with soft blending and mottle texture.
+          const r = hash(x, y);
+          const shade = r * 10 - 4;
+          const tintOf = (d) => {
+            if (d === 'oldtown') return [104, 124, 76];
+            if (d === 'westside') return [96, 118, 88];
+            if (d === 'riverside') return [90, 130, 80];
+            return [106, 112, 94];
+          };
+          // Blend with neighbors so district borders don't cut hard lines.
+          let base = tintOf(district.id).slice();
+          for (const [nx2, ny2] of [[x + 1, y], [x, y + 1], [x - 1, y], [x, y - 1]]) {
+            const nd = this.districtOf(Math.max(0, Math.min(GRID - 1, nx2)), Math.max(0, Math.min(GRID - 1, ny2)));
+            const nt = tintOf(nd.id);
+            base = [base[0] + nt[0] * 0.25, base[1] + nt[1] * 0.25, base[2] + nt[2] * 0.25];
+          }
+          base = [base[0] / 2, base[1] / 2, base[2] / 2];
+          const sid = this.game.season?.().id;
+          if (sid === 'summer') base = [base[0] + 14, base[1] + 4, base[2] - 8];
+          else if (sid === 'fall') base = [base[0] + 26, base[1] - 2, base[2] - 18];
+          else if (sid === 'winter') {
+            base = [
+              base[0] * 0.38 + 216 * 0.62,
+              base[1] * 0.38 + 221 * 0.62,
+              base[2] * 0.38 + 230 * 0.62,
+            ];
+          }
+          ctx.fillStyle = `rgb(${base[0] + shade}, ${base[1] + shade}, ${base[2] + shade})`;
+          this.diamond(sx, sy);
+          ctx.fill();
+          // Mottled grass patches break up the tile grid.
+          if (sid !== 'winter') {
+            for (let i = 0; i < 3; i++) {
+              const hx = hash(x + i * 31, y + i * 17);
+              const hy = hash(y + i * 13, x + i * 7);
+              ctx.fillStyle = i % 2 === 0
+                ? `rgba(255, 255, 220, ${0.05 + hx * 0.05})`
+                : `rgba(30, 60, 20, ${0.05 + hy * 0.05})`;
+              ctx.beginPath();
+              ctx.ellipse(
+                sx + (hx - 0.5) * this.tw * 0.7,
+                sy + (hy - 0.5) * this.th * 0.6,
+                this.tw * (0.08 + hx * 0.10), this.th * (0.10 + hy * 0.12),
+                0, 0, Math.PI * 2,
+              );
+              ctx.fill();
+            }
+          }
+          // Occasional flower patches liven the lots.
+          if (r >= 0.44 && r < 0.50 && !locked && sid !== 'winter') {
+            const colors = ['#f0a8b8', '#f8d888', '#b8d0f8'];
+            for (let i = 0; i < 4; i++) {
+              ctx.fillStyle = colors[(Math.floor(r * 100) + i) % 3];
+              ctx.fillRect(
+                sx + (hash(x + i, y) - 0.5) * this.tw * 0.5,
+                sy + (hash(x, y + i) - 0.5) * this.th * 0.5,
+                2, 2,
+              );
+            }
+          }
+        }
+        if (locked) {
+          ctx.fillStyle = 'rgba(140, 146, 158, 0.30)';
+          this.diamond(sx, sy);
+          ctx.fill();
+          ctx.fillStyle = 'rgba(20, 24, 32, 0.14)';
+          this.diamond(sx, sy);
+          ctx.fill();
+        }
+      }
+    }
+
+    // Truck exhaust puffs (ground-level, before buildings).
+    for (const p of this.puffs) {
+      const { sx, sy } = this.toScreen(p.x, p.y);
+      const t = p.age / 1.1;
+      ctx.fillStyle = `rgba(190, 195, 205, ${0.25 * (1 - t)})`;
+      ctx.beginPath();
+      ctx.arc(sx, sy - 4 - t * 8, 2 + t * 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+
+  }
+
+  drawRiverTile(x, y) {
+    const ctx = this.ctx;
+    const g = this.game;
+    const { sx, sy } = this.toScreen(x, y);
+    const shimmer = Math.sin(g.time * 40 + x * 2 + y) * 8;
+    ctx.fillStyle = `rgb(${52 + shimmer}, ${118 + shimmer}, ${160 + shimmer})`;
+    this.diamond(sx, sy);
+    ctx.fill();
+    const hw = this.tw / 2, hh = this.th / 2;
+    ctx.strokeStyle = 'rgba(214, 198, 156, 0.85)';
+    ctx.lineWidth = 2.6 * this.scale;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy - hh); ctx.lineTo(sx + hw, sy);
+    ctx.moveTo(sx - hw, sy); ctx.lineTo(sx, sy + hh);
+    ctx.stroke();
+    for (let i = 0; i < 2; i++) {
+      const fq = ((g.time * 18 + hash(x + i, y) * 9) % 1);
+      ctx.strokeStyle = `rgba(230, 245, 255, ${0.35 * Math.sin(fq * Math.PI)})`;
+      ctx.lineWidth = 1;
+      const fy = sy - hh * 0.5 + fq * hh;
+      ctx.beginPath();
+      ctx.moveTo(sx - hw * 0.3, fy);
+      ctx.lineTo(sx + hw * 0.15, fy + hh * 0.2);
+      ctx.stroke();
+    }
+    if (hash(x, y + 40) < 0.25) {
+      const dq = ((g.time * 6 + hash(x, y) * 5) % 1);
+      const dxp = sx - hw * 0.3 + dq * hw * 0.6;
+      const dyp = sy + (hash(y, x + 2) - 0.5) * hh * 0.5;
+      ctx.fillStyle = '#f5f0e0';
+      ctx.beginPath();
+      ctx.ellipse(dxp, dyp, 2.2 * this.scale, 1.4 * this.scale, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#e8a53a';
+      ctx.fillRect(dxp + 1.8 * this.scale, dyp - 1.5, 1.4, 1);
+    }
+  }
+
+  // The static ground is expensive (mottle, seams, blending) — cache it and
+  // rebuild only when zoom, season, or district unlocks change.
+  ensureGroundCache() {
+    const g = this.game;
+    const key = [
+      this.scale.toFixed(4),
+      g.season?.().id ?? 'x',
+      DISTRICTS.map((d) => (g.districtUnlocked(d.id) ? 1 : 0)).join(''),
+    ].join('|');
+    if (this.groundKey === key && this.groundCache) return;
+    this.groundKey = key;
+    const margin = this.tw;
+    const wpx = Math.ceil(GRID * this.tw + margin * 2);
+    const hpx = Math.ceil(GRID * this.th + margin * 2);
+    const dpr = window.devicePixelRatio || 1;
+    this.groundCache = document.createElement('canvas');
+    this.groundCache.width = Math.max(1, Math.round(wpx * dpr));
+    this.groundCache.height = Math.max(1, Math.round(hpx * dpr));
+    const cctx = this.groundCache.getContext('2d');
+    cctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this.groundOx = wpx / 2;
+    this.groundOy = margin;
+    this.groundCssW = wpx;
+    this.groundCssH = hpx;
+    const saved = [this.ctx, this.originX, this.originY];
+    this.ctx = cctx;
+    this.originX = this.groundOx;
+    this.originY = this.groundOy;
+    this.paintGround();
+    [this.ctx, this.originX, this.originY] = saved;
   }
 
   // Lit windows & signs punch through the night overlay.
@@ -620,6 +950,17 @@ export class Renderer {
         const u = this.isoUnit(d.dx, d.dy);
         ctx.fillStyle = `rgba(255, 240, 200, ${0.9 * glow})`;
         ctx.fillRect(sx + u.x * this.tw * 0.2 - 1.3, sy - 5 * this.scale + u.y * this.tw * 0.2 - 1.3, 2.6, 2.6);
+      } else if (d.kind === 'lamp') {
+        const { sx, sy } = this.toScreen(d.fx, d.fy);
+        const hgt = 14 * this.scale;
+        ctx.fillStyle = `rgba(255, 233, 168, ${0.85 * glow})`;
+        ctx.beginPath();
+        ctx.arc(sx + 4.6 * this.scale, sy - hgt - 2.4 * this.scale, 2.2 * this.scale + 0.6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = `rgba(255, 226, 150, ${0.10 * glow})`;
+        ctx.beginPath();
+        ctx.ellipse(sx + 4.6 * this.scale, sy + 1, 14 * this.scale, 7 * this.scale, 0, 0, Math.PI * 2);
+        ctx.fill();
       }
     }
   }
@@ -685,27 +1026,209 @@ export class Renderer {
       return;
     }
 
+    if (d.kind === 'lamp') {
+      const { sx, sy } = this.toScreen(d.fx, d.fy);
+      const hgt = 14 * this.scale;
+      ctx.strokeStyle = '#3c424c';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(sx, sy - hgt);
+      ctx.lineTo(sx + 4 * this.scale, sy - hgt - 2 * this.scale);
+      ctx.stroke();
+      const lit = this.darkness() > 0.10;
+      ctx.fillStyle = lit ? '#ffe9a8' : '#c8ccd4';
+      ctx.beginPath();
+      ctx.arc(sx + 4.6 * this.scale, sy - hgt - 2.4 * this.scale, 1.8 * this.scale + 0.6, 0, Math.PI * 2);
+      ctx.fill();
+      return;
+    }
+
+    if (d.kind === 'hydrant') {
+      const { sx, sy } = this.toScreen(d.fx, d.fy);
+      ctx.fillStyle = '#c0483a';
+      ctx.fillRect(sx - 1.3, sy - 4 * this.scale, 2.6, 4 * this.scale);
+      ctx.beginPath();
+      ctx.arc(sx, sy - 4 * this.scale, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+      return;
+    }
+
+    if (d.kind === 'park') {
+      const { sx, sy } = this.toScreen(d.x, d.y);
+      const winter = g.season?.().id === 'winter';
+      // Lawn pad and a cross path.
+      ctx.fillStyle = winter ? 'rgba(222, 228, 236, 0.9)' : 'rgba(96, 152, 84, 0.9)';
+      this.diamond(sx, sy, 0.95);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(196, 186, 160, 0.8)';
+      ctx.lineWidth = 2.5 * this.scale;
+      ctx.beginPath();
+      ctx.moveTo(sx - this.tw * 0.4, sy);
+      ctx.lineTo(sx + this.tw * 0.4, sy);
+      ctx.moveTo(sx, sy - this.th * 0.4);
+      ctx.lineTo(sx, sy + this.th * 0.4);
+      ctx.stroke();
+      // Fountain: stone ring, water, animated ripple.
+      ctx.fillStyle = '#9aa2ac';
+      ctx.beginPath();
+      ctx.ellipse(sx, sy - 1, 7 * this.scale, 4.5 * this.scale, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = winter ? '#c8d4e0' : '#4a90b8';
+      ctx.beginPath();
+      ctx.ellipse(sx, sy - 1, 5 * this.scale, 3 * this.scale, 0, 0, Math.PI * 2);
+      ctx.fill();
+      if (!winter) {
+        const rip = (g.time * 30) % 1;
+        ctx.strokeStyle = `rgba(220, 240, 255, ${0.6 * (1 - rip)})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.ellipse(sx, sy - 1, 5 * this.scale * rip, 3 * this.scale * rip, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(220, 240, 255, 0.8)';
+        ctx.fillRect(sx - 0.8, sy - 6 * this.scale, 1.6, 4 * this.scale);
+      }
+      // Benches on two corners.
+      ctx.fillStyle = '#8a6a4a';
+      ctx.fillRect(sx - this.tw * 0.3 - 3, sy - this.th * 0.22 - 2, 6, 2);
+      ctx.fillRect(sx + this.tw * 0.3 - 3, sy + this.th * 0.22 - 2, 6, 2);
+      // Corner trees.
+      for (const [ox, oy] of [[-0.32, 0.28], [0.32, -0.28]]) {
+        const tx = sx + this.tw * ox, ty = sy + this.th * oy;
+        ctx.fillStyle = '#4a3c30';
+        ctx.fillRect(tx - 1, ty - 5 * this.scale, 2, 5 * this.scale);
+        ctx.fillStyle = winter ? '#dde6ee' : '#4e8a54';
+        ctx.beginPath();
+        ctx.ellipse(tx, ty - 8 * this.scale, 4.5 * this.scale, 5.5 * this.scale, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      return;
+    }
+
+    if (d.kind === 'hedge') {
+      const { sx, sy } = this.toScreen(d.x, d.y);
+      const winter = g.season?.().id === 'winter';
+      // A low clipped hedge row across the lot.
+      const u = this.isoUnit(d.r < 0.525 ? 1 : 0, d.r < 0.525 ? 0 : 1);
+      const p = { x: -u.y, y: u.x };
+      for (let i = -2; i <= 2; i++) {
+        const cx = sx + u.x * this.tw * 0.13 * i;
+        const cy = sy + u.y * this.tw * 0.13 * i - 3 * this.scale;
+        ctx.fillStyle = winter ? '#aeb9c4' : i % 2 ? '#4e7c4a' : '#59894f';
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, 5 * this.scale, 4 * this.scale, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      void p;
+      return;
+    }
+
     if (d.kind === 'house') {
       const { sx, sy } = this.toScreen(d.x, d.y);
       const tones = HOUSE_TONES[Math.floor(d.r * 17) % HOUSE_TONES.length];
       const apartment = d.r > 0.21;
-      const h = apartment ? 14 + d.r * 14 : 7 + d.r * 8;
+      const h = apartment ? 15 + d.r * 15 : 8 + d.r * 8;
       const footprint = apartment ? 0.62 : 0.5 + d.r * 0.15;
+      const winter = g.season?.().id === 'winter';
+
+      // Driveway to the nearest road.
+      const door = this.doorOf(d.x, d.y);
+      if (door && !apartment && hash(d.x + 3, d.y + 9) < 0.6) {
+        const dw = this.toScreen((d.x + door.x) / 2, (d.y + door.y) / 2);
+        ctx.fillStyle = 'rgba(150, 155, 163, 0.55)';
+        this.diamond(dw.sx, dw.sy, 0.26);
+        ctx.fill();
+      }
+
       this.castShadow(sx, sy, h, footprint);
       this.box(sx, sy, h, tones[0], tones[1], tones[2], footprint);
+
       if (!apartment) {
-        // Pitched roof: darker cap diamond (snow-dusted in winter).
-        const winter = g.season?.().id === 'winter';
-        ctx.fillStyle = winter ? '#e2e8f0' : d.r < 0.12 ? '#7a4f42' : '#4f4a55';
-        this.diamond(sx, sy - (h + 2) * this.scale, footprint * 0.7);
+        // Gabled roof: two sloped faces meeting at a ridge.
+        const roof = winter ? '#e6ebf2' : ROOF_TONES[Math.floor(d.r * 37) % ROOF_TONES.length];
+        const roofDark = winter ? '#c8d2de' : shade(roof, -26);
+        const hw = (this.tw / 2) * footprint * 0.92;
+        const hh = (this.th / 2) * footprint * 0.92;
+        const baseY = sy - h * this.scale;
+        const ridge = 6 * this.scale + footprint * 4 * this.scale;
+        // Four roof faces meeting at a ridge point above the center.
+        ctx.fillStyle = roof;
+        ctx.beginPath();
+        ctx.moveTo(sx - hw, baseY);
+        ctx.lineTo(sx, baseY + hh);
+        ctx.lineTo(sx, baseY - ridge);
+        ctx.closePath();
         ctx.fill();
+        ctx.fillStyle = roofDark;
+        ctx.beginPath();
+        ctx.moveTo(sx + hw, baseY);
+        ctx.lineTo(sx, baseY + hh);
+        ctx.lineTo(sx, baseY - ridge);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = roofDark;
+        ctx.beginPath();
+        ctx.moveTo(sx - hw, baseY);
+        ctx.lineTo(sx, baseY - hh);
+        ctx.lineTo(sx, baseY - ridge);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = roof;
+        ctx.beginPath();
+        ctx.moveTo(sx + hw, baseY);
+        ctx.lineTo(sx, baseY - hh);
+        ctx.lineTo(sx, baseY - ridge);
+        ctx.closePath();
+        ctx.fill();
+        // Chimney on some houses.
+        if (hash(d.x + 5, d.y + 5) < 0.45) {
+          ctx.fillStyle = '#7a5a4a';
+          ctx.fillRect(sx + hw * 0.35 - 1.5, baseY - ridge - 5 * this.scale, 3, 6 * this.scale);
+          ctx.fillStyle = '#5c4438';
+          ctx.fillRect(sx + hw * 0.35 - 2, baseY - ridge - 5 * this.scale - 1.5, 4, 1.8);
+        }
+        // Door and a window on the front face.
+        ctx.fillStyle = 'rgba(40, 32, 26, 0.75)';
+        ctx.fillRect(sx - hw * 0.35 - 1.5, sy - 6.5 * this.scale, 3.2, 6 * this.scale);
+        ctx.fillStyle = winter || hash(d.x, d.y + 1) < 0.5 ? 'rgba(250, 240, 200, 0.8)' : 'rgba(180, 205, 225, 0.75)';
+        ctx.fillRect(sx + hw * 0.18, sy - 6 * this.scale, 4, 3.2);
       } else {
-        // Window rows on the south face.
-        ctx.fillStyle = 'rgba(20, 24, 34, 0.5)';
-        const rows = Math.floor(h / 7);
+        // Flat parapet roof + window grids on both faces.
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.10)';
+        this.diamond(sx, sy - (h + 1) * this.scale, footprint * 0.85);
+        ctx.fill();
+        const rows = Math.floor(h / 6);
         for (let i = 1; i <= rows; i++) {
-          ctx.fillRect(sx - 7, sy - i * 6 * this.scale - 2, 3, 2.2);
-          ctx.fillRect(sx + 3, sy - i * 6 * this.scale - 2, 3, 2.2);
+          const wy = sy - i * 5.4 * this.scale - 2;
+          const lit = hash(d.x + i, d.y) < 0.4;
+          ctx.fillStyle = lit ? 'rgba(205, 220, 235, 0.65)' : 'rgba(30, 36, 46, 0.55)';
+          ctx.fillRect(sx - 8 * this.scale, wy, 3, 2.2);
+          ctx.fillRect(sx - 3 * this.scale, wy, 3, 2.2);
+          ctx.fillRect(sx + 3 * this.scale, wy, 3, 2.2);
+        }
+        // Rooftop: water tower on some, AC unit on others.
+        const roofY = sy - h * this.scale;
+        if (hash(d.x + 8, d.y + 2) < 0.3) {
+          ctx.fillStyle = '#8a7360';
+          ctx.fillRect(sx - 2.5, roofY - 8 * this.scale, 5, 6 * this.scale);
+          ctx.fillStyle = '#6d5a4a';
+          ctx.beginPath();
+          ctx.moveTo(sx - 3.5, roofY - 8 * this.scale);
+          ctx.lineTo(sx, roofY - 11 * this.scale);
+          ctx.lineTo(sx + 3.5, roofY - 8 * this.scale);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+          ctx.lineWidth = 0.8;
+          ctx.beginPath();
+          ctx.moveTo(sx - 2, roofY - 2 * this.scale);
+          ctx.lineTo(sx - 3, roofY);
+          ctx.moveTo(sx + 2, roofY - 2 * this.scale);
+          ctx.lineTo(sx + 3, roofY);
+          ctx.stroke();
+        } else if (hash(d.x + 8, d.y + 2) < 0.6) {
+          ctx.fillStyle = '#9aa4ae';
+          ctx.fillRect(sx + 3, roofY - 3 * this.scale, 5, 3 * this.scale);
         }
       }
       return;
@@ -713,6 +1236,17 @@ export class Renderer {
 
     if (d.kind === 'warehouse') {
       const { sx, sy } = this.toScreen(d.x, d.y);
+      // Fenced industrial yard with cargo containers.
+      ctx.fillStyle = 'rgba(128, 132, 140, 0.5)';
+      this.diamond(sx, sy, 1.45);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(90, 96, 106, 0.9)';
+      ctx.lineWidth = 1.2;
+      this.diamond(sx, sy, 1.45);
+      ctx.stroke();
+      for (const [ox, oy, cc] of [[-0.85, 0.25, '#b06a4a'], [-0.7, 0.45, '#4a7ab0'], [0.8, -0.35, '#6a9a5a']]) {
+        this.box(sx + this.tw * ox * 0.7, sy + this.th * oy * 1.6, 6, cc, shade(cc, -40), shade(cc, -20), 0.22);
+      }
       this.castShadow(sx, sy, 26, 1.0);
       // Loading dock apron toward the road, with pallets.
       const door = this.doorOf(d.x, d.y);
@@ -826,13 +1360,23 @@ export class Renderer {
     const unlocked = g.districtUnlocked(site.district);
 
     if (g.rivalAt(site.id)) {
-      this.castShadow(sx, sy, 18, 0.9);
+      // Big-box discounter: wide flat warehouse-store with a red fascia.
       const plus = g.rival.plus?.[site.id];
-      const h = plus ? 24 : 18;
-      this.box(sx, sy, h, plus ? '#9a4a38' : '#8a4438', '#5e2d26', '#733830', plus ? 0.92 : 0.85);
-      ctx.fillStyle = '#f0c4b8';
+      const h = plus ? 20 : 15;
+      ctx.fillStyle = 'rgba(105, 110, 120, 0.75)';
+      this.diamond(sx + this.tw * 0.18, sy + this.th * 0.22, 0.55);
+      ctx.fill();
+      this.castShadow(sx, sy, h, plus ? 1.02 : 0.95);
+      this.box(sx, sy, h, '#b9bcc2', '#83868e', '#9da0a8', plus ? 0.98 : 0.9);
+      // Red fascia band + entrance.
+      const hw2 = (this.tw / 2) * (plus ? 0.98 : 0.9);
+      ctx.fillStyle = '#c0392b';
+      ctx.fillRect(sx - hw2 * 0.6, sy - h * this.scale + 1.5, hw2 * 1.2, 4);
+      ctx.fillStyle = 'rgba(30, 34, 40, 0.8)';
+      ctx.fillRect(sx - hw2 * 0.12, sy - 8 * this.scale, hw2 * 0.24, 7 * this.scale);
+      ctx.fillStyle = '#fff0ee';
       ctx.textAlign = 'center';
-      ctx.font = `700 ${8 * this.scale + 3}px system-ui, sans-serif`;
+      ctx.font = `800 ${7.5 * this.scale + 3}px system-ui, sans-serif`;
       ctx.fillText(RIVAL.name.toUpperCase() + (plus ? '+' : ''), sx, sy - h * this.scale - 4);
       return;
     }

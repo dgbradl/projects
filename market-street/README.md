@@ -67,7 +67,20 @@ and pull request.
 | `src/ui.js` | DOM panels: stores / supply / vendors / HQ / books, inspector, overlays |
 | `src/main.js` | Fixed-step loop, input, autosave |
 
-## Feature highlights (v0.3)
+## Feature highlights (v0.4)
+
+- **A living, sunlit city**: bright grass with mottle texture, concrete
+  sidewalks with seams and manholes, gabled roofs with chimneys, apartment
+  water towers, parks with animated fountains, hedges, driveways, hydrants,
+  and streetlights that pool warm light at night
+- **Sim-tied detail**: store parking lots visibly fill as the day's customers
+  arrive; the warehouse sits in a fenced container yard; BuyLow is a proper
+  grey big-box with a red fascia
+- **Dynamic light & weather**: shadows swing with the sun and stretch at
+  golden hour, dawn/dusk get an orange grade, rain showers and snowfall roll
+  through, birds cross the sky, ducks paddle the river
+- **Fast**: the static ground layer renders once to an offscreen cache and
+  rebuilds only on zoom/season/unlock changes
 
 - **Seasons**: a 112-day year of four seasons shifting demand (summer beverages,
   winter pantry), spoilage (hot summers), trucking (snowy roads), and procurement
