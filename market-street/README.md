@@ -67,7 +67,23 @@ and pull request.
 | `src/ui.js` | DOM panels: stores / supply / vendors / HQ / books, inspector, overlays |
 | `src/main.js` | Fixed-step loop, input, autosave |
 
-## Feature highlights (v0.4)
+## Feature highlights (v0.5)
+
+- **A world, not a void**: full time-of-day sky with a radiant sun, crescent
+  moon, twinkling stars, golden-hour horizons, and a parallax skyline whose
+  windows light at night — with the whole city presented as a diorama on an
+  earth-strata slab
+- **Cinematic light**: building faces catch the sun directionally (west in the
+  morning, east in the afternoon), shadows track the sun, a warm/cool overlay
+  grade ties every frame together, and night lights bloom with radial glow
+- **Landmarks**: Old Town's working clock tower, Westside's water tower,
+  Riverside's pier with bobbing boats, Downtown's beacon-topped glass towers
+- **Texture everywhere**: rolling value-noise terrain, tire-worn roads with
+  gutters and stop lines, three tree species with per-tree autumn hues, a
+  river with depth, specular, and bank foam
+- **Alive**: petals in spring, tumbling leaves in fall, fireflies on summer
+  nights, lightning in heavy rain, birds, ducks, real little pedestrians
+  everywhere, and storefronts with produce crates and shopping carts
 
 - **A living, sunlit city**: bright grass with mottle texture, concrete
   sidewalks with seams and manholes, gabled roofs with chimneys, apartment

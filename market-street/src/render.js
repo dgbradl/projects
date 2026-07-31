@@ -20,6 +20,17 @@ const HOUSE_TONES = [
 ];
 const ROOF_TONES = ['#8a5844', '#5d6470', '#726055', '#4f5e6e', '#7d6a4f'];
 
+// Smooth two-octave value noise built on the tile hash (for terrain).
+function vnoise(x, y) {
+  const s = (a, b) => hash(Math.floor(a) & 1023, Math.floor(b) & 1023);
+  const fx = x - Math.floor(x), fy = y - Math.floor(y);
+  const u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);
+  const n = (xx, yy) =>
+    s(xx, yy) * (1 - u) * (1 - v) + s(xx + 1, yy) * u * (1 - v)
+    + s(xx, yy + 1) * (1 - u) * v + s(xx + 1, yy + 1) * u * v;
+  return n(x, y) * 0.65 + n(x * 2.3 + 40, y * 2.3 + 40) * 0.35;
+}
+
 // Deterministic per-tile hash for decorative variety.
 function hash(x, y) {
   let h = (x * 374761393 + y * 668265263) | 0;
@@ -34,6 +45,18 @@ function isRiver(x, y) {
 
 // Small public parks scattered across the city (lot tiles, never sites).
 const PARKS = [[9, 6], [18, 2], [5, 21], [21, 14]];
+
+// One signature landmark per district.
+const LANDMARKS = [
+  { x: 7, y: 2, kind: 'clocktower' },    // Old Town
+  { x: 15, y: 6, kind: 'watertower' },   // Westside
+  { x: 2, y: 17, kind: 'pier' },         // Riverside (reaches over the river)
+  { x: 17, y: 17, kind: 'glasstower' },  // Downtown
+  { x: 22, y: 18, kind: 'glasstower2' }, // Downtown
+];
+function landmarkAt(x, y) {
+  return LANDMARKS.find((l) => l.x === x && l.y === y);
+}
 function isPark(x, y) {
   return PARKS.some(([px, py]) => px === x && py === y);
 }
@@ -56,9 +79,15 @@ export class Renderer {
     this.puffs = [];
     this.birds = [];
     this.birdClock = 0;
+    this.stars = Array.from({ length: 110 }, (_, i) => ({
+      x: hash(i, 7), y: hash(i, 13) * 0.55, tw: hash(i, 29) * 6,
+    }));
     this.weather = null;          // { type: 'rain'|'snow', ttl }
     this.weatherClock = 0;
     this.drops = [];
+    this.motes = [];              // petals / leaves / fireflies
+    this.moteClock = 0;
+    this.lightning = null;        // { t, x } while a bolt flashes
     this.resize();
   }
 
@@ -144,29 +173,43 @@ export class Renderer {
     const ctx = this.ctx;
     const hw = (this.tw / 2) * scale, hh = (this.th / 2) * scale;
     h *= this.scale;
+    const az = this.sunAz ?? 0.4;
     ctx.fillStyle = left;
     ctx.beginPath();
     ctx.moveTo(sx - hw, sy); ctx.lineTo(sx, sy + hh);
     ctx.lineTo(sx, sy + hh - h); ctx.lineTo(sx - hw, sy - h);
     ctx.closePath(); ctx.fill();
+    // Morning sun lights the west face...
+    if (az < -0.05) {
+      ctx.fillStyle = `rgba(255, 245, 215, ${Math.min(0.2, -az * 0.2)})`;
+      ctx.fill();
+    }
     ctx.fillStyle = right;
     ctx.beginPath();
     ctx.moveTo(sx + hw, sy); ctx.lineTo(sx, sy + hh);
     ctx.lineTo(sx, sy + hh - h); ctx.lineTo(sx + hw, sy - h);
     ctx.closePath(); ctx.fill();
+    // ...and the afternoon sun lights the east face.
+    if (az > 0.05) {
+      ctx.fillStyle = `rgba(255, 245, 215, ${Math.min(0.2, az * 0.2)})`;
+      ctx.fill();
+    }
     ctx.fillStyle = top;
     this.diamond(sx, sy - h, scale);
     ctx.fill();
-    // Sun-catch rim on the roof edge and a grounding seam at the base.
-    ctx.strokeStyle = 'rgba(255, 245, 220, 0.18)';
+    // Sun-catch rim on the roof, grounding seam, and a soft silhouette
+    // outline that gives everything an illustrated crispness.
+    ctx.strokeStyle = 'rgba(255, 245, 220, 0.20)';
     ctx.lineWidth = 1;
     this.diamond(sx, sy - h, scale);
     ctx.stroke();
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.28)';
+    ctx.strokeStyle = 'rgba(22, 26, 34, 0.35)';
     ctx.beginPath();
-    ctx.moveTo(sx - hw, sy);
+    ctx.moveTo(sx - hw, sy - h);
+    ctx.lineTo(sx - hw, sy);
     ctx.lineTo(sx, sy + hh);
     ctx.lineTo(sx + hw, sy);
+    ctx.lineTo(sx + hw, sy - h);
     ctx.stroke();
   }
 
@@ -263,6 +306,23 @@ export class Renderer {
     for (const c of this.cars) c.pos += c.dir * c.speed * dt;
     this.cars = this.cars.filter((c) => c.pos > -2 && c.pos < GRID + 1);
 
+    // Ambient strollers wander the sidewalks anywhere in town.
+    if (Math.random() < dt * 1.2 && this.walkers.length < 52) {
+      const lx = ROAD_LINES[Math.floor(Math.random() * ROAD_LINES.length)];
+      const along = Math.random() * (GRID - 1);
+      const horizontal = Math.random() < 0.5;
+      const fx = horizontal ? along : lx + 0.4;
+      const fy = horizontal ? lx + 0.4 : along;
+      const dist = 1.5 + Math.random() * 2.5;
+      this.walkers.push({
+        fx, fy,
+        tx: horizontal ? fx + (Math.random() < 0.5 ? dist : -dist) : fx,
+        ty: horizontal ? fy : fy + (Math.random() < 0.5 ? dist : -dist),
+        age: 0, ttl: 4 + Math.random() * 3,
+        color: WALKER_COLORS[Math.floor(Math.random() * WALKER_COLORS.length)],
+      });
+    }
+
     // Shoppers walk from the sidewalk into stores — busier stores draw more.
     this.walkerClock += dt;
     if (this.walkerClock > 0.45 && this.walkers.length < 40 && g.stores.length) {
@@ -327,6 +387,43 @@ export class Renderer {
       if (this.weather.ttl <= 0) { this.weather = null; this.drops = []; }
     }
 
+    // Seasonal motes: petals in spring, leaves in fall, fireflies on
+    // summer nights.
+    this.moteClock += dt;
+    const dark2 = this.darkness();
+    const moteType = sid2 === 'spring' ? 'petal'
+      : sid2 === 'fall' ? 'leaf'
+      : (sid2 === 'summer' && dark2 > 0.2) ? 'firefly' : null;
+    if (moteType && this.moteClock > 0.35 && this.motes.length < (moteType === 'firefly' ? 18 : 26)) {
+      this.moteClock = 0;
+      this.motes.push({
+        type: moteType,
+        x: Math.random(), y: moteType === 'firefly' ? 0.3 + Math.random() * 0.6 : -0.03,
+        vx: (Math.random() - 0.3) * 0.03, ph: Math.random() * 6, ttl: 12,
+      });
+    }
+    for (const m2 of this.motes) {
+      m2.ttl -= dt;
+      if (m2.type === 'firefly') {
+        m2.x += Math.sin(performance.now() / 1300 + m2.ph) * dt * 0.02;
+        m2.y += Math.cos(performance.now() / 1700 + m2.ph) * dt * 0.015;
+      } else {
+        m2.y += dt * (m2.type === 'petal' ? 0.045 : 0.06);
+        m2.x += m2.vx * dt + Math.sin(performance.now() / 800 + m2.ph) * dt * 0.01;
+      }
+    }
+    this.motes = this.motes.filter((m2) => m2.ttl > 0 && m2.y < 1.05
+      && (moteType === m2.type || m2.type !== 'firefly'));
+
+    // Lightning during heavy rain.
+    if (this.weather?.type === 'rain' && !this.lightning && Math.random() < dt * 0.08) {
+      this.lightning = { t: 0.5, x: 0.15 + Math.random() * 0.7 };
+    }
+    if (this.lightning) {
+      this.lightning.t -= dt;
+      if (this.lightning.t <= 0) this.lightning = null;
+    }
+
     // A flock of birds crosses the sky now and then.
     this.birdClock += dt;
     if (this.birdClock > 14 && this.birds.length === 0) {
@@ -368,7 +465,7 @@ export class Renderer {
     this.sunAz = az;
     this.shadowStretch = 1 + Math.abs(az) * 0.7;
     this.shadowAlpha = Math.max(0, 0.30 - dark * 0.55);
-    ctx.clearRect(0, 0, this.w, this.h);
+    this.drawBackdrop(dark);
 
     // Ground: static layer from cache, animated river on top.
     this.ensureGroundCache();
@@ -446,6 +543,11 @@ export class Renderer {
           drawables.push({ key: x + y, kind: 'park', x, y });
           continue;
         }
+        const lm = landmarkAt(x, y);
+        if (lm) {
+          drawables.push({ key: x + y, kind: lm.kind, x, y });
+          continue;
+        }
         const r = hash(x, y);
         if (r < 0.30) drawables.push({ key: x + y, kind: 'house', x, y, r });
         else if (r < 0.44) drawables.push({ key: x + y, kind: 'tree', x, y, r });
@@ -520,6 +622,48 @@ export class Renderer {
       }
     }
 
+    // Seasonal motes.
+    for (const m2 of this.motes) {
+      const mx = m2.x * this.w, my = m2.y * this.h;
+      if (m2.type === 'petal') {
+        ctx.fillStyle = 'rgba(248, 190, 210, 0.8)';
+        ctx.fillRect(mx, my, 2.4, 2);
+      } else if (m2.type === 'leaf') {
+        ctx.fillStyle = 'rgba(216, 140, 60, 0.85)';
+        ctx.save();
+        ctx.translate(mx, my);
+        ctx.rotate(Math.sin(performance.now() / 500 + m2.ph));
+        ctx.fillRect(-1.6, -1.1, 3.2, 2.2);
+        ctx.restore();
+      } else {
+        const pulse = 0.4 + 0.6 * Math.abs(Math.sin(performance.now() / 600 + m2.ph));
+        ctx.fillStyle = `rgba(220, 255, 140, ${0.75 * pulse})`;
+        ctx.beginPath();
+        ctx.arc(mx, my, 1.6 + pulse, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // Lightning: a flash and a jagged bolt.
+    if (this.lightning) {
+      const lt = this.lightning.t;
+      ctx.fillStyle = `rgba(240, 245, 255, ${Math.min(0.35, lt * 0.7)})`;
+      ctx.fillRect(0, 0, this.w, this.h);
+      if (lt > 0.3) {
+        ctx.strokeStyle = `rgba(255, 255, 240, ${(lt - 0.3) * 4})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        let lx = this.lightning.x * this.w, ly = 0;
+        ctx.moveTo(lx, ly);
+        while (ly < this.h * 0.55) {
+          lx += (hash(Math.round(lx), Math.round(ly)) - 0.5) * 46;
+          ly += 30 + hash(Math.round(ly), 3) * 30;
+          ctx.lineTo(lx, ly);
+        }
+        ctx.stroke();
+      }
+    }
+
     // Golden-hour grade at dawn and dusk.
     const tFrac = g.dayFrac();
     const glow1 = Math.max(0, 1 - Math.abs(tFrac - 0.26) / 0.07);
@@ -570,6 +714,19 @@ export class Renderer {
         }
       }
     }
+
+    // Cinematic grade: warm center, cool edges, blended overlay-style.
+    ctx.save();
+    ctx.globalCompositeOperation = 'overlay';
+    const grade = ctx.createRadialGradient(
+      this.w / 2, this.h / 2, Math.min(this.w, this.h) * 0.2,
+      this.w / 2, this.h / 2, Math.max(this.w, this.h) * 0.7,
+    );
+    grade.addColorStop(0, 'rgba(255, 214, 160, 0.14)');
+    grade.addColorStop(1, 'rgba(70, 100, 160, 0.12)');
+    ctx.fillStyle = grade;
+    ctx.fillRect(0, 0, this.w, this.h);
+    ctx.restore();
 
     // Soft vignette pulls focus to the city.
     const vg = ctx.createRadialGradient(
@@ -623,6 +780,146 @@ export class Renderer {
     ctx.globalAlpha = 1;
   }
 
+
+  // Sky, celestial bodies, distant skyline, and the diorama slab the city
+  // sits on. Drawn before the ground each frame.
+  drawBackdrop(dark) {
+    const ctx = this.ctx;
+    const g = this.game;
+    const t = g.dayFrac();
+    const day = Math.max(0, 1 - dark * 2.2);
+    const lerp = (a, b, k) => Math.round(a + (b - a) * k);
+    // Sky gradient.
+    const skyTop = `rgb(${lerp(10, 74, day)}, ${lerp(14, 110, day)}, ${lerp(34, 158, day)})`;
+    const skyBot = `rgb(${lerp(22, 148, day)}, ${lerp(28, 178, day)}, ${lerp(50, 205, day)})`;
+    const sky = ctx.createLinearGradient(0, 0, 0, this.h);
+    sky.addColorStop(0, skyTop);
+    sky.addColorStop(0.55, skyBot);
+    sky.addColorStop(1, skyTop);
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, this.w, this.h);
+    // Golden horizon at dawn/dusk.
+    const golden = Math.max(
+      Math.max(0, 1 - Math.abs(t - 0.26) / 0.09),
+      Math.max(0, 1 - Math.abs(t - 0.74) / 0.09),
+    );
+    if (golden > 0.03) {
+      const gh = ctx.createLinearGradient(0, this.h * 0.15, 0, this.h * 0.55);
+      gh.addColorStop(0, 'rgba(255, 150, 70, 0)');
+      gh.addColorStop(1, `rgba(255, 150, 70, ${golden * 0.35})`);
+      ctx.fillStyle = gh;
+      ctx.fillRect(0, 0, this.w, this.h * 0.55);
+    }
+    // Stars twinkle out of the darkness.
+    if (dark > 0.12) {
+      for (const s of this.stars) {
+        const a = (dark * 2 - 0.2) * (0.5 + 0.5 * Math.sin(performance.now() / 700 + s.tw));
+        ctx.fillStyle = `rgba(235, 240, 255, ${Math.max(0, Math.min(0.9, a))})`;
+        ctx.fillRect(s.x * this.w, s.y * this.h, 1.4, 1.4);
+      }
+    }
+    // Sun and moon ride opposite arcs.
+    const arc = (p) => ({
+      x: this.w * (0.12 + 0.76 * p),
+      y: this.h * 0.40 - Math.sin(Math.max(0, Math.min(1, p)) * Math.PI) * this.h * 0.26,
+    });
+    const sunP = (t - 0.25) / 0.5;
+    if (sunP > -0.05 && sunP < 1.05) {
+      const { x, y } = arc(sunP);
+      const sg = ctx.createRadialGradient(x, y, 2, x, y, 34);
+      sg.addColorStop(0, 'rgba(255, 244, 200, 0.95)');
+      sg.addColorStop(0.3, 'rgba(255, 220, 130, 0.55)');
+      sg.addColorStop(1, 'rgba(255, 200, 90, 0)');
+      ctx.fillStyle = sg;
+      ctx.beginPath();
+      ctx.arc(x, y, 34, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    const moonP = (((t + 0.5) % 1) - 0.25) / 0.5;
+    if (dark > 0.08 && moonP > 0 && moonP < 1) {
+      const { x, y } = arc(moonP);
+      ctx.fillStyle = `rgba(226, 232, 244, ${Math.min(0.9, dark * 2)})`;
+      ctx.beginPath();
+      ctx.arc(x, y, 9, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = skyTop;
+      ctx.beginPath();
+      ctx.arc(x + 3.5, y - 2, 7.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // Distant skyline with parallax; windows light up at night.
+    const horizon = this.originY - this.th * 1.2;
+    const par = this.panX * 0.25;
+    ctx.save();
+    for (let i = -2; i < Math.ceil(this.w / 30) + 2; i++) {
+      const bx = ((i * 30 - par) % (this.w + 120) + this.w + 120) % (this.w + 120) - 60;
+      const bh = 18 + hash(i + 50, 3) * 46;
+      const bw = 16 + hash(i, 9) * 16;
+      ctx.fillStyle = `rgba(${lerp(30, 96, day)}, ${lerp(36, 116, day)}, ${lerp(54, 142, day)}, 0.85)`;
+      ctx.fillRect(bx, horizon - bh, bw, bh);
+      if (dark > 0.15) {
+        ctx.fillStyle = `rgba(255, 224, 150, ${0.5 * Math.min(1, dark * 2)})`;
+        for (let wy = 0; wy < 3; wy++) {
+          for (let wx = 0; wx < 2; wx++) {
+            if (hash(i * 7 + wx, wy + 2) < 0.4) {
+              ctx.fillRect(bx + 3 + wx * 7, horizon - bh + 4 + wy * 9, 2, 2.6);
+            }
+          }
+        }
+      }
+    }
+    // Haze where skyline meets ground.
+    const hz = ctx.createLinearGradient(0, horizon - 8, 0, horizon + 26);
+    hz.addColorStop(0, 'rgba(200, 215, 230, 0)');
+    hz.addColorStop(1, `rgba(${lerp(20, 190, day)}, ${lerp(26, 205, day)}, ${lerp(44, 222, day)}, 0.5)`);
+    ctx.fillStyle = hz;
+    ctx.fillRect(0, horizon - 8, this.w, 34);
+    ctx.restore();
+    // Diorama slab: the city block floats like a model on earth strata.
+    const D = 30 * this.scale;
+    const north = this.toScreen(0, 0);
+    const east = this.toScreen(GRID - 1, 0);
+    const south = this.toScreen(GRID - 1, GRID - 1);
+    const west = this.toScreen(0, GRID - 1);
+    const pts = {
+      e: { x: east.sx + this.tw / 2, y: east.sy },
+      s: { x: south.sx, y: south.sy + this.th / 2 },
+      w: { x: west.sx - this.tw / 2, y: west.sy },
+    };
+    ctx.fillStyle = '#5d4a38';
+    ctx.beginPath();
+    ctx.moveTo(pts.w.x, pts.w.y);
+    ctx.lineTo(pts.s.x, pts.s.y);
+    ctx.lineTo(pts.s.x, pts.s.y + D);
+    ctx.lineTo(pts.w.x, pts.w.y + D);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#6d5946';
+    ctx.beginPath();
+    ctx.moveTo(pts.s.x, pts.s.y);
+    ctx.lineTo(pts.e.x, pts.e.y);
+    ctx.lineTo(pts.e.x, pts.e.y + D);
+    ctx.lineTo(pts.s.x, pts.s.y + D);
+    ctx.closePath();
+    ctx.fill();
+    // Strata lines and a grassy lip.
+    ctx.strokeStyle = 'rgba(40, 30, 20, 0.35)';
+    ctx.lineWidth = 1;
+    for (const f of [0.35, 0.7]) {
+      ctx.beginPath();
+      ctx.moveTo(pts.w.x, pts.w.y + D * f);
+      ctx.lineTo(pts.s.x, pts.s.y + D * f);
+      ctx.lineTo(pts.e.x, pts.e.y + D * f);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(96, 130, 70, 0.9)';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(pts.w.x, pts.w.y);
+    ctx.lineTo(pts.s.x, pts.s.y);
+    ctx.lineTo(pts.e.x, pts.e.y);
+    ctx.stroke();
+  }
 
   // Paint every ground tile (called once per cache rebuild).
   paintGround() {
@@ -684,6 +981,42 @@ export class Renderer {
             // Dashed center line along the street.
             const vertical = x % 4 === 0;
             const u = this.isoUnit(vertical ? 0 : 1, vertical ? 1 : 0);
+            {
+              // Tire-worn lanes and gutter shading.
+              const pw = { x: -u.y, y: u.x };
+              ctx.strokeStyle = 'rgba(30, 34, 42, 0.16)';
+              ctx.lineWidth = 3.2 * this.scale;
+              for (const lane of [-0.2, 0.2]) {
+                ctx.beginPath();
+                ctx.moveTo(sx - u.x * this.tw * 0.45 + pw.x * this.tw * lane,
+                  sy - u.y * this.tw * 0.45 + pw.y * this.tw * lane);
+                ctx.lineTo(sx + u.x * this.tw * 0.45 + pw.x * this.tw * lane,
+                  sy + u.y * this.tw * 0.45 + pw.y * this.tw * lane);
+                ctx.stroke();
+              }
+              ctx.strokeStyle = 'rgba(20, 24, 32, 0.22)';
+              ctx.lineWidth = 1.2;
+              for (const side of [-0.385, 0.385]) {
+                ctx.beginPath();
+                ctx.moveTo(sx - u.x * this.tw * 0.5 + pw.x * this.tw * side,
+                  sy - u.y * this.tw * 0.5 + pw.y * this.tw * side);
+                ctx.lineTo(sx + u.x * this.tw * 0.5 + pw.x * this.tw * side,
+                  sy + u.y * this.tw * 0.5 + pw.y * this.tw * side);
+                ctx.stroke();
+              }
+              // Stop line just before an intersection.
+              const nextIsX = vertical ? (y + 1) % 4 === 0 : (x + 1) % 4 === 0;
+              if (nextIsX) {
+                ctx.strokeStyle = 'rgba(235, 238, 245, 0.5)';
+                ctx.lineWidth = 2 * this.scale;
+                ctx.beginPath();
+                ctx.moveTo(sx + u.x * this.tw * 0.34 - pw.x * this.tw * 0.3,
+                  sy + u.y * this.tw * 0.34 - pw.y * this.tw * 0.3);
+                ctx.lineTo(sx + u.x * this.tw * 0.34 + pw.x * this.tw * 0.02,
+                  sy + u.y * this.tw * 0.34 + pw.y * this.tw * 0.02);
+                ctx.stroke();
+              }
+            }
             ctx.strokeStyle = 'rgba(240, 220, 140, 0.55)';
             ctx.lineWidth = 1.2;
             for (const t of [-0.28, 0.08]) {
@@ -773,7 +1106,9 @@ export class Renderer {
               base[2] * 0.38 + 230 * 0.62,
             ];
           }
-          ctx.fillStyle = `rgb(${base[0] + shade}, ${base[1] + shade}, ${base[2] + shade})`;
+          // Rolling terrain tone from smooth noise.
+          const tn = (vnoise(x * 0.34, y * 0.34) - 0.5) * 22;
+          ctx.fillStyle = `rgb(${base[0] + shade + tn}, ${base[1] + shade + tn}, ${base[2] + shade + tn * 0.8})`;
           this.diamond(sx, sy);
           ctx.fill();
           // Mottled grass patches break up the tile grid.
@@ -839,12 +1174,30 @@ export class Renderer {
     ctx.fillStyle = `rgb(${52 + shimmer}, ${118 + shimmer}, ${160 + shimmer})`;
     this.diamond(sx, sy);
     ctx.fill();
+    // Depth: darker channel down the middle.
+    ctx.fillStyle = 'rgba(18, 52, 88, 0.45)';
+    this.diamond(sx, sy, 0.55);
+    ctx.fill();
+    // Specular band sliding with the sun.
+    const spec = Math.sin(g.time * 26 + y * 1.7) * 0.5 + 0.5;
+    ctx.fillStyle = `rgba(255, 250, 230, ${0.10 + spec * 0.14})`;
+    ctx.beginPath();
+    ctx.ellipse(sx + (spec - 0.5) * this.tw * 0.3, sy, this.tw * 0.22, this.th * 0.10, 0, 0, Math.PI * 2);
+    ctx.fill();
     const hw = this.tw / 2, hh = this.th / 2;
     ctx.strokeStyle = 'rgba(214, 198, 156, 0.85)';
     ctx.lineWidth = 2.6 * this.scale;
     ctx.beginPath();
     ctx.moveTo(sx, sy - hh); ctx.lineTo(sx + hw, sy);
     ctx.moveTo(sx - hw, sy); ctx.lineTo(sx, sy + hh);
+    ctx.stroke();
+    // Lapping foam at the banks.
+    const foam = ((g.time * 12 + hash(x, y) * 4) % 1);
+    ctx.strokeStyle = `rgba(240, 250, 255, ${0.5 * Math.sin(foam * Math.PI)})`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(sx - hw * (0.9 - foam * 0.1), sy + hh * 0.06);
+    ctx.lineTo(sx - hw * 0.15, sy + hh * (0.82 - foam * 0.1));
     ctx.stroke();
     for (let i = 0; i < 2; i++) {
       const fq = ((g.time * 18 + hash(x + i, y) * 9) % 1);
@@ -917,8 +1270,12 @@ export class Renderer {
       } else if (d.kind === 'site') {
         const { sx, sy } = this.toScreen(d.x, d.y);
         if (g.storeAt(d.site.id)) {
-          ctx.fillStyle = `rgba(255, 205, 120, ${0.16 * glow})`;
-          this.diamond(sx, sy, 1.25);
+          const sg2 = ctx.createRadialGradient(sx, sy - 6, 2, sx, sy - 6, this.tw * 0.8);
+          sg2.addColorStop(0, `rgba(255, 210, 130, ${0.30 * glow})`);
+          sg2.addColorStop(1, 'rgba(255, 210, 130, 0)');
+          ctx.fillStyle = sg2;
+          ctx.beginPath();
+          ctx.ellipse(sx, sy - 4, this.tw * 0.8, this.th * 0.7, 0, 0, Math.PI * 2);
           ctx.fill();
           // Lit signboard and glowing shopfront windows.
           ctx.fillStyle = `rgba(255, 228, 160, ${0.55 * glow})`;
@@ -957,9 +1314,14 @@ export class Renderer {
         ctx.beginPath();
         ctx.arc(sx + 4.6 * this.scale, sy - hgt - 2.4 * this.scale, 2.2 * this.scale + 0.6, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = `rgba(255, 226, 150, ${0.10 * glow})`;
+        const pool = ctx.createRadialGradient(
+          sx + 4.6 * this.scale, sy + 1, 1,
+          sx + 4.6 * this.scale, sy + 1, 16 * this.scale);
+        pool.addColorStop(0, `rgba(255, 230, 160, ${0.22 * glow})`);
+        pool.addColorStop(1, 'rgba(255, 230, 160, 0)');
+        ctx.fillStyle = pool;
         ctx.beginPath();
-        ctx.ellipse(sx + 4.6 * this.scale, sy + 1, 14 * this.scale, 7 * this.scale, 0, 0, Math.PI * 2);
+        ctx.ellipse(sx + 4.6 * this.scale, sy + 1, 16 * this.scale, 8 * this.scale, 0, 0, Math.PI * 2);
         ctx.fill();
       }
     }
@@ -996,33 +1358,182 @@ export class Renderer {
       const size = 4 + d.r * 6;
       const ox = (d.r - 0.5) * this.tw * 0.4;
       const sway = Math.sin(g.time * 25 + d.r * 40) * 1.3;
-      // Shadow, trunk, layered canopy.
-      ctx.fillStyle = 'rgba(10, 14, 22, 0.25)';
+      const species = hash(d.x + 21, d.y + 33);
+      ctx.fillStyle = 'rgba(10, 14, 22, 0.22)';
       ctx.beginPath();
       ctx.ellipse(sx + ox + 3, sy + 1, size * s * 1.0, size * s * 0.4, -0.3, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#4a3c30';
+      ctx.fillStyle = '#5a4636';
       ctx.fillRect(sx + ox - 1, sy - 6 * s, 2, 6 * s);
       const cx = sx + ox + sway;
-      const cy = sy - (8 + size) * s;
       const sid = g.season?.().id;
-      let deep = d.r < 0.41 ? '#39603f' : '#416f48';
-      let mid = d.r < 0.41 ? '#4a7a50' : '#569159';
-      if (sid === 'fall') { deep = d.r < 0.41 ? '#8a5a2a' : '#a4622c'; mid = d.r < 0.41 ? '#b8783a' : '#c98a3f'; }
-      else if (sid === 'winter') { deep = '#7a8894'; mid = '#dde6ee'; }
-      else if (sid === 'spring') { mid = d.r < 0.41 ? '#5f9a5e' : '#6fae67'; }
-      ctx.fillStyle = deep;
+      // Per-tree autumn hue variation; snow-flocked in winter.
+      let deep = '#3f6b45', mid = '#549459', hi = '#6fae67';
+      if (sid === 'fall') {
+        const hue = hash(d.x, d.y + 60);
+        deep = hue < 0.33 ? '#8a4a24' : hue < 0.66 ? '#9a6a20' : '#7a3a2a';
+        mid = hue < 0.33 ? '#c07636' : hue < 0.66 ? '#cf9430' : '#b05838';
+        hi = hue < 0.33 ? '#e09a50' : hue < 0.66 ? '#e8b848' : '#cf7850';
+      } else if (sid === 'winter') { deep = '#8794a0'; mid = '#dde6ee'; hi = '#f2f6fa'; }
+      else if (sid === 'summer') { deep = '#33613c'; mid = '#4b8a50'; hi = '#63a45e'; }
+
+      if (species < 0.28) {
+        // Pine: stacked shaded triangles.
+        for (let i = 0; i < 3; i++) {
+          const py = sy - (5 + i * 4.5) * s;
+          const pw2 = (5.5 - i * 1.3) * s;
+          ctx.fillStyle = i === 2 ? hi : i === 1 ? mid : deep;
+          ctx.beginPath();
+          ctx.moveTo(cx - pw2, py);
+          ctx.lineTo(cx, py - 6 * s);
+          ctx.lineTo(cx + pw2, py);
+          ctx.closePath();
+          ctx.fill();
+        }
+      } else if (species < 0.42) {
+        // Poplar: tall slim column.
+        ctx.fillStyle = deep;
+        ctx.beginPath();
+        ctx.ellipse(cx, sy - (10 + size * 0.6) * s, size * s * 0.5, size * s * 1.7, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = mid;
+        ctx.beginPath();
+        ctx.ellipse(cx - size * s * 0.12, sy - (11 + size * 0.6) * s, size * s * 0.32, size * s * 1.3, 0, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // Broadleaf: clustered blobs with per-blob shading.
+        const cy = sy - (8 + size) * s;
+        const blobs = [
+          [0, 0, 1.0, deep], [-0.5, -0.25, 0.62, mid], [0.45, -0.2, 0.58, mid],
+          [-0.1, -0.5, 0.5, hi],
+        ];
+        for (const [bx, by, bs, bc] of blobs) {
+          ctx.fillStyle = bc;
+          ctx.beginPath();
+          ctx.ellipse(cx + bx * size * s, cy + by * size * s, size * s * bs, size * s * bs * 1.05, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      return;
+    }
+
+    if (d.kind === 'clocktower') {
+      const { sx, sy } = this.toScreen(d.x, d.y);
+      const h = 46;
+      this.castShadow(sx, sy, h, 0.5);
+      this.box(sx, sy, h, '#c9b8a0', '#94856f', '#af9e86', 0.42);
+      // Clock face + hands.
+      const cy = sy - (h - 7) * this.scale;
+      ctx.fillStyle = '#f4efe2';
       ctx.beginPath();
-      ctx.ellipse(cx, cy, size * s * 1.15, size * s * 1.3, 0, 0, Math.PI * 2);
+      ctx.arc(sx, cy, 4.6 * this.scale, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = mid;
+      ctx.strokeStyle = '#3a3430';
+      ctx.lineWidth = 1;
+      const frac = g.dayFrac() * 2 * Math.PI * 2;
       ctx.beginPath();
-      ctx.ellipse(cx - size * s * 0.2, cy - size * s * 0.35, size * s * 0.75, size * s * 0.8, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = 'rgba(255, 250, 220, 0.14)';
+      ctx.moveTo(sx, cy);
+      ctx.lineTo(sx + Math.sin(frac) * 3.4 * this.scale, cy - Math.cos(frac) * 3.4 * this.scale);
+      ctx.moveTo(sx, cy);
+      ctx.lineTo(sx + Math.sin(frac / 12) * 2.2 * this.scale, cy - Math.cos(frac / 12) * 2.2 * this.scale);
+      ctx.stroke();
+      // Pyramid cap.
+      ctx.fillStyle = '#7a5648';
       ctx.beginPath();
-      ctx.ellipse(cx - size * s * 0.35, cy - size * s * 0.55, size * s * 0.35, size * s * 0.4, 0, 0, Math.PI * 2);
+      ctx.moveTo(sx - 6 * this.scale, sy - h * this.scale);
+      ctx.lineTo(sx, sy - (h + 10) * this.scale);
+      ctx.lineTo(sx + 6 * this.scale, sy - h * this.scale);
+      ctx.closePath();
       ctx.fill();
+      return;
+    }
+
+    if (d.kind === 'watertower') {
+      const { sx, sy } = this.toScreen(d.x, d.y);
+      this.castShadow(sx, sy, 30, 0.5);
+      // Legs.
+      ctx.strokeStyle = '#6a6258';
+      ctx.lineWidth = 1.8;
+      for (const lx of [-6, 6]) {
+        ctx.beginPath();
+        ctx.moveTo(sx + lx * this.scale, sy);
+        ctx.lineTo(sx + lx * 0.5 * this.scale, sy - 20 * this.scale);
+        ctx.stroke();
+      }
+      // Tank.
+      ctx.fillStyle = '#a8ccd8';
+      ctx.beginPath();
+      ctx.ellipse(sx, sy - 26 * this.scale, 9 * this.scale, 8 * this.scale, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#8ab4c4';
+      ctx.beginPath();
+      ctx.ellipse(sx, sy - 23 * this.scale, 9 * this.scale, 4 * this.scale, 0, 0, Math.PI);
+      ctx.fill();
+      ctx.fillStyle = '#7a94a0';
+      ctx.beginPath();
+      ctx.moveTo(sx - 9 * this.scale, sy - 27 * this.scale);
+      ctx.lineTo(sx, sy - 35 * this.scale);
+      ctx.lineTo(sx + 9 * this.scale, sy - 27 * this.scale);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#38424c';
+      ctx.font = `700 ${5 * this.scale + 2}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText('WESTSIDE', sx, sy - 25 * this.scale);
+      return;
+    }
+
+    if (d.kind === 'pier') {
+      const { sx, sy } = this.toScreen(d.x, d.y);
+      // Planked boardwalk reaching west over the water.
+      const u = this.isoUnit(-1, 0);
+      const p = { x: -u.y, y: u.x };
+      this.quad(sx + u.x * this.tw * 0.5, sy + u.y * this.tw * 0.5 - 2, u, this.tw * 0.62, p, this.tw * 0.09, '#9a7a55');
+      ctx.strokeStyle = 'rgba(60, 44, 28, 0.5)';
+      ctx.lineWidth = 1;
+      for (let i = -4; i <= 4; i++) {
+        const bx = sx + u.x * this.tw * (0.5 + i * 0.12);
+        const by = sy + u.y * this.tw * (0.5 + i * 0.12) - 2;
+        ctx.beginPath();
+        ctx.moveTo(bx - p.x * this.tw * 0.09, by - p.y * this.tw * 0.09);
+        ctx.lineTo(bx + p.x * this.tw * 0.09, by + p.y * this.tw * 0.09);
+        ctx.stroke();
+      }
+      // Moored boats bobbing beside it.
+      for (const side of [-1, 1]) {
+        const bob = Math.sin(g.time * 30 + side) * 0.8;
+        const bx = sx + u.x * this.tw * 0.85;
+        const by = sy + u.y * this.tw * 0.85 + side * this.th * 0.22 + bob;
+        this.quad(bx, by - 2, u, this.tw * 0.09, p, this.tw * 0.04, side < 0 ? '#c05a4a' : '#4a7ac0');
+        this.quad(bx, by - 3.4, u, this.tw * 0.055, p, this.tw * 0.026, '#e8e0d0');
+      }
+      return;
+    }
+
+    if (d.kind === 'glasstower' || d.kind === 'glasstower2') {
+      const { sx, sy } = this.toScreen(d.x, d.y);
+      const h = d.kind === 'glasstower' ? 52 : 42;
+      this.castShadow(sx, sy, h, 0.68);
+      this.box(sx, sy, h, '#b8d2e4', '#5a7d99', '#7fa6c2', 0.6);
+      // Glass curtain: horizontal floor bands on both faces.
+      ctx.strokeStyle = 'rgba(240, 250, 255, 0.30)';
+      ctx.lineWidth = 1;
+      const hw3 = (this.tw / 2) * 0.6, hh3 = (this.th / 2) * 0.6;
+      for (let i = 1; i < Math.floor(h / 5); i++) {
+        const fy = sy - i * 5 * this.scale;
+        ctx.beginPath();
+        ctx.moveTo(sx - hw3, fy);
+        ctx.lineTo(sx, fy + hh3);
+        ctx.lineTo(sx + hw3, fy);
+        ctx.stroke();
+      }
+      // Rooftop beacon blinks at night.
+      if (this.darkness() > 0.1 && Math.floor(performance.now() / 800) % 2 === 0) {
+        ctx.fillStyle = '#ff5a5a';
+        ctx.beginPath();
+        ctx.arc(sx, sy - (h + 4) * this.scale, 1.8, 0, Math.PI * 2);
+        ctx.fill();
+      }
       return;
     }
 
@@ -1288,6 +1799,7 @@ export class Renderer {
       ctx.fill();
       const cy = sy - 5 * this.scale;
       // Trailer box with company stripe, cab up front.
+      this.quad(sx - u.x * this.tw * 0.06, cy + 1, u, this.tw * 0.18, p, this.tw * 0.095, 'rgba(22, 26, 34, 0.45)');
       this.quad(sx - u.x * this.tw * 0.06, cy, u, this.tw * 0.17, p, this.tw * 0.085, '#ded9cc');
       this.quad(sx - u.x * this.tw * 0.06, cy - 3.5, u, this.tw * 0.17, p, this.tw * 0.07, '#f4f1e8');
       this.quad(sx - u.x * this.tw * 0.06, cy + 1.5, u, this.tw * 0.16, p, this.tw * 0.02, '#f2c14e');
@@ -1331,11 +1843,15 @@ export class Renderer {
       ctx.beginPath();
       ctx.ellipse(sx, sy + 1.5, L * 1.1, W * 1.6, Math.atan2(u.y, u.x), 0, Math.PI * 2);
       ctx.fill();
-      const cy = sy - (van ? 4.5 : 3.5) * this.scale;
+      const bob = Math.sin(performance.now() / 90 + c.line * 3) * 0.4;
+      const cy = sy - (van ? 4.5 : 3.5) * this.scale + bob;
+      this.quad(sx, cy + 0.8, u, L * 1.06, p, W * 1.15, 'rgba(22, 26, 34, 0.45)');
       this.quad(sx, cy, u, L, p, W, c.color);
       this.quad(sx - u.x * L * 0.15, cy - 2.2, u, L * (van ? 0.6 : 0.45), p, W * 0.8,
         shade(c.color, -40));
       this.quad(sx + u.x * L * 0.62, cy - 1, u, L * 0.14, p, W * 0.85, 'rgba(190, 215, 235, 0.85)');
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+      ctx.fillRect(sx + u.x * L * 0.5 - 1, cy - 2.2, 2, 1);
       if (c.type === 'taxi') {
         ctx.fillStyle = '#222';
         ctx.fillRect(sx - 1.5, cy - 4.5, 3, 2);
@@ -1345,10 +1861,19 @@ export class Renderer {
 
     if (d.kind === 'walker') {
       const { sx, sy } = this.toScreen(d.fx, d.fy);
-      const bob = Math.sin(d.w.age * 14) * 0.8;
+      const bob = Math.sin(d.w.age * 14) * 0.7;
+      ctx.fillStyle = 'rgba(10, 14, 22, 0.25)';
+      ctx.beginPath();
+      ctx.ellipse(sx, sy + 0.5, 2.2 * this.scale, 1 * this.scale, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Body capsule + head, in outfit + skin-ish tones.
       ctx.fillStyle = d.w.color;
       ctx.beginPath();
-      ctx.arc(sx, sy - 3 - bob, 1.8 * this.scale + 0.8, 0, Math.PI * 2);
+      ctx.ellipse(sx, sy - 3.2 * this.scale - bob, 1.5 * this.scale, 2.6 * this.scale, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#e8c8a8';
+      ctx.beginPath();
+      ctx.arc(sx, sy - 6.6 * this.scale - bob, 1.3 * this.scale, 0, Math.PI * 2);
       ctx.fill();
       return;
     }
