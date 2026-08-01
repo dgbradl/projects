@@ -599,3 +599,24 @@ button:active:not(:disabled) { transform: scale(0.96); }
 }
 #nego-stake button:hover { border-color: var(--gold, #f2c14e); }
 #nego-stake button span { font-size: 11.5px; color: #aeb9c8; }
+
+/* ---- weekly per-store scorecards ---- */
+#week-report { max-height: 86%; overflow-y: auto; width: min(470px, 94%); }
+.wr-store {
+  background: rgba(255, 255, 255, 0.035); border: 1px solid #333c4e;
+  border-radius: 9px; padding: 8px 10px; margin-top: 8px;
+}
+.wr-store-head { display: flex; align-items: baseline; gap: 8px; }
+.wr-store-head b:last-child { margin-left: auto; }
+.wr-meters { display: flex; gap: 14px; margin: 4px 0 2px; font-size: 12px; color: #aeb9c8; }
+.wr-meters b.pos { color: var(--good, #6fd08c); }
+.wr-meters b.mid { color: var(--gold, #f2c14e); }
+.wr-meters b.neg { color: var(--bad, #e8828c); }
+.wr-issue { font-size: 12px; color: #f0b6bc; margin-top: 3px; }
+.wr-issue.ok { color: var(--good, #6fd08c); }
+.wr-issue.chain { margin-top: 6px; color: #f2c98a; }
+.wr-spark { color: #7fa8d0; letter-spacing: 1px; font-size: 11px; }
+.wr-wow { font-size: 11.5px; margin-left: auto; }
+.wr-wow.pos { color: var(--good, #6fd08c); }
+.wr-wow.neg { color: var(--bad, #e8828c); }
+.wr-store-head .wr-wow + b { margin-left: 0; }

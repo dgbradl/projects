@@ -85,7 +85,7 @@ export class Game {
     for (const p of PROD_IDS) { this.soldToday[p] = 0; this.revToday[p] = 0; this.demandEma[p] = 0; }
     this.yesterdayByProduct = {};   // p -> { units, revenue }
     // Weekly digest accumulators.
-    this.week = { start: 1, events: [], staffActions: 0, storeProfit: {} };
+    this.week = this.blankWeek(1);
     this.lastWeekReport = null;
     this.weekReportId = 0;
     this.whFullStreak = 0;
@@ -104,6 +104,15 @@ export class Game {
     this.lastCampaignDay = {};  // district -> day a campaign last started
     this.achieved = {};         // achievement id -> day earned
     this.stats = { customersServed: 0, totalRevenue: 0, trucksBought: 0, storesOpened: 2, eventsWeathered: 0 };
+  }
+
+  blankWeek(startDay) {
+    return {
+      start: startDay, events: [], staffActions: 0, storeProfit: {},
+      stores: {},        // siteId -> { rev, profit, served, lost, so, staffAcc, days, repStart }
+      whShort: {},       // product -> days the warehouse was effectively empty
+      truckBusy: 0, truckSamples: 0,
+    };
   }
 
   blankLedger() {
@@ -838,6 +847,7 @@ export class Game {
       const staffNeeded = (baseDaily * this.enabledWeight(store)) / 55;
       const staffRatio = Math.min(1, effStaff / staffNeeded);
       const moraleF = 0.75 + 0.35 * store.morale;
+      store.lastStaffRatio = staffRatio;
       const staffF = (0.55 + 0.45 * staffRatio) * moraleF;
       const repF = 0.6 + 0.8 * store.rep;
 
@@ -870,6 +880,10 @@ export class Game {
         this.revToday[p] += revenue;
         servedTick += sold;
         lostTick += want - sold;
+        if (want - sold > 0.0001) {
+          store.lostByP ??= {};
+          store.lostByP[p] = (store.lostByP[p] ?? 0) + (want - sold);
+        }
         if (PRODUCTS[p].spoil) store.inv[p] *= 1 - PRODUCTS[p].spoil * spoilMult * dt;
         // Log a stockout once per product per day.
         if (store.inv[p] <= 0.01 && want > 0 && !store.stockoutLogged[p]) {
@@ -983,6 +997,10 @@ export class Game {
     speed *= this.season().truck ?? 1;
     cap = Math.round(cap);
 
+    if (this.week) {
+      this.week.truckSamples++;
+      if (this.trucks.some((t) => t.state !== 'idle')) this.week.truckBusy++;
+    }
     for (const truck of this.trucks) {
       if (truck.state === 'idle') {
         let best = null, bestTotal = 24;
@@ -1303,12 +1321,34 @@ export class Game {
       this.revToday[p] = 0;
     }
 
+    // Warehouse shortage days: lines the depot couldn't have shipped today.
+    for (const p of PROD_IDS) {
+      if (this.warehouse.inv[p] < 15 && this.stores.some((s) => s.range[p])) {
+        this.week.whShort[p] = (this.week.whShort[p] ?? 0) + 1;
+      }
+    }
     for (const store of this.stores) {
-      this.week.storeProfit[store.siteId] =
-        (this.week.storeProfit[store.siteId] ?? 0)
-        + store.today.revenue - store.today.cogs
+      const dayProfit = store.today.revenue - store.today.cogs
         - this.site(store.siteId).rent - store.staff * STAFF_WAGE * this.wageMult()
         - (store.manager ? store.manager.salary * this.wageMult() : 0);
+      this.week.storeProfit[store.siteId] =
+        (this.week.storeProfit[store.siteId] ?? 0) + dayProfit;
+      const ws = this.week.stores[store.siteId] ??= {
+        rev: 0, profit: 0, served: 0, lost: 0, so: {}, lostByP: {},
+        revDaily: [], staffAcc: 0, days: 0, repStart: store.rep,
+      };
+      ws.rev += store.today.revenue;
+      ws.profit += dayProfit;
+      ws.served += store.servedToday;
+      ws.lost += store.lostToday;
+      ws.staffAcc += store.lastStaffRatio ?? 1;
+      ws.revDaily.push(Math.round(store.today.revenue));
+      ws.days++;
+      for (const p of PROD_IDS) {
+        if (store.stockoutLogged[p]) ws.so[p] = (ws.so[p] ?? 0) + 1;
+        if (store.lostByP?.[p]) ws.lostByP[p] = (ws.lostByP[p] ?? 0) + store.lostByP[p];
+      }
+      store.lostByP = {};
       store.yesterday = {
         revenue: store.today.revenue,
         cogs: store.today.cogs,
@@ -1469,6 +1509,8 @@ export class Game {
       const ranked = Object.entries(this.week.storeProfit)
         .map(([sid, p]) => ({ name: this.storeAt(sid)?.name ?? 'closed store', profit: p }))
         .sort((a, b) => b.profit - a.profit);
+      const truckUtil = this.week.truckSamples > 0
+        ? this.week.truckBusy / this.week.truckSamples : 0;
       this.lastWeekReport = {
         weekEndingDay: day - 1,
         profit, revenue,
@@ -1477,9 +1519,18 @@ export class Game {
         events: this.week.events.slice(0, 5),
         staffActions: this.week.staffActions,
         rivalStores: this.rival.stores.length,
+        stores: this.stores.map((st) => this.storeScorecard(st)).filter(Boolean),
+        chain: this.chainFindings(truckUtil),
+        truckUtil,
       };
       this.weekReportId++;
-      this.week = { start: day, events: [], staffActions: 0, storeProfit: {} };
+      this.prevWeekStores = {};
+      for (const [sid, ws] of Object.entries(this.week.stores)) {
+        this.prevWeekStores[sid] = { rev: ws.rev, profit: ws.profit };
+      }
+      this.lastWeekReport.prevProfit = this.prevWeekProfit ?? null;
+      this.prevWeekProfit = profit;
+      this.week = this.blankWeek(day);
       // In weekly mode the week boundary is a planning stop: pause the sim
       // until the player runs the next week.
       if (this.weeklyMode && !this.gameOver) {
@@ -1548,6 +1599,77 @@ export class Game {
 
   // ---- persistence ------------------------------------------------------
 
+  // ---- weekly scorecards -------------------------------------------------
+  // What happened at each store this week, stated as facts — the decisions
+  // stay with the player.
+
+  storeScorecard(store) {
+    const ws = this.week.stores[store.siteId];
+    if (!ws || ws.days === 0) return null;
+    const fill = ws.served + ws.lost > 0 ? ws.served / (ws.served + ws.lost) : 1;
+    const staff = ws.staffAcc / ws.days;
+    const repDelta = store.rep - ws.repStart;
+    const issues = [];
+    // Dry shelves, ranked by sales actually missed (momentary dips that cost
+    // almost nothing stay out of the report), and split by whether the depot
+    // could even have shipped the line.
+    const dry = Object.entries(ws.lostByP)
+      .filter(([, units]) => units >= 25)
+      .sort((a, b) => b[1] - a[1]);
+    if (dry.length) {
+      const depotToo = dry.filter(([p]) => (this.week.whShort[p] ?? 0) >= 2);
+      const list = dry.slice(0, 3)
+        .map(([p, units]) => `${PRODUCTS[p].name} (~${Math.round(units)} missed${ws.so[p] ? `, dry ${ws.so[p]}d` : ''})`)
+        .join(', ');
+      issues.push({
+        id: depotToo.length ? 'dry-depot' : 'dry-delivery',
+        text: depotToo.length
+          ? `Missed sales: ${list} — the warehouse was also empty of ${depotToo.slice(0, 2).map(([p]) => PRODUCTS[p].name).join(' & ')}.`
+          : `Missed sales: ${list} — the warehouse had stock that never reached the shelves.`,
+      });
+    }
+    if (staff < 0.85) {
+      issues.push({ id: 'understaffed', text: `Staff covered ${Math.round(staff * 100)}% of the traffic — customers waited or walked.` });
+    }
+    if (ws.profit < 0) {
+      issues.push({ id: 'unprofitable', text: `Lost $${Math.round(-ws.profit).toLocaleString()} this week.` });
+    }
+    if (repDelta < -0.04) {
+      issues.push({ id: 'rep-slide', text: `Reputation slid ${Math.round(ws.repStart * 100)}% → ${Math.round(store.rep * 100)}%.` });
+    }
+    const prev = this.prevWeekStores?.[store.siteId];
+    return {
+      siteId: store.siteId,
+      name: store.name,
+      district: this.district(this.site(store.siteId).district).name,
+      profit: Math.round(ws.profit),
+      revenue: Math.round(ws.rev),
+      fill, staff, repDelta, rep: store.rep,
+      revDaily: ws.revDaily.slice(),
+      prevRevenue: prev ? Math.round(prev.rev) : null,
+      prevProfit: prev ? Math.round(prev.profit) : null,
+      issues,
+    };
+  }
+
+  chainFindings(truckUtil) {
+    const out = [];
+    if (truckUtil > 0.92) {
+      out.push({ id: 'fleet-maxed', text: `The truck fleet ran ${Math.round(truckUtil * 100)}% of the week — deliveries queued behind it.` });
+    }
+    const short = Object.entries(this.week.whShort).filter(([, d]) => d >= 3)
+      .sort((a, b) => b[1] - a[1]);
+    if (short.length) {
+      out.push({
+        id: 'depot-dry',
+        text: `Warehouse ran empty of ${short.slice(0, 3).map(([p, d]) => `${PRODUCTS[p].name} (${d}d)`).join(', ')}.`,
+      });
+    }
+    const wh = this.warehouseUsed() / this.warehouse.cap;
+    if (wh > 0.92) out.push({ id: 'depot-full', text: `Warehouse ended the week ${Math.round(wh * 100)}% full.` });
+    return out;
+  }
+
   // Leave the planning stop and let the new week play out at the speed the
   // player was cruising at before the pause.
   startWeek() {
@@ -1586,6 +1708,9 @@ export class Game {
       weeklyMode: this.weeklyMode,
       planning: this.planning,
       preWeekSpeed: this.preWeekSpeed,
+      prevWeekStores: this.prevWeekStores ?? null,
+      prevWeekProfit: this.prevWeekProfit ?? null,
+      lastWeekReport: this.lastWeekReport ?? null,
     };
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch { /* ignore */ }
   }
@@ -1648,6 +1773,9 @@ export class Game {
     this.weeklyMode = d.weeklyMode ?? true;
     this.planning = d.planning ?? false;
     this.preWeekSpeed = d.preWeekSpeed ?? 1;
+    this.prevWeekStores = d.prevWeekStores ?? null;
+    this.prevWeekProfit = d.prevWeekProfit ?? null;
+    this.lastWeekReport = d.lastWeekReport ?? this.lastWeekReport;
     if (this.planning) this.speed = 0;
     return true;
   }

@@ -659,3 +659,54 @@ describe('delivery negotiation & supply balance', () => {
     expect(g.purchasing.produce.qty).toBeGreaterThan(before);
   });
 });
+
+describe('weekly store scorecards', () => {
+  const runWeek = (gg) => { for (let i = 0; i < 600 * 7 + 5; i++) gg.tick(1 / 600); gg.startWeek(); };
+
+  it('reports per-store facts: profit, fill, staffing, rep', () => {
+    runWeek(g);
+    const r = g.lastWeekReport;
+    expect(r.stores.length).toBe(g.stores.length);
+    for (const s of r.stores) {
+      expect(s.fill).toBeGreaterThan(0);
+      expect(s.fill).toBeLessThanOrEqual(1);
+      expect(s.staff).toBeGreaterThan(0);
+      expect(Number.isFinite(s.profit)).toBe(true);
+      expect(Array.isArray(s.issues)).toBe(true);
+    }
+    expect(typeof r.truckUtil).toBe('number');
+  });
+
+  it('flags stockouts and distinguishes empty-depot from delivery gaps', () => {
+    // Starve the depot of produce entirely: stores sell out and can't refill.
+    g.purchasing.produce.auto = false;
+    g.warehouse.inv.produce = 0;
+    for (const st of g.stores) st.inv.produce = 1;
+    runWeek(g);
+    const withIssue = g.lastWeekReport.stores.find((s) =>
+      s.issues.some((i) => i.id === 'dry-depot'));
+    expect(withIssue).toBeTruthy();
+    expect(withIssue.issues.find((i) => i.id === 'dry-depot').text).toContain('Produce');
+  });
+
+  it('flags understaffing as a fact', () => {
+    for (const st of g.stores) st.staff = 1;
+    runWeek(g);
+    const flagged = g.lastWeekReport.stores.some((s) =>
+      s.issues.some((i) => i.id === 'understaffed'));
+    expect(flagged).toBe(true);
+  });
+
+  it('reports a steady week with no issues', () => {
+    // Plenty of everything: full shelves, extra staff.
+    for (const st of g.stores) { st.staff = 4; st.morale = 1; st.rep = 0.7; }
+    g.cash += 20000;
+    g.buyTruck(); g.buyTruck();
+    g.warehouse.cap = 6000;
+    for (const p of Object.keys(g.warehouse.inv)) g.warehouse.inv[p] = 400;
+    for (const pol of Object.values(g.purchasing)) { pol.qty = 400; pol.point = 400; }
+    runWeek(g);
+    const healthy = g.lastWeekReport.stores.some((s) => s.issues.length === 0);
+    expect(healthy).toBe(true);
+  });
+});
