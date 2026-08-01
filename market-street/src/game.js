@@ -94,6 +94,7 @@ export class Game {
     this.weeklyMode = true;
     this.planning = false;
     this.preWeekSpeed = 1;
+    this.meetingsLeft = NEGO.meetingsPerWeek;
 
     // The rival chain, and the stakes.
     this.rival = { stores: [], nextBuyDay: D.rivalFirst, openedDay: {}, plus: {} };
@@ -222,6 +223,7 @@ export class Game {
     const v = VENDORS[vendorId];
     const vs = this.vendors[vendorId];
     const negotiated = this.day() < (vs.frozenUntil ?? 0) ? 0 : vs.discount;
+    const courtPenalty = this.day() < (vs.courtLossUntil ?? 0) ? NEGO.courtPriceMult : 1;
     const disc = Math.max(negotiated, vs.contract ? CONTRACT.discount : 0);
     const buyer = 1 - 0.02 * this.roleSkill('buyer');
     const trait = this.hasTrait('buyer', 'pennypincher') ? 0.985 : 1;
@@ -231,7 +233,7 @@ export class Game {
       if (def?.costMult) mult *= def.costMult;
       if (def?.cost?.[product]) mult *= def.cost[product];
     }
-    return PRODUCTS[product].cost * v.priceMult * (1 - disc) * buyer * trait * mult;
+    return PRODUCTS[product].cost * v.priceMult * (1 - disc) * buyer * trait * mult * courtPenalty;
   }
 
   // Extra vendor lead time from active events (port congestion etc.).
@@ -458,6 +460,7 @@ export class Game {
     if (this.cash < cost) return false;
     this.cash -= cost;
     const vs = this.vendors[vendorId];
+    if (vs.rider) vs.rider.ordered += qty;
     const arrive = this.day()
       + Math.max(1, v.leadTime - (this.day() < (vs.rushUntil ?? 0) ? 1 : 0))
       + this.leadDelta();
@@ -500,16 +503,38 @@ export class Game {
 
   negoDiceCount(vendorId) {
     const vs = this.vendors[vendorId];
-    const bonus = [];
-    if (vs.rel >= 50) bonus.push('Good relationship (rel 50+)');
-    if (vs.rel >= 80) bonus.push('Trusted partner (rel 80+)');
-    if (this.roleSkill('buyer') >= 1) bonus.push(`Head Buyer at the table (★${this.roleSkill('buyer')})`);
-    if (this.roleSkill('buyer') >= 3) bonus.push('Master buyer');
-    if (vs.contract) bonus.push('Active supply contract');
-    return { count: Math.min(NEGO.maxDice, NEGO.baseDice + bonus.length), bonus };
+    const v = VENDORS[vendorId];
+    const mods = [];
+    if (vs.rel >= 50) mods.push({ d: 1, label: 'Good relationship (rel 50+)' });
+    if (vs.rel >= 80) mods.push({ d: 1, label: 'Trusted partner (rel 80+)' });
+    if (this.roleSkill('buyer') >= 1) mods.push({ d: 1, label: `Head Buyer at the table (★${this.roleSkill('buyer')})` });
+    if (this.roleSkill('buyer') >= 3) mods.push({ d: 1, label: 'Master buyer' });
+    if (vs.contract) mods.push({ d: 1, label: 'Active supply contract' });
+    // How the last sitting ended carries into this one.
+    if ((vs.mood ?? 0) > 0) mods.push({ d: 1, label: 'Goodwill from last sitting' });
+    if ((vs.mood ?? 0) < 0) mods.push({ d: -1, label: 'Grudge from last sitting' });
+    // The world at the table: seasons and events shift your hand.
+    if (this.season().id === 'fall' && v.products.includes('produce')) {
+      mods.push({ d: 1, label: 'Harvest glut — buyers hold the cards' });
+    }
+    if (this.eventOfType('farmers_market') && v.products.includes('produce')) {
+      mods.push({ d: 1, label: 'Farmers market undercuts them' });
+    }
+    if (this.eventOfType('fuel_spike')) {
+      mods.push({ d: -1, label: 'Fuel spike has vendors defensive' });
+    }
+    const count = Math.max(2, Math.min(NEGO.maxDice,
+      NEGO.baseDice + mods.reduce((s, m) => s + m.d, 0)));
+    return { count, mods };
+  }
+
+  meetingsCap() {
+    const b = this.hq.buyer;
+    return NEGO.meetingsPerWeek + (b ? 1 : 0) + (b?.skill >= 3 ? 1 : 0);
   }
 
   canNegotiate(vendorId) {
+    if (this.meetingsLeft <= 0) return { noMeetings: true };
     if (this.vendors[vendorId].lastNegDay === this.day()) return { done: true };
     if (this.vendorStruck(vendorId)) return { struck: true };
     return { ok: true };
@@ -517,10 +542,13 @@ export class Game {
 
   startNegotiation(vendorId, stake = 'price') {
     const vs = this.vendors[vendorId];
+    if (this.meetingsLeft <= 0) return { noMeetings: true };
     if (vs.lastNegDay === this.day()) return { done: true };
     if (this.vendorStruck(vendorId)) return { struck: true };
+    const { count, mods } = this.negoDiceCount(vendorId);
     vs.lastNegDay = this.day();
-    const { count, bonus } = this.negoDiceCount(vendorId);
+    this.meetingsLeft--;
+    vs.mood = 0;                       // grudges & goodwill spend on sitting down
     this.nego = {
       vendor: vendorId,
       stake,
@@ -528,7 +556,7 @@ export class Game {
       rollsLeft: NEGO.rolls,
       patience: VENDORS[vendorId].patience ?? 3,
       warns: 0,
-      bonus,
+      mods,
       counter: null,
       counterAccepted: false,
       over: false,
@@ -557,6 +585,20 @@ export class Game {
     // a counter: take this now, and we part as friends.
     if (n.rollsLeft > 0 && this.negoLeverage() >= NEGO.counterAt) {
       n.counter = { value: this.negoTierValue() };
+      // Some price counters come with strings attached: a volume commitment
+      // that pays extra if honored, and stings if blown.
+      if (n.stake === 'price' && n.counter.value && Math.random() < NEGO.riderChance) {
+        const vs2 = this.vendors[n.vendor];
+        if (!vs2.rider) {
+          const est = VENDORS[n.vendor].products
+            .reduce((s, p) => s + (this.demandEma[p] ?? 0), 0);
+          n.counter.rider = {
+            qty: Math.max(100, Math.round(est * 2 / 25) * 25),
+            days: NEGO.riderDays,
+            bonus: NEGO.riderBonus,
+          };
+        }
+      }
     }
     return n;
   }
@@ -615,9 +657,23 @@ export class Game {
     }
     const relGain = good + (won ? 2 : 0) + (fromCounter ? NEGO.counterRel : 0);
     vs.rel = Math.min(100, vs.rel + relGain);
+    if (fromCounter) vs.mood = 1;      // taking the counter graciously is remembered
+    let rider = null;
+    if (fromCounter && n.counter?.rider) {
+      rider = n.counter.rider;
+      vs.discount = Math.min(0.25, vs.discount + rider.bonus);
+      vs.rider = { qty: rider.qty, ordered: 0, deadline: this.day() + rider.days, bonus: rider.bonus };
+      this.log('📦', `${VENDORS[n.vendor].name} added ${Math.round(rider.bonus * 100)}% more — for ${rider.qty} units ordered within ${rider.days} days.`);
+    }
+    // Closing any deal while BuyLow is courting this vendor fends them off.
+    if (won && this.rival.courting?.vendor === n.vendor) {
+      this.rival.courting = null;
+      vs.rel = Math.min(100, vs.rel + 4);
+      this.log('🦈', `Your deal kept ${VENDORS[n.vendor].name} out of BuyLow's hands.`);
+    }
     n.over = true;
     n.result = {
-      walked: false, stake: n.stake, won, good, relGain, perk,
+      walked: false, stake: n.stake, won, good, relGain, perk, rider,
       disc: n.stake === 'price' && won ? won.disc : 0,
       total: vs.discount,
     };
@@ -630,6 +686,7 @@ export class Game {
     const vs = this.vendors[n.vendor];
     vs.rel = Math.max(0, vs.rel - NEGO.walkRel);
     vs.frozenUntil = this.day() + NEGO.walkFreezeDays;
+    vs.mood = -1;
     n.over = true;
     n.result = { walked: true, freezeDays: NEGO.walkFreezeDays };
     this.log('💢', `${VENDORS[n.vendor].name} walked out of the negotiation — your discount is suspended for ${NEGO.walkFreezeDays} days.`);
@@ -1212,13 +1269,13 @@ export class Game {
         }
       }
 
-      if (this.delegationActive('negotiate')) {
+      if (this.delegationActive('negotiate') && this.meetingsLeft > 0) {
         const targets = Object.keys(VENDORS)
           .filter((vid) => this.vendors[vid].discount < 0.249
             && this.vendors[vid].lastNegDay !== day
             && carried.some((p) => this.purchasing[p].vendor === vid))
           .sort((a, b) => this.vendors[b].rel - this.vendors[a].rel);
-        if (targets.length) this.negotiate(targets[0]);   // success logs itself
+        if (targets.length) { this.meetingsLeft--; this.negotiate(targets[0]); }   // success logs itself
       }
 
       if (this.delegationActive('reorders')) {
@@ -1360,6 +1417,21 @@ export class Game {
       store.servedToday = 0;
       store.lostToday = 0;
       store.stockoutLogged = {};
+    }
+
+    // Volume riders come due: honored builds trust, blown ones sting.
+    for (const [vid, vs] of Object.entries(this.vendors)) {
+      if (!vs.rider) continue;
+      if (vs.rider.ordered >= vs.rider.qty) {
+        vs.rel = Math.min(100, vs.rel + 4);
+        this.log('📦', `Volume commitment honored with ${VENDORS[vid].name} — they'll remember that.`);
+        vs.rider = null;
+      } else if (day >= vs.rider.deadline) {
+        vs.rel = Math.max(0, vs.rel - NEGO.riderRelFail);
+        vs.discount = Math.max(0, vs.discount - vs.rider.bonus);
+        this.log('📦', `Missed the ${vs.rider.qty}-unit commitment to ${VENDORS[vid].name} — the extra ${Math.round(vs.rider.bonus * 100)}% is gone and trust took a hit.`);
+        vs.rider = null;
+      }
     }
 
     // Vendor deliveries (strikes hold shipments at the depot).
@@ -1524,6 +1596,30 @@ export class Game {
         truckUtil,
       };
       this.weekReportId++;
+      this.meetingsLeft = this.meetingsCap();
+      // Deals age: unmaintained discounts drift back down.
+      let decayed = false;
+      for (const vs of Object.values(this.vendors)) {
+        if (vs.discount > 0) { vs.discount = Math.max(0, vs.discount - NEGO.decayPerWeek); decayed = true; }
+      }
+      if (decayed) this.log('🤝', 'Vendor deals aged a little — discounts drift −1% each week without a fresh handshake.');
+      // BuyLow courtship: an unanswered courtship costs you the vendor's favor.
+      if (this.rival.courting) {
+        const vid = this.rival.courting.vendor;
+        const vs = this.vendors[vid];
+        vs.courtLossUntil = day + NEGO.courtDays;
+        vs.rel = Math.max(0, vs.rel - 10);
+        this.log('🦈', `${RIVAL.name} signed a supply deal with ${VENDORS[vid].name} — your prices there are +${Math.round((NEGO.courtPriceMult - 1) * 100)}% for ${NEGO.courtDays} days.`);
+        this.rival.courting = null;
+      }
+      if (this.rival.stores.length > 0 && Math.random() < NEGO.courtChance) {
+        const vids = Object.keys(VENDORS).filter((v) => !this.vendors[v].courtLossUntil || day >= this.vendors[v].courtLossUntil);
+        const pick = vids[Math.floor(Math.random() * vids.length)];
+        if (pick) {
+          this.rival.courting = { vendor: pick, until: day + 7 };
+          this.log('🦈', `${RIVAL.name} is courting ${VENDORS[pick].name} — close any deal with them this week to keep the account.`);
+        }
+      }
       this.prevWeekStores = {};
       for (const [sid, ws] of Object.entries(this.week.stores)) {
         this.prevWeekStores[sid] = { rev: ws.rev, profit: ws.profit };
@@ -1667,6 +1763,9 @@ export class Game {
     }
     const wh = this.warehouseUsed() / this.warehouse.cap;
     if (wh > 0.92) out.push({ id: 'depot-full', text: `Warehouse ended the week ${Math.round(wh * 100)}% full.` });
+    if (this.rival.courting) {
+      out.push({ id: 'courting', text: `${RIVAL.name} is courting ${VENDORS[this.rival.courting.vendor].name} — no deal has been closed with them yet.` });
+    }
     return out;
   }
 
@@ -1708,6 +1807,7 @@ export class Game {
       weeklyMode: this.weeklyMode,
       planning: this.planning,
       preWeekSpeed: this.preWeekSpeed,
+      meetingsLeft: this.meetingsLeft,
       prevWeekStores: this.prevWeekStores ?? null,
       prevWeekProfit: this.prevWeekProfit ?? null,
       lastWeekReport: this.lastWeekReport ?? null,
@@ -1773,6 +1873,7 @@ export class Game {
     this.weeklyMode = d.weeklyMode ?? true;
     this.planning = d.planning ?? false;
     this.preWeekSpeed = d.preWeekSpeed ?? 1;
+    this.meetingsLeft = d.meetingsLeft ?? NEGO.meetingsPerWeek;
     this.prevWeekStores = d.prevWeekStores ?? null;
     this.prevWeekProfit = d.prevWeekProfit ?? null;
     this.lastWeekReport = d.lastWeekReport ?? this.lastWeekReport;

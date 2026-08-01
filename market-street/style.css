@@ -620,3 +620,9 @@ button:active:not(:disabled) { transform: scale(0.96); }
 .wr-wow.pos { color: var(--good, #6fd08c); }
 .wr-wow.neg { color: var(--bad, #e8828c); }
 .wr-store-head .wr-wow + b { margin-left: 0; }
+#nego-bonus span.m-neg {
+  background: rgba(232, 130, 140, 0.10); color: var(--bad, #e8828c);
+  border-color: rgba(232, 130, 140, 0.35);
+}
+#meetings-left { font-size: 12.5px; color: #aeb9c8; }
+#meetings-left b { color: var(--gold, #f2c14e); }

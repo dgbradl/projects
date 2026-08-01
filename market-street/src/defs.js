@@ -142,6 +142,15 @@ export const NEGO = {
     { lev: 4, days: 14 },
     { lev: 2, days: 7 },
   ],
+  meetingsPerWeek: 3,  // sittings per week (Head Buyer adds more)
+  decayPerWeek: 0.01,  // negotiated discounts age without maintenance
+  riderChance: 0.55,   // odds a price counter carries a volume rider
+  riderBonus: 0.02,    // extra discount the rider pays...
+  riderDays: 7,        // ...if you order the committed volume in time
+  riderRelFail: 6,     // relationship cost of blowing the commitment
+  courtChance: 0.35,   // weekly odds BuyLow courts one of your vendors
+  courtPriceMult: 1.05, // your prices at a vendor BuyLow signed, for a while
+  courtDays: 14,
   counterAt: 3,        // leverage at which the vendor floats a counter-offer
   counterRel: 2,       // extra relationship for taking the counter graciously
   walkRel: 8,          // relationship lost when the vendor walks
@@ -235,8 +244,8 @@ export const SITES = [
 // Each is a decision the player can hand off; skill governs quality/cadence.
 export const DELEGATIONS = {
   negotiate: {
-    role: 'buyer', name: 'Negotiate with vendors', defaultOn: true,
-    desc: 'Works one vendor per day toward better rates.',
+    role: 'buyer', name: 'Negotiate with vendors', defaultOn: false,
+    desc: 'Spends your weekly meetings working vendors toward better rates.',
   },
   sourcing: {
     role: 'buyer', name: 'Choose vendors', defaultOn: true,

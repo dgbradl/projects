@@ -710,3 +710,90 @@ describe('weekly store scorecards', () => {
     expect(healthy).toBe(true);
   });
 });
+
+describe('negotiation economy: meetings, memory, riders, courtship', () => {
+  let realRandom;
+  beforeEach(() => { realRandom = Math.random; });
+  afterEach(() => { Math.random = realRandom; });
+
+  it('budgets three meetings a week and refreshes at the wrap-up', () => {
+    expect(g.meetingsLeft).toBe(3);
+    for (const vid of ['freshfields', 'ironox', 'vista']) {
+      expect(g.startNegotiation(vid).noMeetings).toBeUndefined();
+      g.negoAccept();
+    }
+    expect(g.startNegotiation('consolidated').noMeetings).toBe(true);
+    expect(g.canNegotiate('consolidated').noMeetings).toBe(true);
+    g.hq.buyer = { name: 'Rosa', skill: 3, salary: 120, trait: null, xp: 0 };
+    for (let i = 0; i < 600 * 7 + 5; i++) g.tick(1 / 600);
+    g.startWeek();
+    expect(g.meetingsLeft).toBe(5);   // 3 base +1 buyer +1 master
+  });
+
+  it('discounts decay 1% at each week boundary', () => {
+    g.vendors.vista.discount = 0.10;
+    for (let i = 0; i < 600 * 7 + 5; i++) g.tick(1 / 600);
+    g.startWeek();
+    expect(g.vendors.vista.discount).toBeCloseTo(0.09, 5);
+  });
+
+  it('a walkout leaves a grudge that costs a die next sitting', () => {
+    Math.random = () => 4 / 6 + 0.001;   // all warns -> walk
+    g.startNegotiation('ironox');
+    expect(g.nego.result.walked).toBe(true);
+    expect(g.vendors.ironox.mood).toBe(-1);
+    const { count, mods } = g.negoDiceCount('ironox');
+    expect(mods.some((m) => m.d === -1 && m.label.includes('Grudge'))).toBe(true);
+    expect(count).toBe(2);
+    // Sitting down consumes the grudge.
+    g.time += 1;                          // next day (per-vendor daily guard)
+    g.startNegotiation('ironox');
+    expect(g.vendors.ironox.mood).toBe(0);
+  });
+
+  it('accepting a rider counter pays extra now and binds a commitment', () => {
+    const q = [5 / 6, 5 / 6, 5 / 6, 0.1];   // three crits, then rider chance hits
+    Math.random = () => (q.length ? q.shift() + 0.001 : 0.1);
+    g.startNegotiation('vista');
+    expect(g.nego.counter?.rider).toBeTruthy();
+    const rq = g.nego.counter.rider.qty;
+    g.negoAccept(true);
+    expect(g.vendors.vista.discount).toBeCloseTo(0.08, 5);  // 6% tier + 2% rider
+    expect(g.vendors.vista.rider.qty).toBe(rq);
+    expect(g.vendors.vista.mood).toBe(1);
+    // Order the committed volume: next day the rider resolves in your favor.
+    g.cash = 50000;
+    g.placeOrder('beverages', 'vista', rq);
+    const rel = g.vendors.vista.rel;
+    for (let i = 0; i < 605; i++) g.tick(1 / 600);
+    expect(g.vendors.vista.rider).toBeNull();
+    expect(g.vendors.vista.rel).toBeGreaterThanOrEqual(rel);
+    expect(g.vendors.vista.discount).toBeCloseTo(0.08, 5);  // bonus kept
+  });
+
+  it('a blown rider claws back the bonus and trust', () => {
+    g.vendors.vista.discount = 0.08;
+    g.vendors.vista.rider = { qty: 300, ordered: 0, deadline: g.day(), bonus: 0.02 };
+    const rel = g.vendors.vista.rel;
+    for (let i = 0; i < 605; i++) g.tick(1 / 600);
+    expect(g.vendors.vista.rider).toBeNull();
+    expect(g.vendors.vista.discount).toBeCloseTo(0.06, 5);
+    expect(g.vendors.vista.rel).toBeLessThan(rel);
+  });
+
+  it('closing a deal fends off a BuyLow courtship; ignoring one costs you', () => {
+    g.rival.courting = { vendor: 'freshfields', until: g.day() + 7 };
+    Math.random = () => 5 / 6 + 0.001;    // crits -> a winning deal
+    g.startNegotiation('freshfields');
+    g.negoAccept();
+    expect(g.rival.courting).toBeNull();
+    // Now let one run its course unanswered.
+    Math.random = realRandom;
+    g.rival.courting = { vendor: 'harborfresh', until: g.day() + 7 };
+    const base = g.unitCost('seafood', 'harborfresh');
+    for (let i = 0; i < 600 * 7 + 5; i++) g.tick(1 / 600);
+    g.startWeek();
+    expect(g.day() < g.vendors.harborfresh.courtLossUntil).toBe(true);
+    expect(g.unitCost('seafood', 'harborfresh')).toBeGreaterThan(base * 1.02);
+  });
+});

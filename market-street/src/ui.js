@@ -324,18 +324,21 @@ export class UI {
   openNegotiation(id) {
     const g = this.game;
     const can = g.canNegotiate(id);
+    if (can.noMeetings) { this.say('No meetings left this week — the calendar refreshes at the weekly wrap-up.'); return; }
     if (can.done) { this.say(`${VENDORS[id].name} won't renegotiate twice in one day.`); return; }
     if (can.struck) { this.say(`${VENDORS[id].name} is on strike — nobody's at the table.`); return; }
     this.negoPrevSpeed = g.speed || 1;
     g.speed = 0;
     this.negoVendor = id;
     const v = VENDORS[id];
-    const { count, bonus } = g.negoDiceCount(id);
+    const { count, mods } = g.negoDiceCount(id);
     document.getElementById('nego-title').textContent = `🤝 ${v.name}`;
-    document.getElementById('nego-temper').textContent = v.temper ?? '';
+    document.getElementById('nego-temper').textContent =
+      `${v.temper ?? ''} (${g.meetingsLeft} meeting${g.meetingsLeft === 1 ? '' : 's'} left this week)`;
     document.getElementById('nego-bonus').innerHTML =
-      [`${count} dice`, ...bonus.map((b) => `+1 ${b}`)]
-        .map((b) => `<span>${b}</span>`).join('');
+      [`<span>${count} dice</span>`,
+        ...mods.map((m) => `<span class="${m.d < 0 ? 'm-neg' : ''}">${m.d > 0 ? '+1' : '−1'} ${m.label}</span>`)]
+        .join('');
     // Stake chooser phase: the table isn't sat (and the daily sitting isn't
     // burned) until an ask is chosen.
     document.getElementById('nego-stake').classList.remove('hidden');
@@ -417,7 +420,8 @@ export class UI {
         chat.textContent = `Handshake. Priority routing: −1 day lead for ${r.won.days} days${r.won.split ? ', split shipments' : ''}${r.perk ? ` — and ${r.perk.text}` : ''}.`;
         sfx.dealYes?.();
       } else if (r.disc > 0) {
-        chat.textContent = `Handshake. +${Math.round(r.disc * 100)}% off (now ${Math.round(r.total * 100)}% total)${r.perk ? ` — and they threw in ${r.perk.text}.` : '.'}`;
+        const riderTxt = r.rider ? ` Rider on: ${r.rider.qty} units within ${r.rider.days} days.` : '';
+        chat.textContent = `Handshake. +${Math.round(r.disc * 100)}% off (now ${Math.round(r.total * 100)}% total)${r.perk ? ` — and they threw in ${r.perk.text}.` : '.'}${riderTxt}`;
         sfx.dealYes?.();
       } else {
         chat.textContent = `No new discount today${r.relGain > 0 ? ', but the goodwill kept things warm' : ''}. There's always next week.`;
@@ -432,7 +436,9 @@ export class UI {
       const cLabel = n.stake === 'delivery' && cv
         ? `the priority route (−1 day, ${cv.days} days)`
         : `the ${Math.round((cv?.disc ?? 0) * 100)}%`;
-      chat.textContent = `"Tell you what — take ${cLabel} right now and we're square." (accepting a counter adds bonus relationship)`;
+      chat.textContent = n.counter.rider
+        ? `"Take ${cLabel} — and I'll add ${Math.round(n.counter.rider.bonus * 100)}% more if you order ${n.counter.rider.qty} units from us within ${n.counter.rider.days} days. Miss it, and it costs you."`
+        : `"Tell you what — take ${cLabel} right now and we're square." (accepting a counter adds bonus relationship)`;
     } else if (n.warns >= n.patience) {
       chat.textContent = 'The room has gone very quiet. One more slip and this meeting is over.';
     } else if (n.warns === n.patience - 1 && n.patience > 1) {
@@ -861,7 +867,7 @@ export class UI {
   buildVendorsTab() {
     const g = this.game;
     const page = document.getElementById('tab-vendors');
-    page.innerHTML = '<p class="fine pad">Negotiating opens the dice table — choose your ask first: 💰 price (discounts up to 25%) or 🚚 delivery (−1 day lead windows, split shipments). Roll 🤝 leverage for the deal, 💬 goodwill for the relationship — but ⚠️ offense locks in, and past a vendor\'s patience they walk (frozen discount, soured relationship). Relationship, a Head Buyer, and contracts add dice. Once per vendor per day; max 25% off.</p>';
+    page.innerHTML = '<div class="panel" id="meetings-panel"><div id="meetings-left"></div></div><p class="fine pad">Negotiating opens the dice table — choose your ask first: 💰 price (discounts up to 25%) or 🚚 delivery (−1 day lead windows, split shipments). Roll 🤝 leverage for the deal, 💬 goodwill for the relationship — but ⚠️ offense locks in, and past a vendor\'s patience they walk (frozen discount, soured relationship). Relationship, a Head Buyer, contracts, seasons, and how the last sitting ended all shift your dice. Meetings are scarce — spend them well — and deals age −1% a week without a fresh handshake.</p>';
     for (const [id, v] of Object.entries(VENDORS)) {
       const card = document.createElement('div');
       card.className = 'panel vendor-card';
@@ -1414,6 +1420,12 @@ export class UI {
     netEl.classList.toggle('pos', net >= 0);
     netEl.classList.toggle('neg', net < 0);
 
+    const meetEl = document.getElementById('meetings-left');
+    if (meetEl) {
+      const txt = `🪑 <b>${g.meetingsLeft}</b> vendor meeting${g.meetingsLeft === 1 ? '' : 's'} left this week — refreshes at the weekly wrap-up.`;
+      if (meetEl.dataset.k !== txt) { meetEl.dataset.k = txt; meetEl.innerHTML = txt; }
+    }
+
     // Attention badges on tabs.
     const badges = {
       stores: g.stores.filter((s) => Object.values(s.stockoutLogged ?? {}).some(Boolean)).length,
@@ -1641,21 +1653,28 @@ export class UI {
         leadEl.style.color = rushLeft > 0 ? 'var(--gold, #f2c14e)' : '';
       }
       const struck = document.querySelector(`[data-struck="${id}"]`);
-      if (struck) setEl(struck, g.vendorStruck(id) ? '✊ ON STRIKE' : '');
+      if (struck) {
+        setEl(struck, g.vendorStruck(id) ? '✊ ON STRIKE'
+          : g.rival.courting?.vendor === id ? '🦈 BUYLOW COURTING'
+            : g.day() < (g.vendors[id].courtLossUntil ?? 0) ? '🦈 favoring BuyLow' : '');
+      }
       const btn = document.querySelector(`[data-neg="${id}"]`);
       if (btn) {
         const used = g.vendors[id].lastNegDay === g.day();
-        btn.disabled = used;
-        const label = used ? 'Negotiated today' : 'Negotiate';
+        const noMeet = g.meetingsLeft <= 0;
+        btn.disabled = used || noMeet;
+        const label = used ? 'Negotiated today' : noMeet ? 'No meetings left' : 'Negotiate';
         if (btn.textContent !== label) btn.textContent = label;
       }
       const cEl = document.querySelector(`[data-contract="${id}"]`);
       const sBtn = document.querySelector(`[data-sign="${id}"]`);
       const c = g.vendors[id].contract;
       if (cEl) {
-        setEl(cEl, c
+        const rider = g.vendors[id].rider;
+        const riderTxt = rider ? ` · rider ${Math.min(rider.qty, Math.round(rider.ordered))}/${rider.qty} by day ${rider.deadline}` : '';
+        setEl(cEl, (c
           ? `${Math.round(c.weekOrdered)}/${CONTRACT.weeklyMin} this week · ends day ${c.until}`
-          : g.vendors[id].rel >= CONTRACT.relRequired ? 'available' : `needs ${CONTRACT.relRequired}+ relationship`);
+          : g.vendors[id].rel >= CONTRACT.relRequired ? 'available' : `needs ${CONTRACT.relRequired}+ relationship`) + riderTxt);
         cEl.style.color = c && c.weekOrdered < CONTRACT.weeklyMin * 0.5 ? 'var(--accent)' : '';
       }
       if (sBtn) sBtn.disabled = !!c || g.vendors[id].rel < CONTRACT.relRequired;
