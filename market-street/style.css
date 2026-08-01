@@ -626,3 +626,320 @@ button:active:not(:disabled) { transform: scale(0.96); }
 }
 #meetings-left { font-size: 12.5px; color: #aeb9c8; }
 #meetings-left b { color: var(--gold, #f2c14e); }
+
+/* ======================================================================
+   POLISH LAYER — layered surfaces, motion, and consistent controls.
+   Overrides the base rules above; keep selectors in sync with index.html.
+   ====================================================================== */
+
+:root {
+  --panel: #1c222c;
+  --surface: linear-gradient(180deg, #232b37, #1e2530);
+  --surface-raised: linear-gradient(180deg, #2a3341, #232b37);
+  --edge: rgba(255, 255, 255, 0.055);
+  --ring: rgba(242, 193, 78, 0.55);
+  --shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+  --shadow-pop: 0 14px 44px rgba(0, 0, 0, 0.55);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+body {
+  font: 14px/1.5 "Inter", "SF Pro Text", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-feature-settings: "cv06" 1;
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: #333d4d; border: 2px solid transparent; background-clip: content-box; border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: #47536a; background-clip: content-box; }
+
+:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; border-radius: 6px; }
+
+/* ---- topbar: glass bar with pill stats ---- */
+#topbar {
+  background: linear-gradient(180deg, #222a36, #1b212b);
+  border-bottom: 1px solid #0d1117;
+  box-shadow: 0 1px 0 var(--edge) inset, 0 4px 16px rgba(0, 0, 0, 0.35);
+  padding: 9px 14px;
+}
+.brand {
+  background: linear-gradient(120deg, #fff, #f2c14e);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  letter-spacing: 0.01em;
+}
+.stat {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.015));
+  border: 1px solid var(--edge);
+  border-radius: 999px; padding: 4px 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  transition: border-color 0.2s;
+}
+.stat:hover { border-color: rgba(255, 255, 255, 0.14); }
+#stat-day-wrap { position: relative; overflow: hidden; }
+#day-progress {
+  position: absolute; left: 0; bottom: 0; height: 2px;
+  background: linear-gradient(90deg, var(--accent), #ffe9b0);
+  border-radius: 2px; transition: width 0.3s linear;
+}
+
+/* segmented speed control */
+.speeds {
+  gap: 0; background: rgba(0, 0, 0, 0.28); border: 1px solid var(--edge);
+  border-radius: 999px; padding: 2px; overflow: hidden;
+}
+.speeds button {
+  border: 0; background: transparent; border-radius: 999px;
+  padding: 3px 11px; color: var(--dim);
+  transition: background 0.18s, color 0.18s;
+}
+.speeds button:hover { color: var(--text); }
+.speeds button.active {
+  background: linear-gradient(180deg, #ffd97a, #f2c14e);
+  color: #211d12; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+/* ---- buttons: one system ---- */
+button {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015));
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  transition: border-color 0.18s, background 0.18s, transform 0.12s var(--ease), box-shadow 0.18s;
+}
+button:hover { border-color: rgba(255, 255, 255, 0.2); background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)); }
+button:active { transform: translateY(1px); }
+button.primary, button.active {
+  background: linear-gradient(180deg, #ffd97a, #eebc45);
+  border-color: #b98f2e; color: #241f12;
+  box-shadow: 0 2px 8px rgba(242, 193, 78, 0.25), 0 1px 0 rgba(255, 255, 255, 0.35) inset;
+}
+button.primary:hover { background: linear-gradient(180deg, #ffe190, #f5c654); box-shadow: 0 4px 14px rgba(242, 193, 78, 0.35); }
+button.danger { background: rgba(232, 130, 140, 0.06); }
+button.danger:hover { border-color: var(--bad); background: rgba(232, 130, 140, 0.12); }
+
+input[type="number"], select, textarea {
+  background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 7px; transition: border-color 0.18s;
+}
+input[type="number"]:focus, select:focus, textarea:focus { border-color: var(--ring); outline: none; }
+input[type="checkbox"] { accent-color: var(--accent); }
+
+/* ---- sidebar & panels: layered cards ---- */
+#sidebar { background: #171c24; border-left: 1px solid #0d1117; padding: 11px; gap: 11px; }
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--edge);
+  border-radius: 12px; padding: 11px 12px;
+  box-shadow: 0 1px 0 var(--edge) inset, var(--shadow);
+}
+.panel h3 {
+  font-size: 11.5px; letter-spacing: 0.09em; margin-bottom: 9px;
+}
+.panel h3::before {
+  content: ''; display: inline-block; width: 3px; height: 11px;
+  border-radius: 2px; margin-right: 7px; vertical-align: -1px;
+  background: linear-gradient(180deg, var(--accent), rgba(242, 193, 78, 0.35));
+}
+
+#goal-panel {
+  border-radius: 12px; padding: 9px 12px;
+  border: 1px solid rgba(242, 193, 78, 0.45);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 4px 18px rgba(242, 193, 78, 0.07);
+}
+#goal-panel .goal-head #goal-reward {
+  background: rgba(242, 193, 78, 0.14); border: 1px solid rgba(242, 193, 78, 0.35);
+  border-radius: 999px; padding: 0 8px; font-size: 11px;
+}
+
+/* ---- tabs: pill rail ---- */
+#tabs {
+  background: rgba(0, 0, 0, 0.25); border: 1px solid var(--edge);
+  border-radius: 11px; padding: 3px; gap: 3px;
+}
+#tabs button {
+  border: 0; background: transparent; color: var(--dim);
+  border-radius: 8px; transition: background 0.18s, color 0.18s;
+  position: relative;
+}
+#tabs button:hover { color: var(--text); background: rgba(255, 255, 255, 0.05); }
+#tabs button.active {
+  background: linear-gradient(180deg, rgba(242, 193, 78, 0.20), rgba(242, 193, 78, 0.08));
+  color: var(--accent); border: 0;
+  box-shadow: inset 0 0 0 1px rgba(242, 193, 78, 0.40), 0 2px 8px rgba(0, 0, 0, 0.25);
+  font-weight: 700;
+}
+.tab-ico { display: block; font-size: 15px; margin-bottom: 1px; }
+.tab-badge {
+  position: absolute; top: 1px; right: 4px;
+  background: var(--bad); color: #fff; font-size: 9.5px; font-weight: 700;
+  min-width: 14px; height: 14px; line-height: 14px; border-radius: 999px;
+  padding: 0 3px; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* pages fade in on switch */
+@media (prefers-reduced-motion: no-preference) {
+  .tab-page:not(.hidden) { animation: page-in 0.22s var(--ease); }
+  @keyframes page-in {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: none; }
+  }
+}
+
+/* ---- meters ---- */
+.meter { height: 7px; border-radius: 999px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5) inset; }
+.meter i {
+  background: linear-gradient(90deg, #4fae6e, #6fd08c);
+  border-radius: 999px; transition: width 0.45s var(--ease);
+  box-shadow: 0 0 6px rgba(111, 208, 140, 0.35);
+}
+.mini-meter i { transition: width 0.45s var(--ease); }
+
+/* ---- store rows ---- */
+.store-row {
+  border-radius: 9px;
+  transition: background 0.15s, border-color 0.15s, transform 0.12s var(--ease);
+}
+.store-row:hover { transform: translateX(2px); }
+.store-row.selected {
+  border-color: rgba(242, 193, 78, 0.55);
+  background: linear-gradient(90deg, rgba(242, 193, 78, 0.10), rgba(242, 193, 78, 0.02));
+  box-shadow: 0 0 0 1px rgba(242, 193, 78, 0.15);
+}
+
+/* ---- vendor cards ---- */
+.vendor-card { position: relative; }
+.v-avatar, .vendor-card .mono {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 1px 0 rgba(255, 255, 255, 0.15) inset;
+}
+.v-chip {
+  background: rgba(255, 255, 255, 0.05); border: 1px solid var(--edge);
+  border-radius: 999px;
+}
+
+/* ---- map overlays ---- */
+#events-bar { gap: 7px; }
+.event-chip {
+  background: rgba(23, 28, 37, 0.88);
+  border: 1px solid var(--edge); border-left: 3px solid var(--accent);
+  border-radius: 10px; backdrop-filter: blur(8px);
+  box-shadow: var(--shadow);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .event-chip { animation: chip-in 0.3s var(--ease); }
+  @keyframes chip-in {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: none; }
+  }
+}
+.feed-entry {
+  background: rgba(18, 22, 29, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 8px; padding: 4px 9px;
+  backdrop-filter: blur(6px);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .feed-entry { animation: feed-in 0.25s var(--ease); }
+  @keyframes feed-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
+  }
+}
+#hint, #paused-hint, #toast {
+  backdrop-filter: blur(8px);
+  border-radius: 999px;
+}
+#paused-hint { border-color: rgba(255, 255, 255, 0.12); }
+#toast {
+  background: rgba(23, 28, 37, 0.92); box-shadow: var(--shadow-pop);
+}
+@media (prefers-reduced-motion: no-preference) {
+  #toast:not(.hidden) { animation: toast-in 0.28s var(--ease); }
+  @keyframes toast-in {
+    from { opacity: 0; transform: translate(-50%, -8px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
+  }
+  #plan-bar:not(.hidden) { animation: toast-in 0.35s var(--ease); }
+}
+
+#zoom-controls button {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: rgba(23, 28, 37, 0.85); backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: var(--shadow);
+  font-size: 15px; line-height: 1;
+}
+#zoom-controls button:hover { border-color: var(--ring); color: var(--accent); }
+
+/* ---- modals: shared entrance + chrome ---- */
+#modal-backdrop { background: rgba(8, 10, 14, 0.55); backdrop-filter: blur(4px); }
+#settings-modal, #week-report, #welcome-banner, #win-banner, #lose-banner, #nego-modal {
+  border-radius: 14px;
+  box-shadow: var(--shadow-pop), 0 1px 0 rgba(255, 255, 255, 0.06) inset;
+}
+@media (prefers-reduced-motion: no-preference) {
+  /* nego-modal centers via translate(-50%,-50%); the rest via inset+margin. */
+  #nego-modal:not(.hidden) { animation: modal-in 0.28s var(--ease); }
+  @keyframes modal-in {
+    from { opacity: 0; transform: translate(-50%, -50%) scale(0.96); }
+    to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  }
+  #settings-modal:not(.hidden), #week-report:not(.hidden), #welcome-banner:not(.hidden),
+  #win-banner:not(.hidden), #lose-banner:not(.hidden) {
+    animation: modal-in-c 0.28s var(--ease);
+  }
+  @keyframes modal-in-c {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
+  }
+}
+.modal-x {
+  transition: transform 0.2s var(--ease), color 0.15s;
+  border-radius: 50%;
+}
+.modal-x:hover { transform: rotate(90deg); color: var(--accent); }
+
+#week-report h2, #settings-modal h2, #nego-modal h2 {
+  padding-bottom: 8px; margin-bottom: 10px;
+  border-bottom: 1px solid var(--edge);
+}
+
+/* ---- store detail sections ---- */
+#store-detail details {
+  border: 1px solid var(--edge); border-radius: 10px;
+  margin-top: 8px; padding: 0 9px;
+  background: rgba(0, 0, 0, 0.14);
+}
+#store-detail summary {
+  padding: 7px 0; cursor: pointer; list-style: none;
+  transition: color 0.15s;
+}
+#store-detail summary:hover { color: var(--accent); }
+#store-detail summary::before {
+  content: '▸'; display: inline-block; margin-right: 6px; color: var(--dim);
+  transition: transform 0.2s var(--ease);
+}
+#store-detail details[open] summary::before { transform: rotate(90deg); }
+#store-detail details > *:last-child { margin-bottom: 8px; }
+
+/* ---- dice table ---- */
+.die { box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35), 0 1px 0 rgba(255, 255, 255, 0.07) inset; }
+.die:hover { box-shadow: 0 6px 14px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(242, 193, 78, 0.3); }
+.die.warn { box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35), 0 0 10px rgba(232, 130, 140, 0.25); }
+
+/* ---- weekly report cards ---- */
+.wr-store {
+  background: var(--surface-raised);
+  border: 1px solid var(--edge);
+  box-shadow: 0 1px 0 var(--edge) inset, 0 2px 8px rgba(0, 0, 0, 0.25);
+  border-radius: 11px;
+}
+
+/* ---- goal confetti bits keep their look; give log list breathing room ---- */
+#log-list div { padding: 3px 0; }
+
+/* density & readability touches */
+.inv-row { border-radius: 6px; padding: 3px 5px; transition: background 0.15s; }
+.inv-row:hover { background: rgba(255, 255, 255, 0.045); }
+.inv-row .fine { font-variant-numeric: tabular-nums; }
+.purch-row select { max-width: none; flex: 1; min-width: 0; }
+.purch-controls input[type="number"] { width: 58px; }
+.kv b { font-variant-numeric: tabular-nums; }
+.pl-row b { font-variant-numeric: tabular-nums; }
