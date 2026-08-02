@@ -939,7 +939,7 @@ input[type="checkbox"] { accent-color: var(--accent); }
 .inv-row { border-radius: 6px; padding: 3px 5px; transition: background 0.15s; }
 .inv-row:hover { background: rgba(255, 255, 255, 0.045); }
 .inv-row .fine { font-variant-numeric: tabular-nums; }
-.purch-row select { max-width: none; flex: 1; min-width: 0; }
+.purch-row select { max-width: none; flex: 1 1 110px; min-width: 110px; }
 .purch-controls input[type="number"] { width: 58px; }
 .kv b { font-variant-numeric: tabular-nums; }
 .pl-row b { font-variant-numeric: tabular-nums; }
@@ -994,3 +994,91 @@ input[type="checkbox"] { accent-color: var(--accent); }
 #minimap:hover { border-color: rgba(242, 193, 78, 0.45); }
 @media (max-width: 860px) { #minimap { display: none; } }
 #btn-title-continue.hidden { display: none; }
+
+/* ---- sidebar deep polish ---- */
+.stat-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+  margin: 8px 0 6px;
+}
+.stile {
+  background: rgba(0, 0, 0, 0.18); border: 1px solid var(--edge);
+  border-radius: 9px; padding: 6px 8px;
+  display: flex; flex-direction: column; gap: 3px; min-width: 0;
+}
+.stile span {
+  font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.stile b { font-size: 13.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.meter.tiny { width: 100%; height: 6px; margin-top: 4px; }
+
+/* stacked warehouse bar */
+.stack-bar {
+  display: flex; height: 10px; border-radius: 999px; overflow: hidden;
+  background: rgba(0, 0, 0, 0.45); margin: 6px 0 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5) inset;
+}
+.stack-bar i {
+  display: block; height: 100%; width: 0;
+  transition: width 0.45s var(--ease);
+}
+.stack-bar i + i { border-left: 1px solid rgba(0, 0, 0, 0.35); }
+.stack-bar.crammed { box-shadow: 0 0 0 1px var(--bad), 0 0 10px rgba(232, 130, 140, 0.35); }
+
+/* inbound order rows */
+.order-row {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 5px; border-radius: 7px; font-size: 12.5px; color: var(--text);
+}
+.order-row:hover { background: rgba(255, 255, 255, 0.045); }
+.order-row .oqty { font-variant-numeric: tabular-nums; font-weight: 600; }
+.order-row .ofrom { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.eta {
+  font-size: 11px; padding: 1px 8px; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06); border: 1px solid var(--edge);
+  color: var(--dim); white-space: nowrap;
+}
+.eta.soon { color: var(--good); border-color: rgba(111, 208, 140, 0.4); }
+.eta.held { color: var(--bad); border-color: rgba(232, 130, 140, 0.4); }
+
+/* vendor card action row */
+.vc-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+.vc-actions button { width: 100%; margin: 0; }
+.vendor-card { transition: border-color 0.2s; }
+.vendor-card:hover { border-color: rgba(255, 255, 255, 0.14); }
+
+/* HQ: xp progress + candidate hover */
+.xp-wrap {
+  display: block; height: 5px; border-radius: 999px; overflow: hidden;
+  background: rgba(0, 0, 0, 0.45); margin-top: 4px; max-width: 180px;
+}
+.xp-bar {
+  display: block; height: 100%;
+  background: linear-gradient(90deg, #b98f2e, var(--accent));
+  border-radius: 999px; transition: width 0.45s var(--ease);
+}
+.cand-row { border-radius: 8px; padding: 5px 6px; transition: background 0.15s; }
+.cand-row:hover { background: rgba(255, 255, 255, 0.045); }
+
+/* delegation + auto toggles as switches */
+.deleg-item input[type="checkbox"], .purch-head .auto input[type="checkbox"] {
+  appearance: none; -webkit-appearance: none;
+  width: 30px; height: 17px; border-radius: 999px; position: relative;
+  background: rgba(0, 0, 0, 0.45); border: 1px solid var(--edge);
+  cursor: pointer; transition: background 0.2s, border-color 0.2s;
+  flex: 0 0 auto; margin: 0;
+}
+.deleg-item input[type="checkbox"]::after, .purch-head .auto input[type="checkbox"]::after {
+  content: ''; position: absolute; top: 1.5px; left: 2px;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--dim); transition: transform 0.2s var(--ease), background 0.2s;
+}
+.deleg-item input[type="checkbox"]:checked, .purch-head .auto input[type="checkbox"]:checked {
+  background: rgba(242, 193, 78, 0.35); border-color: rgba(242, 193, 78, 0.6);
+}
+.deleg-item input[type="checkbox"]:checked::after, .purch-head .auto input[type="checkbox"]:checked::after {
+  transform: translateX(13px); background: var(--accent);
+}
+.deleg-item input[type="checkbox"]:disabled { opacity: 0.4; }
+.srow-warn { color: var(--accent); font-size: 12px; }
+.srow-warn.hidden { display: none; }

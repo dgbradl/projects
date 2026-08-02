@@ -576,6 +576,7 @@ export class UI {
         </span>
         <span class="srow-meta">
           <span class="mini-meter" title="Shelf fill"><i data-minibar="${site.id}"></i></span>
+          <span class="srow-warn hidden" data-warn="${site.id}" title="Stocked out today">⚠</span>
           <span class="fine" data-mgr="${site.id}">${store.manager ? '👤 ' + store.manager.name.split(' ')[0] : '—'}</span>
         </span>`;
       row.addEventListener('click', () => {
@@ -641,12 +642,14 @@ export class UI {
         <span class="dbadge" style="--dc:${DISTRICT_COLOR[site.district]}">${district.name}</span>
         <span class="fine">~${site.pop.toLocaleString()} shoppers</span>
       </div>
-      <div class="kv"><span>Reputation</span><div class="meter"><i id="sd-rep"></i></div></div>
-      <div class="kv"><span>Team morale</span><div class="meter"><i id="sd-morale"></i></div></div>
-      <div class="kv"><span>Local market share</span><b id="sd-market" title="How much of the neighborhood this store captures, after sister stores and rival competition"></b></div>
-      <div class="kv"><span>Revenue today</span><b id="sd-rev"></b></div>
-      <div class="kv"><span>Profit yesterday</span><b id="sd-yprofit"></b></div>
-      <div class="kv"><span>Lost sales today</span><b id="sd-lost"></b></div>
+      <div class="stat-grid">
+        <div class="stile"><span>Reputation</span><div class="meter tiny"><i id="sd-rep"></i></div></div>
+        <div class="stile"><span>Morale</span><div class="meter tiny"><i id="sd-morale"></i></div></div>
+        <div class="stile" title="How much of the neighborhood this store captures, after sister stores and rival competition"><span>Share</span><b id="sd-market"></b></div>
+        <div class="stile"><span>Rev today</span><b id="sd-rev"></b></div>
+        <div class="stile"><span>Profit yday</span><b id="sd-yprofit"></b></div>
+        <div class="stile"><span>Lost today</span><b id="sd-lost"></b></div>
+      </div>
       <div class="kv"><span>Rent</span><b>${fmt(site.rent)}/day</b></div>
       <div class="kv"><span>Staff <span class="fine">(${fmt(STAFF_WAGE)}/day each)</span></span>
         <span class="stepper">
@@ -814,7 +817,7 @@ export class UI {
       <div class="panel">
         <h3>Warehouse</h3>
         <div class="kv"><span>Capacity</span><b id="wh-cap"></b></div>
-        <div class="meter wide"><i id="wh-fill"></i></div>
+        <div class="stack-bar" id="wh-stack" title="Contents by product"></div>
         <div id="wh-inv"></div>
         <button id="wh-upgrade">Expand +${WAREHOUSE_UPGRADE.units} units (${fmt(WAREHOUSE_UPGRADE.cost)})</button>
       </div>
@@ -834,6 +837,14 @@ export class UI {
         <button id="btn-truck">Buy truck (${fmt(TRUCK_COST)})</button>
       </div>`;
 
+    const stack = page.querySelector('#wh-stack');
+    for (const p of PROD_IDS) {
+      const seg = document.createElement('i');
+      seg.dataset.whseg = p;
+      seg.style.background = PRODUCTS[p].color;
+      seg.title = PRODUCTS[p].name;
+      stack.appendChild(seg);
+    }
     const whInv = page.querySelector('#wh-inv');
     for (const p of PROD_IDS) {
       const row = document.createElement('div');
@@ -934,8 +945,10 @@ export class UI {
           <b data-disc="${id}"></b>
         </div>
         <div class="kv"><span>Contract</span><b data-contract="${id}" class="fine"></b></div>
-        <button data-neg="${id}">Negotiate</button>
-        <button data-sign="${id}" title="Commit to ${CONTRACT.weeklyMin} units/week for ${CONTRACT.days} days at ${Math.round(CONTRACT.discount * 100)}% off. Breaching costs $${CONTRACT.penalty} and sours the relationship.">Sign supply contract</button>`;
+        <div class="vc-actions">
+          <button data-neg="${id}">Negotiate</button>
+          <button data-sign="${id}" title="Commit to ${CONTRACT.weeklyMin} units/week for ${CONTRACT.days} days at ${Math.round(CONTRACT.discount * 100)}% off. Breaching costs $${CONTRACT.penalty} and sours the relationship.">Contract</button>
+        </div>`;
       page.appendChild(card);
     }
     page.addEventListener('click', (e) => {
@@ -1053,7 +1066,8 @@ export class UI {
     const g = this.game;
     const wrap = document.getElementById('roles');
     if (!wrap) return;
-    const key = Object.keys(ROLES).map((r) => (g.hq[r] ? g.hq[r].name : '·')).join('|')
+    const key = Object.keys(ROLES).map((r) =>
+      (g.hq[r] ? `${g.hq[r].name}${Math.round(g.hq[r].xp ?? 0)}` : '·')).join('|')
       + (g.cash < HIRE_ROLE_COST ? 'poor' : 'ok');
     if (!force && wrap.dataset.key === key) return;
     wrap.dataset.key = key;
@@ -1064,9 +1078,15 @@ export class UI {
       if (cur) {
         const row = document.createElement('div');
         row.className = 'cand-row';
+        const xp = cur.xp ?? 0;
+        const next = cur.skill >= 3 ? null : xp < 15 ? 15 : 40;
+        const xpBar = next
+          ? `<span class="xp-wrap" title="${xp}/${next} XP to the next star (with a raise)"><i class="xp-bar" style="width:${Math.min(100, Math.round((xp / next) * 100))}%"></i></span>`
+          : '<span class="ctrait">At the top of their game.</span>';
         row.innerHTML = `
           <span class="cinfo">👤 ${cur.name} <span class="stars">${'★'.repeat(cur.skill)}</span> · ${fmt(cur.salary)}/day
             <span class="ctrait">${cur.trait.name} — ${cur.trait.desc}</span>
+            ${xpBar}
           </span>`;
         const btn = document.createElement('button');
         btn.textContent = 'Let go';
@@ -1555,6 +1575,8 @@ export class UI {
       }
       const mgr = wrap.querySelector(`[data-mgr="${store.siteId}"]`);
       if (mgr) setEl(mgr, store.manager ? '👤 ' + store.manager.name.split(' ')[0] : '—');
+      const warn = wrap.querySelector(`[data-warn="${store.siteId}"]`);
+      if (warn) warn.classList.toggle('hidden', !Object.values(store.stockoutLogged ?? {}).some(Boolean));
     }
     const store = this.selectedSite ? g.storeAt(this.selectedSite) : null;
     if (!store) return;
@@ -1571,7 +1593,8 @@ export class UI {
       const mf = g.marketFactor(store);
       const site2 = g.site(store.siteId);
       const rivals = g.rival.stores.filter((id) => g.site(id).district === site2.district).length;
-      setEl(mEl, `${Math.round(mf * 100)}%${rivals ? ` (${rivals} BuyLow nearby)` : ''}`);
+      setEl(mEl, `${Math.round(mf * 100)}%${rivals ? ' 🦈' : ''}`);
+      mEl.title = rivals ? `${rivals} BuyLow store${rivals > 1 ? 's' : ''} competing in this district` : '';
       mEl.style.color = mf > 0.85 ? 'var(--good)' : mf > 0.6 ? 'var(--accent)' : 'var(--bad)';
     }
     setEl(box.querySelector('#sd-rev'), fmt(store.today.revenue));
@@ -1579,7 +1602,7 @@ export class UI {
     setEl(yp, signFmt(store.yesterday.profit));
     yp.style.color = store.yesterday.profit >= 0 ? 'var(--good)' : 'var(--bad)';
     const lostEl = box.querySelector('#sd-lost');
-    setEl(lostEl, `${Math.round(store.lostToday)} customers`);
+    setEl(lostEl, `${Math.round(store.lostToday)} 🚶`);
     lostEl.style.color = store.lostToday > 20 ? 'var(--bad)' : 'var(--dim)';
     setEl(box.querySelector('#sd-staff'), String(store.staff));
     setEl(box.querySelector('#sd-markup-val'), `${Math.round(store.markup * 100)}%`);
@@ -1604,11 +1627,12 @@ export class UI {
   refreshSupply() {
     const g = this.game;
     setText('wh-cap', `${Math.round(g.warehouseUsed())} / ${g.warehouse.cap} units`);
-    const fillEl = document.getElementById('wh-fill');
     const f = g.warehouseUsed() / g.warehouse.cap;
-    fillEl.style.width = `${Math.min(100, Math.round(f * 100))}%`;
-    fillEl.style.background = f > 0.92 ? 'var(--bad)' : 'var(--good)';
+    const stackEl = document.getElementById('wh-stack');
+    if (stackEl) stackEl.classList.toggle('crammed', f > 0.92);
     for (const p of PROD_IDS) {
+      const seg = document.querySelector(`[data-whseg="${p}"]`);
+      if (seg) seg.style.width = `${Math.min(100, (g.warehouse.inv[p] / g.warehouse.cap) * 100)}%`;
       const el = document.querySelector(`[data-whn="${p}"]`);
       if (el) setEl(el, `${Math.round(g.warehouse.inv[p])} units · ${Math.round(g.inTransit(p))} inbound`);
       const c = document.querySelector(`[data-cost="${p}"]`);
@@ -1652,11 +1676,20 @@ export class UI {
     const key = g.orders.map((o) => o.vendor + o.product + o.arriveDay + o.qty).join('|') || 'none';
     if (list.dataset.key !== key) {
       list.dataset.key = key;
-      list.innerHTML = g.orders.length
-        ? g.orders.map((o) =>
-            `<div>${o.qty} × ${PRODUCTS[o.product].name} from ${VENDORS[o.vendor].name} — arrives day ${o.arriveDay}${g.vendorStruck(o.vendor) ? ' <span style="color:var(--bad)">(held by strike)</span>' : ''}</div>`
-          ).join('')
-        : 'Nothing inbound.';
+      const sorted = [...g.orders].sort((a, b) => a.arriveDay - b.arriveDay);
+      list.innerHTML = sorted.length
+        ? sorted.map((o) => {
+          const eta = o.arriveDay - g.day();
+          const etaTxt = g.vendorStruck(o.vendor) ? '✊ held'
+            : eta <= 0 ? 'tonight' : eta === 1 ? 'tomorrow' : `${eta}d`;
+          return `<div class="order-row">
+            <span class="swatch" style="background:${PRODUCTS[o.product].color}"></span>
+            <span class="oqty">${o.qty}×</span> ${PRODUCTS[o.product].name}
+            <span class="fine ofrom">· ${VENDORS[o.vendor].name}</span>
+            <span class="eta ${g.vendorStruck(o.vendor) ? 'held' : eta <= 1 ? 'soon' : ''}">${etaTxt}</span>
+          </div>`;
+        }).join('')
+        : '<div class="fine">Nothing inbound — standing orders place themselves at day start.</div>';
     }
   }
 
