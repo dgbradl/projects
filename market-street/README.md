@@ -117,7 +117,7 @@ and pull request.
 
 - **Camera**: wheel/pinch-button zoom anchored at the cursor, drag to pan, double-click to reset, and a corner minimap — click it to fly anywhere
 - **Title screen**: pick your difficulty at the door; Reset takes you back without losing the running game until you commit
-- **Sound**: procedural WebAudio SFX (deals, deliveries, events, fanfares) with a persisted mute
+- **Sound**: procedural WebAudio SFX (deals, deliveries, events, fanfares) plus a whisper-quiet ambient chord pad — all synthesized, no assets, persisted mute and music toggle
 - **Settings**: pause-on-event, weekly report toggle, difficulty presets (Relaxed / Standard / Ruthless), save export/import
 - **Vendor contracts**: commit to weekly volume for a locked 20% discount — breach and pay
 - **Staff progression**: everyone earns XP and promotes (with raises) at 15/40 XP
@@ -132,7 +132,6 @@ and pull request.
 
 ## Roadmap
 
-- Ambient music bed and richer soundscape
 - Multi-city expansion — the "board approves multi-state" ending is the hook
 - Rival counter-moves (poaching staff, bidding on your lots)
 

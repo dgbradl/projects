@@ -6,7 +6,7 @@ import {
   TRUCK_COST, WAREHOUSE_UPGRADE, HIRE_ROLE_COST, WIN_CASH, WIN_STORES,
   REMODEL, DELEGATIONS, GOALS, CONTRACT, STORE_UPGRADES, CAMPAIGN, ACHIEVEMENTS,
 } from './defs.js';
-import { sfx, setMuted, isMuted } from './audio.js';
+import { sfx, setMuted, isMuted, setMusic } from './audio.js';
 
 // Which activity-log icons make which noise.
 const LOG_SFX = {
@@ -35,7 +35,7 @@ export class UI {
     this.selectedSite = null;
     this.winShown = false;
     this.toast = null;
-    this.settings = { pauseOnEvent: false, weeklyReport: true, difficulty: 'standard' };
+    this.settings = { pauseOnEvent: false, weeklyReport: true, difficulty: 'standard', music: true };
     try {
       Object.assign(this.settings, JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {});
     } catch { /* defaults are fine */ }
@@ -52,6 +52,10 @@ export class UI {
     this.renderStoreList();
     this.bindTitle();
     if (fresh) this.showTitle('fresh');
+    // WebAudio unlocks on the first gesture — that's when the pad fades in.
+    const startMusic = () => { if (this.settings.music) setMusic(true); };
+    window.addEventListener('pointerdown', startMusic, { once: true });
+    window.addEventListener('keydown', startMusic, { once: true });
     document.getElementById('btn-welcome-close').addEventListener('click', () => {
       document.getElementById('welcome-banner').classList.add('hidden');
     });
@@ -154,6 +158,13 @@ export class UI {
       this.settings.pauseOnEvent = pause.checked;
       this.saveSettings();
     });
+    const music = document.getElementById('set-music');
+    music.checked = this.settings.music;
+    music.addEventListener('change', () => {
+      this.settings.music = music.checked;
+      setMusic(music.checked);
+      this.saveSettings();
+    });
     const weekly = document.getElementById('set-weekly');
     weekly.checked = this.settings.weeklyReport;
     weekly.addEventListener('change', () => {
@@ -222,6 +233,7 @@ export class UI {
     soundBtn.addEventListener('click', () => {
       setMuted(!isMuted());
       soundBtn.textContent = isMuted() ? '🔇' : '🔊';
+      soundBtn.setAttribute('aria-pressed', String(isMuted()));
       try { localStorage.setItem('market-street-muted', isMuted() ? '1' : '0'); } catch { /* ignore */ }
       if (!isMuted()) sfx.cash();
     });
@@ -1120,7 +1132,7 @@ export class UI {
       </div>
       <div class="panel">
         <h3>Daily profit — last 30 days</h3>
-        <canvas id="chart"></canvas>
+        <div id="chart-wrap"><canvas id="chart"></canvas><div id="chart-tip" class="hidden"></div></div>
       </div>
       <div class="panel">
         <h3>By store <span class="fine">(yesterday)</span></h3>
@@ -1128,6 +1140,7 @@ export class UI {
       </div>
       <div class="panel">
         <h3>By product <span class="fine">(yesterday)</span></h3>
+        <div class="bstore-row bhead"><span>Product</span><span>Units</span><span>Revenue</span><span title="Margin at current average unit cost">Margin</span></div>
         <div id="bproducts"></div>
         <p class="fine">Margin uses current average unit cost. Lines that can't
         pay their way are candidates to drop from store ranges.</p>
@@ -1136,6 +1149,28 @@ export class UI {
         <h3>Activity log</h3>
         <div id="log-list"></div>
       </div>`;
+
+    // Hover a bar to inspect that day.
+    const chart = page.querySelector('#chart');
+    const tip = page.querySelector('#chart-tip');
+    chart.addEventListener('mousemove', (e) => {
+      const m = this.chartMeta;
+      if (!m || !m.data.length) return;
+      const rect = chart.getBoundingClientRect();
+      const i = Math.floor((e.clientX - rect.left - (rect.width - m.data.length * m.bw)) / m.bw);
+      if (i < 0 || i >= m.data.length) { tip.classList.add('hidden'); return; }
+      const d = m.data[i];
+      tip.innerHTML = `<b>Day ${d.day}</b> · rev ${fmt(d.revenue)} · <span class="${d.profit >= 0 ? 'pos' : 'neg'}">${signFmt(d.profit)}</span>`;
+      tip.classList.remove('hidden');
+      tip.style.left = `${Math.min(rect.width - tip.offsetWidth - 4, Math.max(4, e.clientX - rect.left - tip.offsetWidth / 2))}px`;
+      this.chartHover = i;
+      this.drawChart(true);
+    });
+    chart.addEventListener('mouseleave', () => {
+      tip.classList.add('hidden');
+      this.chartHover = null;
+      this.drawChart(true);
+    });
   }
 
   refreshBooks() {
@@ -1207,13 +1242,13 @@ export class UI {
     }
   }
 
-  drawChart() {
+  drawChart(force = false) {
     const canvas = document.getElementById('chart');
     if (!canvas) return;
     const g = this.game;
     const data = g.history.slice(-30);
     const key = data.length ? `${data.length}-${data[data.length - 1].day}` : 'none';
-    if (canvas.dataset.key === key) return;
+    if (!force && canvas.dataset.key === key) return;
     canvas.dataset.key = key;
 
     const dpr = window.devicePixelRatio || 1;
@@ -1249,13 +1284,28 @@ export class UI {
     }
     const bw = w / 30;
     const yFor = (v) => zero - (v / max) * (h / 2 - 10);
+    this.chartMeta = { data, bw, zero, yFor };
+    const gUp = ctx.createLinearGradient(0, 0, 0, zero);
+    gUp.addColorStop(0, 'rgba(111, 208, 140, 0.95)');
+    gUp.addColorStop(1, 'rgba(111, 208, 140, 0.45)');
+    const gDn = ctx.createLinearGradient(0, zero, 0, h);
+    gDn.addColorStop(0, 'rgba(232, 130, 140, 0.45)');
+    gDn.addColorStop(1, 'rgba(232, 130, 140, 0.95)');
     data.forEach((d, i) => {
       const x = w - (data.length - i) * bw;
       const bh = zero - yFor(d.profit);
-      ctx.fillStyle = d.profit >= 0 ? 'rgba(111, 208, 140, 0.85)' : 'rgba(232, 130, 140, 0.85)';
+      const hovered = this.chartHover === i;
+      ctx.globalAlpha = this.chartHover == null || hovered ? 1 : 0.45;
+      ctx.fillStyle = d.profit >= 0 ? gUp : gDn;
       if (bh >= 0) ctx.fillRect(x + 1, zero - bh, bw - 2, Math.max(1, bh));
       else ctx.fillRect(x + 1, zero, bw - 2, Math.max(1, -bh));
+      if (hovered) {
+        ctx.strokeStyle = 'rgba(242, 193, 78, 0.9)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x + 0.5, Math.min(zero, yFor(d.profit)) - 0.5, bw - 1, Math.max(2, Math.abs(zero - yFor(d.profit))) + 1);
+      }
     });
+    ctx.globalAlpha = 1;
     // 7-day moving average line.
     if (data.length >= 3) {
       ctx.strokeStyle = '#f2c14e';
@@ -1287,6 +1337,10 @@ export class UI {
       if (done && g.goalIndex > this.lastGoalIndex) {
         this.say(`🎯 Objective complete: ${done.title} — +${fmt(done.reward)} bonus!`);
         this.confetti();
+        const gp = document.getElementById('goal-panel');
+        gp.classList.remove('goal-pop');
+        void gp.offsetWidth;                    // restart the animation
+        gp.classList.add('goal-pop');
       }
       this.lastGoalIndex = g.goalIndex;
     }
@@ -1445,12 +1499,45 @@ export class UI {
 
   refresh() {
     const g = this.game;
-    setText('stat-cash', fmt(g.cash));
+    // Ease the displayed cash toward reality — big swings visibly tick.
+    this.shownCash ??= g.cash;
+    const diff = g.cash - this.shownCash;
+    this.shownCash = Math.abs(diff) < 1 ? g.cash : this.shownCash + diff * 0.18;
+    setText('stat-cash', fmt(Math.round(this.shownCash)));
     document.getElementById('stat-cash').classList.toggle('broke', g.cash < 0);
     const season = g.season();
     setText('stat-day', `Day ${g.day()} · ${season.icon} ${season.name} ${g.seasonDay()}`);
     const dp = document.getElementById('day-progress');
     if (dp) dp.style.width = `${Math.round(g.dayFrac() * 100)}%`;
+    // Season effects live in the day pill's tooltip; holidays get a pill.
+    const dayWrap = document.getElementById('stat-day-wrap');
+    if (dayWrap && dayWrap.dataset.season !== season.id) {
+      dayWrap.dataset.season = season.id;
+      const fx = [];
+      for (const [p, m] of Object.entries(season.demand ?? {})) {
+        fx.push(`${m > 1 ? '▲' : '▼'} ${p} ${Math.round((m - 1) * 100)}%`);
+      }
+      if ((season.spoil ?? 1) !== 1) fx.push(`spoilage ${season.spoil > 1 ? '+' : ''}${Math.round((season.spoil - 1) * 100)}%`);
+      if ((season.truck ?? 1) !== 1) fx.push(`trucks ${Math.round((season.truck - 1) * 100)}%`);
+      dayWrap.title = `${season.name} effects: ${fx.join(' · ') || 'none'}`;
+    }
+    const holEl = document.getElementById('stat-holiday');
+    if (holEl) {
+      const cur = g.currentHoliday();
+      const up = g.upcomingHoliday();
+      let txt = '', tip = '';
+      if (cur) {
+        txt = `${cur.icon} ${cur.name}`;
+        tip = `${cur.desc} Demand is surging — ${cur.tip}.`;
+      } else if (up) {
+        txt = `${up.holiday.icon} in ${up.inDays}d`;
+        tip = `${up.holiday.name} in ${up.inDays} day${up.inDays === 1 ? '' : 's'} — stock up on ${up.holiday.tip} (mind vendor lead times).`;
+      }
+      holEl.classList.toggle('hidden', !txt);
+      holEl.classList.toggle('hol-live', !!cur);
+      if (holEl.textContent !== txt) holEl.textContent = txt;
+      holEl.title = tip;
+    }
     // A speed button or Space during a planning stop counts as running the week.
     if (g.planning && g.speed > 0) g.planning = false;
     const reportOpen = !document.getElementById('week-report').classList.contains('hidden');
@@ -1547,12 +1634,56 @@ export class UI {
       sfx.win();
       this.confetti();
       this.confetti();
+      this.closeWeeklyReport();
+      this.closeNegotiation();
+      this.fillRunSummary('win');
       document.getElementById('win-banner').classList.remove('hidden');
     }
     if (g.gameOver && !this.loseShown) {
       this.loseShown = true;
+      this.closeWeeklyReport();
+      this.closeNegotiation();
+      this.fillRunSummary('lose');
       document.getElementById('lose-banner').classList.remove('hidden');
     }
+  }
+
+  // The story of the run, told at the end: headline numbers + profit history.
+  fillRunSummary(kind) {
+    const g = this.game;
+    const st = g.stats ?? {};
+    const wrap = document.getElementById(`${kind}-stats`);
+    if (wrap) {
+      wrap.innerHTML = [
+        ['Days', g.day()],
+        ['Stores', g.stores.length],
+        ['Peak cash', fmt(g.peakCash)],
+        ['Lifetime revenue', fmt(st.totalRevenue ?? 0)],
+        ['Customers', Math.round(st.customersServed ?? 0).toLocaleString()],
+        ['Trophies', `${Object.keys(g.achieved ?? {}).length}/${ACHIEVEMENTS.length}`],
+      ].map(([k, v]) => `<div class="rs-cell"><span>${k}</span><b>${v}</b></div>`).join('');
+    }
+    const canvas = document.getElementById(`${kind}-chart`);
+    if (!canvas || !g.history.length) { if (canvas) canvas.style.display = 'none'; return; }
+    canvas.style.display = '';
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = canvas.offsetWidth * dpr || 340 * dpr;
+    canvas.height = 60 * dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const w = canvas.width / dpr, h = 60;
+    const data = g.history;
+    const max = Math.max(50, ...data.map((d) => Math.abs(d.profit)));
+    const zero = h / 2;
+    ctx.strokeStyle = 'rgba(139, 150, 166, 0.35)';
+    ctx.beginPath(); ctx.moveTo(0, zero); ctx.lineTo(w, zero); ctx.stroke();
+    const bw = w / data.length;
+    data.forEach((d, i) => {
+      ctx.fillStyle = d.profit >= 0 ? 'rgba(111, 208, 140, 0.8)' : 'rgba(232, 130, 140, 0.8)';
+      const bh = (d.profit / max) * (h / 2 - 4);
+      if (bh >= 0) ctx.fillRect(i * bw, zero - bh, Math.max(1, bw - 1), Math.max(1, bh));
+      else ctx.fillRect(i * bw, zero, Math.max(1, bw - 1), Math.max(1, -bh));
+    });
   }
 
   refreshStores() {

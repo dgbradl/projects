@@ -29,15 +29,16 @@
     <div class="brand">🛒 Market Street</div>
     <div class="stat" id="stat-cash">$0</div>
     <div class="stat" id="stat-day-wrap"><span id="stat-day">Day 1</span><i id="day-progress"></i></div>
+    <div class="stat hidden" id="stat-holiday"></div>
     <div class="stat" id="stat-stores">2 stores</div>
     <div class="stat" id="stat-net">+$0 today</div>
     <div class="spacer"></div>
-    <button id="btn-sound" data-tip="Toggle sound" aria-label="Toggle sound">🔊</button>
+    <button id="btn-sound" data-tip="Toggle sound" aria-label="Toggle sound" aria-pressed="false">🔊</button>
     <div class="speeds">
-      <button data-speed="0" title="Pause">⏸</button>
-      <button data-speed="1" class="active">1×</button>
-      <button data-speed="3">3×</button>
-      <button data-speed="8">8×</button>
+      <button data-speed="0" title="Pause (Space)" aria-label="Pause">⏸</button>
+      <button data-speed="1" class="active" title="Normal speed (1)" aria-label="Normal speed">1×</button>
+      <button data-speed="3" title="Fast (2)" aria-label="Fast speed">3×</button>
+      <button data-speed="8" title="Fastest (3)" aria-label="Fastest speed">8×</button>
     </div>
     <button id="btn-settings" data-tip="Settings" aria-label="Settings">⚙️</button>
     <button id="btn-reset">Reset</button>
@@ -66,6 +67,8 @@
       <div id="win-banner" class="hidden">
         <h2>🏆 Regional powerhouse!</h2>
         <p>Eight stores and a fat bank account — the board approves the <b>multi-state expansion</b>. That's the next prototype milestone. Keep playing or Reset for a fresh run.</p>
+        <div class="run-summary" id="win-stats"></div>
+        <canvas class="run-chart" id="win-chart" height="60"></canvas>
         <button id="btn-win-close">Keep playing</button>
       </div>
       <div id="welcome-banner" class="hidden">
@@ -83,6 +86,7 @@
         <button class="modal-x" data-close="settings-modal" aria-label="Close settings">✕</button>
         <h2>Settings</h2>
         <label class="set-row"><input type="checkbox" id="set-pause-event"> Pause when a city event starts</label>
+        <label class="set-row"><input type="checkbox" id="set-music"> Ambient music</label>
         <label class="set-row"><input type="checkbox" id="set-weekly"> Show the weekly report</label>
         <label class="set-row"><input type="checkbox" id="set-weekly-mode"> Weekly planning: pause at each week's end to plan the next</label>
         <label class="set-row">Difficulty (next new game)
@@ -95,6 +99,14 @@
         <div class="set-row">
           <button id="btn-export">Export save</button>
           <button id="btn-import">Import save</button>
+        </div>
+        <div class="set-keys fine">
+          <b>Shortcuts</b>
+          <span><i>Space</i> pause / run week</span>
+          <span><i>1 · 2 · 3</i> speeds</span>
+          <span><i>Esc</i> close panels</span>
+          <span><i>drag</i> pan · <i>scroll</i> zoom · <i>dbl-click</i> reset</span>
+          <span><i>minimap</i> click to fly</span>
         </div>
         <textarea id="save-io" class="hidden" rows="4" placeholder="Paste a save here, then press Import again."></textarea>
         <button id="btn-settings-close">Close</button>
@@ -134,6 +146,8 @@
       <div id="lose-banner" class="hidden">
         <h2>💥 Bankrupt</h2>
         <p>The bank pulled your credit line, and <b>BuyLow</b> picked up your leases for pennies on the dollar. The city has spoken.</p>
+        <div class="run-summary" id="lose-stats"></div>
+        <canvas class="run-chart" id="lose-chart" height="60"></canvas>
         <button id="btn-lose-reset">Start a new chain</button>
       </div>
     </div>
