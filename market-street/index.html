@@ -73,7 +73,6 @@
         <button id="zoom-reset" data-tip="Reset view" aria-label="Reset view">⌂</button>
       </div>
       <div id="events-bar"></div>
-      <div id="feed"></div>
       <div id="modal-backdrop" class="hidden"></div>
       <div id="map-tip" class="hidden"></div>
       <div id="paused-hint" class="hidden">⏸ Paused — press Space or a speed button to resume</div>
@@ -189,10 +188,6 @@
         </div>
         <div class="panel" id="store-detail"></div>
         <div class="panel">
-          <h3>Recent events</h3>
-          <div id="recent-events" class="fine"></div>
-        </div>
-        <div class="panel">
           <h3>How it works</h3>
           <p class="fine">
             Shoppers buy whatever's on the shelf; empty shelves lose customers and
@@ -207,6 +202,10 @@
       <div class="tab-page hidden" id="tab-vendors"></div>
       <div class="tab-page hidden" id="tab-hq"></div>
       <div class="tab-page hidden" id="tab-books"></div>
+      <div class="panel" id="side-events" title="Click for the full activity log">
+        <h3>Recent events</h3>
+        <div id="recent-events" class="fine"></div>
+      </div>
     </aside>
   </div>
 </div>

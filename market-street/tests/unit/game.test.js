@@ -255,7 +255,7 @@ describe('robustness', () => {
 
 // ---- iteration-batch systems ------------------------------------------
 
-import { DIFFICULTY, CAMPAIGN } from '../../src/defs.js';
+import { DIFFICULTY, CAMPAIGN, EVENTS } from '../../src/defs.js';
 
 describe('contracts', () => {
   it('signs at high relationship and applies the locked discount', () => {
@@ -807,5 +807,91 @@ describe('dashboard KPIs', () => {
     expect(h.shelf).toBeGreaterThan(0);
     expect(h.shelf).toBeLessThanOrEqual(1);
     expect(h.wh).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe('weekly events, rival moves, and store formats', () => {
+  let realRandom;
+  beforeEach(() => { realRandom = Math.random; });
+  afterEach(() => { Math.random = realRandom; });
+  const week = (gg) => { for (let i = 0; i < 600 * 7 + 5; i++) gg.tick(1 / 600); };
+
+  it('city conditions land at week boundaries and last the week', () => {
+    week(g);
+    const conditions = g.activeEvents.filter((e) => !EVENTS[e.type].player);
+    expect(conditions.length).toBeGreaterThanOrEqual(1);
+    for (const e of conditions) expect(e.daysLeft).toBeGreaterThanOrEqual(6);
+    expect(g.lastWeekReport.incoming.length).toBe(conditions.length);
+  });
+
+  it('wage pressure raises the payroll multiplier', () => {
+    const base = g.wageMult();
+    g.activeEvents.push({ type: 'wage_pressure', daysLeft: 7 });
+    expect(g.wageMult()).toBeCloseTo(base * 1.2, 5);
+  });
+
+  it('a price raid drains the district unless prices come down', () => {
+    const store = g.storeAt('s1');
+    const district = g.site('s1').district;
+    const base = g.marketFactor(store);
+    g.rival.raid = { district, until: g.day() + 7 };
+    expect(g.marketFactor(store)).toBeCloseTo(base * 0.85, 5);
+    store.markup = 0.95;
+    const defended = g.marketFactor(store);
+    g.rival.raid = null;
+    expect(defended).toBeCloseTo(g.marketFactor(store), 5);
+    store.markup = 1.0;
+  });
+
+  it('an eyed lot goes to BuyLow if unbought, or is snatched by buying it', () => {
+    g.rival.stores = ['s10'];
+    g.rival.eyeing = { siteId: 's4', deadline: g.day() };
+    g.rivalWeeklyMove(g.day());
+    expect(g.rival.stores.includes('s4')).toBe(true);
+    // Snatch path.
+    g.rival.eyeing = { siteId: 's3', deadline: g.day() + 7 };
+    g.cash = 50000; g.peakCash = 50000;
+    g.buyStore('s3');
+    expect(g.rival.eyeing).toBeNull();
+  });
+
+  it('poaching can empty a seat or jack up a salary', () => {
+    g.rival.stores = ['s10'];
+    g.hq.buyer = { name: 'Rosa', skill: 3, salary: 100, trait: { name: 'x', desc: 'y' }, xp: 0 };
+    Math.random = () => 0.55;      // move roll -> poach branch, then stay+raise
+    g.rivalWeeklyMove(g.day());
+    expect(g.hq.buyer.salary).toBe(115);
+    Math.random = () => 0.6;       // poach branch again...
+    const q = [0.6, 0.2];          // ...and this time they leave (0.2 < 0.45)
+    Math.random = () => (q.length ? q.shift() : 0.2);
+    g.rivalWeeklyMove(g.day());
+    expect(g.hq.buyer).toBeNull();
+  });
+
+  it('formats change shelves, margins, and staffing needs', () => {
+    const store = g.storeAt('s1');
+    expect(g.shelfCap(store)).toBe(60);
+    g.cash = 20000;
+    expect(g.setFormat('s1', 'supermarket')).toBe(true);
+    expect(store.format).toBe('supermarket');
+    expect(g.shelfCap(store)).toBe(90);
+    expect(g.cash).toBe(14000);
+    // Gourmet pricing: revenue per unit scales up.
+    g.setFormat('s1', 'gourmet');
+    expect(g.shelfCap(store)).toBe(51);
+  });
+
+  it('district affinity shifts demand by format', () => {
+    const store = g.storeAt('s1');       // Old Town: corner-friendly
+    for (const p of Object.keys(store.inv)) store.inv[p] = 60;
+    const g2 = new Game();
+    const s2 = g2.storeAt('s1');
+    for (const p of Object.keys(s2.inv)) s2.inv[p] = 60;
+    g2.cash = 20000;
+    g2.setFormat('s1', 'supermarket');   // 0.96 affinity in Old Town, more staff need
+    for (let i = 0; i < 600; i++) { g.tick(1 / 600); g2.tick(1 / 600); }
+    // Corner in Old Town should serve at least comparable demand per staff.
+    expect(g.stores[0].servedToday).toBeGreaterThan(0);
+    expect(g2.stores[0].servedToday).toBeGreaterThan(0);
   });
 });

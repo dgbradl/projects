@@ -4,7 +4,7 @@
 import {
   PRODUCTS, VENDORS, DISTRICTS, ROLES, EVENTS, SHELF_CAP, STAFF_WAGE,
   TRUCK_COST, WAREHOUSE_UPGRADE, HIRE_ROLE_COST, WIN_CASH, WIN_STORES,
-  REMODEL, DELEGATIONS, GOALS, CONTRACT, STORE_UPGRADES, CAMPAIGN, ACHIEVEMENTS,
+  REMODEL, DELEGATIONS, GOALS, CONTRACT, STORE_UPGRADES, CAMPAIGN, ACHIEVEMENTS, FORMATS,
 } from './defs.js';
 import { sfx, setMuted, isMuted, setMusic } from './audio.js';
 
@@ -280,8 +280,7 @@ export class UI {
   }
 
   bindFeed() {
-    const feed = document.getElementById('feed');
-    feed.addEventListener('click', () => {
+    document.getElementById('side-events')?.addEventListener('click', () => {
       this.setTab('books');
       document.getElementById('log-list')?.scrollIntoView({ block: 'nearest' });
     });
@@ -684,9 +683,44 @@ export class UI {
         <input type="range" id="sd-markup" min="80" max="140" step="5">
       </div>
       <div id="sd-manager"></div>
+      <div id="sd-format"></div>
       <div id="sd-range"></div>
       <div id="sd-inv"></div>
       <button id="sd-close" class="danger">Close store (recover 60%)</button>`;
+
+    // Format block: convert the store's whole shape.
+    const fmtWrap = box.querySelector('#sd-format');
+    const fDetails = document.createElement('details');
+    fDetails.open = this.detailOpen?.format ?? false;
+    fDetails.addEventListener('toggle', () => {
+      (this.detailOpen ??= {}).format = fDetails.open;
+    });
+    const curFmt = FORMATS[store.format ?? 'corner'];
+    const vibe = district.vibe ? `<p class="fine">${district.name}: ${district.vibe}.</p>` : '';
+    fDetails.innerHTML = `<summary>Format — <b>${curFmt.icon} ${curFmt.name}</b></summary>${vibe}`;
+    for (const [fid, f] of Object.entries(FORMATS)) {
+      const row = document.createElement('div');
+      row.className = 'fmt-row' + (store.format === fid ? ' current' : '');
+      const aff = district.affinity?.[fid] ?? 1;
+      const affTxt = aff > 1.02 ? `<span class="pos">+${Math.round((aff - 1) * 100)}% here</span>`
+        : aff < 0.98 ? `<span class="neg">−${Math.round((1 - aff) * 100)}% here</span>` : '';
+      row.innerHTML = `
+        <span class="fmt-info"><b>${f.icon} ${f.name}</b> ${affTxt}
+          <span class="ctrait">${f.desc}</span></span>`;
+      if (store.format !== fid) {
+        const btn = document.createElement('button');
+        btn.textContent = fmt(f.cost);
+        btn.disabled = g.cash < f.cost;
+        btn.title = `Convert to ${f.name}`;
+        btn.addEventListener('click', () => {
+          if (g.setFormat(site.id, fid)) this.renderStoreDetail();
+          else this.say('Not enough cash for the conversion.');
+        });
+        row.appendChild(btn);
+      }
+      fDetails.appendChild(row);
+    }
+    fmtWrap.appendChild(fDetails);
 
     // Product range block: choose which lines this store carries.
     const rangeWrap = box.querySelector('#sd-range');
@@ -1420,6 +1454,14 @@ export class UI {
     for (const f of r.chain ?? []) {
       lines.push(`<div class="wr-issue chain">⚠ ${f.text}</div>`);
     }
+    if (r.incoming?.length) {
+      const g2 = this.game;
+      lines.push(`<div class="wr-incoming"><b>Coming this week:</b> ${r.incoming.map((e) => {
+        const d = EVENTS[e.type];
+        const where = e.district ? ` in ${g2.district(e.district).name}` : e.product ? ` — ${PRODUCTS[e.product].name}` : e.vendor ? ` — ${VENDORS[e.vendor].name}` : '';
+        return `${d.icon} ${d.name}${where}`;
+      }).join(' · ')}</div>`);
+    }
     // Per-store scorecards: what happened, and where the problems were.
     for (const s of r.stores ?? []) {
       const arrow = s.repDelta > 0.02 ? '↗' : s.repDelta < -0.02 ? '↘' : '→';
@@ -1492,16 +1534,6 @@ export class UI {
           <span class="ev-days">· ${e.daysLeft}d left</span><br>
           <span class="ev-days">${def.desc}</span>${action}</div>`;
       }).join('');
-    }
-    // Activity feed: last 4 log entries.
-    const feed = document.getElementById('feed');
-    const entries = g.logEntries.slice(-4);
-    const fKey = entries.map((e) => e.day + e.text).join('|') || 'none';
-    if (feed.dataset.key !== fKey) {
-      feed.dataset.key = fKey;
-      feed.innerHTML = [...entries].reverse()
-        .map((e) => `<div class="feed-entry"><span class="fday">D${e.day}</span>${e.icon} ${e.text}</div>`)
-        .join('');
     }
   }
 
@@ -1643,7 +1675,7 @@ export class UI {
     this.syncBackdrop();
 
     if (this.tab === 'stores') this.refreshStores();
-    if (this.tab === 'stores') this.refreshRecentEvents();
+    this.refreshRecentEvents();
     if (this.tab === 'supply') this.refreshSupply();
     if (this.tab === 'vendors') this.refreshVendors();
     if (this.tab === 'hq') { this.refreshRoles(); this.refreshMilestones(); this.refreshDelegations(); this.refreshRecords(); }
@@ -1759,7 +1791,7 @@ export class UI {
         if (list.dataset.k !== html) { list.dataset.k = html; list.innerHTML = html; }
       }
       const ver = document.getElementById('rail-version');
-      if (ver && !ver.textContent) ver.textContent = 'v0.16';
+      if (ver && !ver.textContent) ver.textContent = 'v0.17';
     }
     // Performance strip: rebuilt when a new day lands in history.
     const strip = document.getElementById('perf-strip');
@@ -1771,17 +1803,32 @@ export class UI {
     if (hist.length < 2) { strip.innerHTML = ''; return; }
     const last7 = hist.slice(-7);
     const prev7 = hist.slice(-14, -7);
-    const avg = (arr, k) => arr.reduce((s, h) => s + h[k], 0) / Math.max(1, arr.length);
+    const avg = (arr, k) => {
+      const vals = arr.map((h) => h[k]).filter((v) => Number.isFinite(v));
+      return vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
+    };
     const latest = hist[hist.length - 1];
+    // Older saves predate the KPI fields — fall back to live values.
+    const liveShelf = (() => {
+      let inv = 0, cap = 0;
+      for (const st of g.stores) for (const p of PROD_IDS) if (st.range[p]) { inv += st.inv[p]; cap += SHELF_CAP; }
+      return cap ? inv / cap : 0;
+    })();
+    const fillNow = latest.fill ?? 1;
+    const shelfNow = latest.shelf ?? liveShelf;
+    const whNow = latest.wh ?? g.warehouseUsed() / g.warehouse.cap;
+    const salesDelta = avg(prev7, 'revenue') ? avg(last7, 'revenue') / avg(prev7, 'revenue') - 1 : null;
+    const fillDelta = avg(prev7, 'fill') != null && avg(last7, 'fill') != null
+      ? avg(last7, 'fill') - avg(prev7, 'fill') : null;
     const cards = [
-      { label: 'Sales /d', val: fmt(Math.round(avg(last7, 'revenue'))), k: 'revenue', delta: prev7.length ? avg(last7, 'revenue') / Math.max(1, avg(prev7, 'revenue')) - 1 : null },
-      { label: 'Profit /d', val: signFmt(Math.round(avg(last7, 'profit'))), k: 'profit', delta: null, signed: true },
-      { label: 'Demand filled', val: `${Math.round((latest.fill ?? 1) * 100)}%`, k: 'fill', delta: prev7.length ? avg(last7, 'fill') - avg(prev7, 'fill') : null, pp: true },
-      { label: 'Shelf stock', val: `${Math.round((latest.shelf ?? 0) * 100)}%`, k: 'shelf' },
-      { label: 'Warehouse', val: `${Math.round((latest.wh ?? 0) * 100)}%`, k: 'wh' },
+      { label: 'Sales /d', val: fmt(Math.round(avg(last7, 'revenue') ?? 0)), k: 'revenue', delta: Number.isFinite(salesDelta) ? salesDelta : null, tip: 'Average daily revenue, last 7 days (vs the 7 before)' },
+      { label: 'Profit /d', val: signFmt(Math.round(avg(last7, 'profit') ?? 0)), k: 'profit', delta: null, signed: true, tip: 'Average daily profit, last 7 days' },
+      { label: 'Demand filled', val: `${Math.round(fillNow * 100)}%`, k: 'fill', delta: Number.isFinite(fillDelta) ? fillDelta : null, pp: true, tip: 'Share of shopper demand actually served yesterday' },
+      { label: 'Shelf stock', val: `${Math.round(shelfNow * 100)}%`, k: 'shelf', tip: 'How full the chain\'s shelves are' },
+      { label: 'Warehouse', val: `${Math.round(whNow * 100)}%`, k: 'wh', tip: 'Warehouse capacity in use' },
     ];
     strip.innerHTML = cards.map((c, i) => `
-      <div class="perf-card">
+      <div class="perf-card" title="${c.tip}">
         <span class="pc-label">${c.label}</span>
         <span class="pc-row"><b class="pc-val">${c.val}</b>${c.delta != null
     ? `<em class="pc-delta ${c.delta >= 0 ? 'pos' : 'neg'}">${c.delta >= 0 ? '▲' : '▼'}${c.pp ? `${Math.abs(c.delta * 100).toFixed(0)}pp` : `${Math.abs(c.delta * 100).toFixed(0)}%`}</em>` : ''}</span>
@@ -1790,7 +1837,8 @@ export class UI {
     cards.forEach((c, i) => {
       const cv = strip.querySelector(`[data-spark="${i}"]`);
       const ctx = cv.getContext('2d');
-      const data = hist.slice(-14).map((h) => h[c.k] ?? 0);
+      const data = hist.slice(-14).map((h) => h[c.k]).filter((v) => Number.isFinite(v));
+      if (data.length < 2) return;
       const min = Math.min(...data), max = Math.max(...data);
       const span = max - min || 1;
       ctx.strokeStyle = c.signed && avg(last7, 'profit') < 0 ? 'rgba(232,130,140,0.9)' : 'rgba(111,208,140,0.9)';
@@ -1848,6 +1896,8 @@ export class UI {
         if (!st || !site) { chip.style.display = 'none'; continue; }
         ({ sx: x, sy: y } = r.toScreen(site.x, site.y));
         y -= 34 * r.scale;
+        // Stagger neighbors so nearby chips don't stack on one line.
+        if ((site.x + site.y) % 2 === 0) y -= 16;
         const sales = st.yesterday?.revenue || st.today.revenue;
         html = `<i></i>${st.name}<b>${fmt(sales)}</b>`;
         chip.title = st.yesterday?.revenue ? "Yesterday's sales" : "Today's sales so far";
@@ -1889,7 +1939,7 @@ export class UI {
       const bar = wrap.querySelector(`[data-minibar="${store.siteId}"]`);
       if (bar) {
         const total = PROD_IDS.reduce((s, p2) => s + (store.range[p2] ? store.inv[p2] : 0), 0);
-        const f = total / (SHELF_CAP * Math.max(1, g.rangeCount(store)));
+        const f = total / (g.shelfCap(store) * Math.max(1, g.rangeCount(store)));
         bar.style.width = `${Math.round(Math.min(1, f) * 100)}%`;
         bar.style.background = f > 0.45 ? 'var(--good)' : f > 0.18 ? 'var(--accent)' : 'var(--bad)';
       }
@@ -1932,15 +1982,16 @@ export class UI {
       const v = String(Math.round(store.markup * 100));
       if (slider.value !== v) slider.value = v;
     }
+    const cap = g.shelfCap(store);
     for (const p of PROD_IDS) {
       const bar = box.querySelector(`[data-inv="${p}"]`);
       if (bar) {
-        const f = store.inv[p] / SHELF_CAP;
-        bar.style.width = `${Math.round(f * 100)}%`;
+        const f = store.inv[p] / cap;
+        bar.style.width = `${Math.round(Math.min(1, f) * 100)}%`;
         bar.style.background = f > 0.4 ? 'var(--good)' : f > 0.15 ? 'var(--accent)' : 'var(--bad)';
       }
       const n = box.querySelector(`[data-invn="${p}"]`);
-      if (n) setEl(n, `${Math.round(store.inv[p])}/${SHELF_CAP}`);
+      if (n) setEl(n, `${Math.round(store.inv[p])}/${cap}`);
     }
   }
 
@@ -1948,7 +1999,7 @@ export class UI {
     const g = this.game;
     const wrap = document.getElementById('recent-events');
     if (!wrap) return;
-    const entries = g.logEntries.slice(-5).reverse();
+    const entries = g.logEntries.slice(-7).reverse();
     const key = entries.length ? `${g.logEntries.length}-${entries[0].text}` : 'none';
     if (wrap.dataset.k === key) return;
     wrap.dataset.k = key;

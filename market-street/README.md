@@ -36,8 +36,9 @@ link can be the bottleneck.
 | **Vendors** | Six suppliers with different prices, quality, and lead times; haggle at a push-your-luck **dice table** — keep 🤝 leverage, bank 💬 goodwill, and stop pressing before ⚠️ offense outruns the vendor's patience. Negotiate **price** or **delivery** at the dice table with a scarce weekly meeting budget. Vendors remember the last sitting (grudges cost dice, goodwill adds them), deals age −1%/week, counters can carry volume riders, and BuyLow courts your suppliers — close a deal to keep the account |
 | **People** | Department heads and store managers hired from candidate pools — each with skill (★–★★★), a salary ask, and a trait with a real mechanical effect. Delegate staffing, pricing, negotiation, sourcing, reorder tuning, even fleet capex |
 | **Books** | A real P&L (weighted-average COGS), 30-day profit chart, per-store profitability, activity log |
-| **Events** | Cold snaps, heat waves, vendor strikes, roadworks, festivals, price wars, inspections, fridge breakdowns |
-| **Stakes** | BuyLow buys lots and siphons shoppers; sister stores cannibalize; wages drift up; debt accrues interest and the bank has limits |
+| **Events** | City conditions land at the weekly planning stop and own the week — cold snaps, strikes, price wars, transit strikes, tourist influxes, wage pressure, harvest gluts and more, announced in the wrap-up so you plan into them. Rare one-shot incidents (inspections, fridge breakdowns) still strike mid-week |
+| **Stakes** | BuyLow plays one card a week: courting your vendors, poaching your best people, eyeing lots (buy first or lose them), and price-raiding your top district. Sister stores cannibalize; wages drift; the bank has limits |
+| **Formats** | Convert stores: Corner / Supermarket / Gourmet — shelves, traffic, margins, staffing and spoilage all shift, and each district's crowd has a favorite |
 
 **Win:** 8 stores and $200k banked. **Lose:** the bank calls your debt.
 A goal ladder walks you through the systems on the way.

@@ -215,12 +215,42 @@ export const VENDORS = {
   },
 };
 
+// Each district has a personality: format affinity multiplies store traffic.
 export const DISTRICTS = [
-  { id: 'oldtown',   name: 'Old Town',  unlock: 0,      rect: [0, 0, 12, 12],   phase: 'Your neighborhood' },
-  { id: 'westside',  name: 'Westside',  unlock: 32000,  rect: [12, 0, 24, 12],  phase: 'Across town' },
-  { id: 'riverside', name: 'Riverside', unlock: 60000,  rect: [0, 12, 12, 24],  phase: 'Citywide' },
-  { id: 'downtown',  name: 'Downtown',  unlock: 100000, rect: [12, 12, 24, 24], phase: 'The big leagues' },
+  { id: 'oldtown',   name: 'Old Town',  unlock: 0,      rect: [0, 0, 12, 12],   phase: 'Your neighborhood',
+    vibe: 'Traditional — loves a corner store',
+    affinity: { corner: 1.06, supermarket: 0.96, gourmet: 1.0 } },
+  { id: 'westside',  name: 'Westside',  unlock: 32000,  rect: [12, 0, 24, 12],  phase: 'Across town',
+    vibe: 'Family suburbs — big weekly shops',
+    affinity: { corner: 0.97, supermarket: 1.10, gourmet: 0.94 } },
+  { id: 'riverside', name: 'Riverside', unlock: 60000,  rect: [0, 12, 12, 24],  phase: 'Citywide',
+    vibe: 'Upscale waterfront — quality sells',
+    affinity: { corner: 1.0, supermarket: 0.95, gourmet: 1.12 } },
+  { id: 'downtown',  name: 'Downtown',  unlock: 100000, rect: [12, 12, 24, 24], phase: 'The big leagues',
+    vibe: 'Dense and busy — convenience at scale',
+    affinity: { corner: 0.92, supermarket: 1.06, gourmet: 1.05 } },
 ];
+
+// Store formats: convert a store to change its whole shape. Traffic and
+// margins shift, shelves resize, staffing needs change — and each district's
+// crowd has a favorite.
+export const FORMATS = {
+  corner: {
+    name: 'Corner store', icon: '🏪', cost: 0,
+    shelfMult: 1, traffic: 1, staffNeed: 1, priceMult: 1, spoilMult: 1,
+    desc: 'The honest default. Cheap to run, at home anywhere.',
+  },
+  supermarket: {
+    name: 'Supermarket', icon: '🛒', cost: 6000,
+    shelfMult: 1.5, traffic: 1.15, staffNeed: 1.4, priceMult: 0.97, spoilMult: 1,
+    desc: '+50% shelf space and +15% traffic, but thin margins and a big crew.',
+  },
+  gourmet: {
+    name: 'Gourmet market', icon: '🫒', cost: 5000,
+    shelfMult: 0.85, traffic: 0.8, staffNeed: 1.1, priceMult: 1.2, spoilMult: 1.15, repPow: 1.6,
+    desc: '+20% prices and reputation pays double — but fewer, fussier shoppers.',
+  },
+};
 
 // Store sites. Every site tile touches a road. `owned: true` = starting stores.
 export const SITES = [
@@ -281,6 +311,32 @@ export const MANAGER_SALARY = 45;  // per ★, per day
 
 // Random city events. Duration in days ([min,max]); instant events resolve on spawn.
 export const EVENTS = {
+  labor_shortage: {
+    icon: '🧑‍🏭', name: 'Labor shortage', dur: [7, 7], staffMult: 0.85,
+    desc: 'Hiring market is brutal — every team runs at 85% effectiveness this week.',
+  },
+  transit_strike: {
+    icon: '🚇', name: 'Transit strike', dur: [7, 7], districtPick: true, demandMult: 0.75,
+    desc: 'Buses stop in one district — foot traffic −25% there this week.',
+  },
+  food_festival: {
+    icon: '🍽️', name: 'Food festival', dur: [7, 7],
+    demand: { deli: 1.5, seafood: 1.5, produce: 1.2, beverages: 1.2 },
+    desc: 'A week-long food festival — deli, seafood & fresh lines surge.',
+  },
+  harvest_glut: {
+    icon: '🚜', name: 'Harvest glut', dur: [7, 7], seasons: ['summer', 'fall'],
+    cost: { produce: 0.75, dairy: 0.9 },
+    desc: 'Bumper crops — produce 25% and dairy 10% cheaper to buy all week.',
+  },
+  wage_pressure: {
+    icon: '💸', name: 'Wage pressure', dur: [7, 7], wageMult: 1.2,
+    desc: 'A city-wide labor push — wages and salaries +20% this week.',
+  },
+  tourist_influx: {
+    icon: '🧳', name: 'Tourist influx', dur: [7, 7], districtPick: true, demandMult: 1.3,
+    desc: 'A convention floods one district — demand +30% there this week.',
+  },
   cold_snap: {
     icon: '🥶', name: 'Cold snap', dur: [2, 4], seasons: ['fall', 'winter'],
     desc: 'Frozen +80%, dairy +30%, produce −15% demand while it lasts.',

@@ -9,7 +9,7 @@ import {
   DELEGATIONS, PEOPLE_NAMES, RIVAL, DEBT_INTEREST, DEBT_GRACE_DAYS,
   DEBT_HARD_LIMIT, WAGE_DRIFT, GOALS, DIFFICULTY, CONTRACT, STORE_UPGRADES,
   CAMPAIGN, ACHIEVEMENTS, SEASONS, SEASON_DAYS, YEAR_DAYS, HOLIDAYS,
-  HOLIDAY_ANNOUNCE, NEGO,
+  HOLIDAY_ANNOUNCE, NEGO, FORMATS,
 } from './defs.js';
 
 const SAVE_KEY = 'market-street-save-v2';
@@ -126,7 +126,7 @@ export class Game {
       name: `Market St. #${this.stores.length + 1}`,
       inv: {}, staff: 2, markup: 1.0, rep: 0.5, avail: 1, morale: 0.7,
       manager: null,
-      range: {}, slots: START_SLOTS, remodels: 0,
+      range: {}, slots: START_SLOTS, remodels: 0, format: 'corner',
       delegate: { staffing: true, pricing: true },   // used only with a manager
       upgrades: {},
       today: { revenue: 0, cogs: 0 },
@@ -153,7 +153,11 @@ export class Game {
   districtUnlocked(id) { return this.peakCash >= this.district(id).unlock; }
 
   rivalAt(siteId) { return this.rival.stores.includes(siteId); }
-  wageMult() { return 1 + WAGE_DRIFT * this.day(); }
+  wageMult() {
+    const ev = this.activeEvents.reduce(
+      (m, e) => m * (EVENTS[e.type]?.wageMult ?? 1), 1);
+    return (1 + WAGE_DRIFT * this.day()) * ev;
+  }
 
   // ---- calendar ---------------------------------------------------------
 
@@ -184,6 +188,21 @@ export class Game {
   // How much of its neighborhood a store actually captures: sister stores in
   // the district share the pie, and rival stores siphon shoppers — worse if
   // your prices are high, softened by strong reputation.
+  format(store) { return FORMATS[store.format ?? 'corner']; }
+
+  shelfCap(store) { return Math.round(SHELF_CAP * this.format(store).shelfMult); }
+
+  setFormat(siteId, fmtId) {
+    const store = this.storeAt(siteId);
+    const def = FORMATS[fmtId];
+    if (!store || !def || store.format === fmtId) return false;
+    if (this.cash < def.cost) return false;
+    this.cash -= def.cost;
+    store.format = fmtId;
+    this.log('🛠️', `${store.name} converted to a ${def.name.toLowerCase()}.`);
+    return true;
+  }
+
   marketFactor(store) {
     const district = this.site(store.siteId).district;
     const sisters = this.stores.filter((s) => this.site(s.siteId).district === district).length;
@@ -197,7 +216,13 @@ export class Game {
       penalty *= 1.3 - 0.6 * store.rep;
       competition = 1 - Math.min(0.55, rivals * penalty);
     }
-    return sharing * competition;
+    // A BuyLow price raid drains the district — unless you undercut back.
+    let raid = 1;
+    const r = this.rival.raid;
+    if (r && r.district === district && this.day() < r.until && store.markup > 0.95) {
+      raid = 0.85;
+    }
+    return sharing * competition * raid;
   }
 
   effStaff(store) {
@@ -388,6 +413,10 @@ export class Game {
     this.stats.storesOpened++;
     this.addFloater(site.x, site.y, 'Grand opening!', '#f2c14e');
     this.log('🎉', `${store.name} opened in ${this.district(site.district).name}.`);
+    if (this.rival.eyeing?.siteId === siteId) {
+      this.rival.eyeing = null;
+      this.log('🦈', `You snatched the lot ${RIVAL.name} was eyeing. They are not pleased.`);
+    }
     return true;
   }
 
@@ -864,6 +893,8 @@ export class Game {
       }
       const def = EVENTS[e.type];
       if (def?.productDemand && e.product === product) m *= def.productDemand;
+      if (def?.demand?.[product]) m *= def.demand[product];
+      if (def?.demandMult && e.district === site.district) m *= def.demandMult;
     }
     // Season, holiday, and post-holiday slump.
     const season = this.season();
@@ -897,18 +928,21 @@ export class Game {
       }
       elastic = Math.max(0.25, Math.min(1.5, elastic));
 
+      const fmt = this.format(store);
+      const affinity = this.district(site.district).affinity?.[store.format ?? 'corner'] ?? 1;
       const market = this.marketFactor(store);
-      const baseDaily = site.pop * POP_FACTOR * market;
+      const baseDaily = site.pop * POP_FACTOR * market * fmt.traffic * affinity;
       const effStaff = this.effStaff(store) * staffEventMult;
       // A wider assortment brings in more traffic — and needs more hands.
-      const staffNeeded = (baseDaily * this.enabledWeight(store)) / 55;
+      const staffNeeded = (baseDaily * this.enabledWeight(store)) / 55 * fmt.staffNeed;
       const staffRatio = Math.min(1, effStaff / staffNeeded);
       const moraleF = 0.75 + 0.35 * store.morale;
       store.lastStaffRatio = staffRatio;
       const staffF = (0.55 + 0.45 * staffRatio) * moraleF;
-      const repF = 0.6 + 0.8 * store.rep;
+      // Gourmet crowds care about reputation twice as hard.
+      const repF = Math.pow(0.6 + 0.8 * store.rep, fmt.repPow ?? 1);
 
-      let spoilMult = (heatWave ? 2 : 1) * (this.season().spoil ?? 1);
+      let spoilMult = (heatWave ? 2 : 1) * (this.season().spoil ?? 1) * fmt.spoilMult;
       if (store.upgrades?.coldstorage) spoilMult *= 0.5;
       if (store.manager) spoilMult *= 1 - 0.12 * store.manager.skill * (this.managerTrait(store, 'shelfhawk') ? 2 : 1);
       spoilMult = Math.max(0.2, spoilMult);
@@ -925,7 +959,7 @@ export class Game {
         const want = rate * dt;
         const sold = Math.min(store.inv[p], want);
         store.inv[p] -= sold;
-        const revenue = sold * PRODUCTS[p].retail * store.markup;
+        const revenue = sold * PRODUCTS[p].retail * store.markup * fmt.priceMult;
         const cogs = sold * this.avgCost[p];
         this.cash += revenue;
         this.stats.totalRevenue += revenue;
@@ -1034,9 +1068,10 @@ export class Game {
     }
     const def = {};
     let total = 0;
+    const cap = this.shelfCap(store);
     for (const p of PROD_IDS) {
       if (!store.range[p]) { def[p] = 0; continue; }
-      const d = Math.max(0, SHELF_CAP - store.inv[p] - (enroute[p] || 0));
+      const d = Math.max(0, cap - store.inv[p] - (enroute[p] || 0));
       def[p] = d;
       total += Math.min(d, this.warehouse.inv[p]);
     }
@@ -1138,12 +1173,16 @@ export class Game {
     const pool = Object.keys(EVENTS).filter((t) => {
       const def = EVENTS[t];
       if (def.player) return false;               // campaigns are yours to launch
+      if (t === 'inspection' || t === 'fridge') return false;   // incidents, not conditions
       if (def.seasons && !def.seasons.includes(seasonId)) return false;
       if (t === 'strike') return this.day() >= 8;
+      if (this.activeEvents.some((e) => e.type === t)) return false;
       return true;
     });
+    if (!pool.length) return null;
     const type = pool[Math.floor(Math.random() * pool.length)];
     const def = EVENTS[type];
+    void 0;
 
     if (type === 'inspection') {
       if (!this.stores.length) return;
@@ -1173,21 +1212,22 @@ export class Game {
 
     const ev = {
       type,
-      daysLeft: def.dur[0] + Math.floor(Math.random() * (def.dur[1] - def.dur[0] + 1)),
+      // A condition owns the whole week.
+      daysLeft: 7,
     };
     if (def.productPick) {
       const carried = this.carriedProducts();
-      if (!carried.length) return;
+      if (!carried.length) return null;
       ev.product = carried[Math.floor(Math.random() * carried.length)];
       this.log(def.icon, `${def.name}: ${PRODUCTS[ev.product].name}. ${def.desc}`);
       this.activeEvents.push(ev);
-      return;
+      return ev;
     }
     if (type === 'strike') {
       const vendorIds = Object.keys(VENDORS);
       ev.vendor = vendorIds[Math.floor(Math.random() * vendorIds.length)];
       this.log(def.icon, `${VENDORS[ev.vendor].name} workers walked out — no deliveries until it's settled.`);
-    } else if (type === 'festival' || type === 'price_war') {
+    } else if (type === 'festival' || type === 'price_war' || def.districtPick) {
       const open = DISTRICTS.filter((d) => this.districtUnlocked(d.id));
       ev.district = open[Math.floor(Math.random() * open.length)].id;
       this.log(def.icon, `${def.name} in ${this.district(ev.district).name}: ${def.desc}`);
@@ -1195,6 +1235,33 @@ export class Game {
       this.log(def.icon, `${def.name}: ${def.desc}`);
     }
     this.activeEvents.push(ev);
+    return ev;
+  }
+
+  // Rare one-shot incidents that can still land mid-week.
+  spawnIncident() {
+    const type = Math.random() < 0.5 ? 'inspection' : 'fridge';
+    const def = EVENTS[type];
+    if (!this.stores.length) return;
+    const store = this.stores[Math.floor(Math.random() * this.stores.length)];
+    if (type === 'inspection') {
+      const site = this.site(store.siteId);
+      const effStaff = this.effStaff(store);
+      const ok = effStaff / (site.pop * POP_FACTOR * this.marketFactor(store) * this.enabledWeight(store) / 55) >= 0.85;
+      if (ok) {
+        store.rep = Math.min(1, store.rep + 0.08);
+        this.log('🧾', `Health inspection at ${store.name}: passed with flying colors. Reputation up.`);
+      } else {
+        this.cash -= 500;
+        this.today.fines += 500;
+        store.rep = Math.max(0, store.rep - 0.1);
+        this.log('🧾', `Health inspection at ${store.name}: understaffed and sloppy. Fined $500.`);
+      }
+    } else {
+      for (const p of ['dairy', 'meat', 'frozen']) store.inv[p] *= 0.5;
+      this.log('🧊', `Fridge breakdown at ${store.name} — half the dairy, meat, and frozen stock lost.`);
+    }
+    void def;
   }
 
   // ---- delegation: staff who make decisions ------------------------------
@@ -1303,7 +1370,7 @@ export class Game {
       const lm = this.hq.logistics;
       const starving = this.stores.filter((s) => {
         const total = PROD_IDS.reduce((sum, p) => sum + (s.range[p] ? s.inv[p] : 0), 0);
-        return total < SHELF_CAP * this.rangeCount(s) * 0.35;
+        return total < this.shelfCap(s) * this.rangeCount(s) * 0.35;
       }).length;
       if (starving >= 2 && this.cash > TRUCK_COST * 2.5 && this.trucks.length < this.stores.length) {
         this.buyTruck();
@@ -1363,7 +1430,7 @@ export class Game {
     for (const st of this.stores) {
       served += st.servedToday;
       lost += st.lostToday;
-      for (const p of PROD_IDS) if (st.range[p]) { shelfInv += st.inv[p]; shelfCap += SHELF_CAP; }
+      for (const p of PROD_IDS) if (st.range[p]) { shelfInv += st.inv[p]; shelfCap += this.shelfCap(st); }
     }
     this.history.push({
       day: day - 1,
@@ -1552,10 +1619,10 @@ export class Game {
       }
     }
     this.activeEvents = this.activeEvents.filter((e) => e.daysLeft > 0);
-    const randomActive = this.activeEvents.some((e) => !EVENTS[e.type].player);
-    if (!randomActive && day >= 4
-      && Math.random() < DIFFICULTY[this.diffId].eventChance) {
-      this.spawnEvent();
+    // City conditions land at the weekly planning stop, not mid-week — only
+    // one-shot incidents (inspections, fridge breakdowns) can still surprise.
+    if (day >= 4 && Math.random() < 0.05 && this.stores.length) {
+      this.spawnIncident();
     }
 
     // The rival chain shops for real estate. Unlike you, they aren't gated
@@ -1593,6 +1660,21 @@ export class Game {
         .sort((a, b) => b.profit - a.profit);
       const truckUtil = this.week.truckSamples > 0
         ? this.week.truckBusy / this.week.truckSamples : 0;
+      // Roll the coming week's city conditions now, so the planning stop
+      // shows what you're planning INTO.
+      const incoming = [];
+      const first = this.spawnEvent();
+      if (first) incoming.push(first);
+      if (Math.random() < DIFFICULTY[this.diffId].eventChance * 1.6) {
+        const second = this.spawnEvent();
+        if (second) incoming.push(second);
+      }
+      this.incomingEvents = incoming.map((e) => ({
+        type: e.type,
+        district: e.district ?? null,
+        product: e.product ?? null,
+        vendor: e.vendor ?? null,
+      }));
       this.lastWeekReport = {
         weekEndingDay: day - 1,
         profit, revenue,
@@ -1604,6 +1686,7 @@ export class Game {
         stores: this.stores.map((st) => this.storeScorecard(st)).filter(Boolean),
         chain: this.chainFindings(truckUtil),
         truckUtil,
+        incoming: this.incomingEvents ?? [],
       };
       this.weekReportId++;
       this.meetingsLeft = this.meetingsCap();
@@ -1622,14 +1705,7 @@ export class Game {
         this.log('🦈', `${RIVAL.name} signed a supply deal with ${VENDORS[vid].name} — your prices there are +${Math.round((NEGO.courtPriceMult - 1) * 100)}% for ${NEGO.courtDays} days.`);
         this.rival.courting = null;
       }
-      if (this.rival.stores.length > 0 && Math.random() < NEGO.courtChance) {
-        const vids = Object.keys(VENDORS).filter((v) => !this.vendors[v].courtLossUntil || day >= this.vendors[v].courtLossUntil);
-        const pick = vids[Math.floor(Math.random() * vids.length)];
-        if (pick) {
-          this.rival.courting = { vendor: pick, until: day + 7 };
-          this.log('🦈', `${RIVAL.name} is courting ${VENDORS[pick].name} — close any deal with them this week to keep the account.`);
-        }
-      }
+      this.rivalWeeklyMove(day);
       this.prevWeekStores = {};
       for (const [sid, ws] of Object.entries(this.week.stores)) {
         this.prevWeekStores[sid] = { rev: ws.rev, profit: ws.profit };
@@ -1776,7 +1852,85 @@ export class Game {
     if (this.rival.courting) {
       out.push({ id: 'courting', text: `${RIVAL.name} is courting ${VENDORS[this.rival.courting.vendor].name} — no deal has been closed with them yet.` });
     }
+    if (this.rival.eyeing) {
+      out.push({ id: 'eyeing', text: `${RIVAL.name} is eyeing the ${this.district(this.site(this.rival.eyeing.siteId).district).name} lot — deadline day ${this.rival.eyeing.deadline}.` });
+    }
+    if (this.rival.raid && this.day() < this.rival.raid.until) {
+      out.push({ id: 'raid', text: `${RIVAL.name} is price-raiding ${this.district(this.rival.raid.district).name} (until day ${this.rival.raid.until}).` });
+    }
     return out;
+  }
+
+  // ---- BuyLow's weekly move ----------------------------------------------
+  // Once it has a foothold, the rival plays one card per week: courting a
+  // vendor, poaching your people, eyeing a lot, or raiding a district.
+
+  rivalWeeklyMove(day) {
+    // Resolve last week's eyed lot first: still vacant means they take it.
+    const eye = this.rival.eyeing;
+    if (eye && day >= eye.deadline) {
+      this.rival.eyeing = null;
+      if (!this.storeAt(eye.siteId) && !this.rivalAt(eye.siteId)
+        && this.rival.stores.length < DIFFICULTY[this.diffId].rivalMax) {
+        const site = this.site(eye.siteId);
+        this.rival.stores.push(eye.siteId);
+        this.rival.openedDay[eye.siteId] = day;
+        this.log('🦈', `${RIVAL.name} closed on the ${this.district(site.district).name} lot it was eyeing.`);
+        this.addFloater(site.x, site.y, `${RIVAL.name} opens!`, '#e8828c');
+      }
+    }
+    // Raids expire on their own; clear the marker for the report's sake.
+    if (this.rival.raid && day >= this.rival.raid.until) this.rival.raid = null;
+
+    if (!this.rival.stores.length) return;
+    const roll = Math.random();
+    if (roll < 0.30) return;                                   // a quiet week
+    if (roll < 0.50) {
+      // Court a vendor (the classic).
+      const vids = Object.keys(VENDORS).filter((v) => !this.vendors[v].courtLossUntil || day >= this.vendors[v].courtLossUntil);
+      const pick = vids[Math.floor(Math.random() * vids.length)];
+      if (pick) {
+        this.rival.courting = { vendor: pick, until: day + 7 };
+        this.log('🦈', `${RIVAL.name} is courting ${VENDORS[pick].name} — close any deal with them this week to keep the account.`);
+      }
+      return;
+    }
+    if (roll < 0.65) {
+      // Poach: they go after your best person.
+      const targets = [];
+      for (const st of this.stores) if (st.manager) targets.push({ kind: 'manager', st, p: st.manager });
+      for (const [role, p] of Object.entries(this.hq)) if (p) targets.push({ kind: 'hq', role, p });
+      if (!targets.length) return;
+      targets.sort((a, b) => b.p.skill - a.p.skill);
+      const t = targets[0];
+      if (t.p.skill >= 2 && Math.random() < 0.45) {
+        if (t.kind === 'manager') t.st.manager = null;
+        else this.hq[t.role] = null;
+        this.log('🦈', `${RIVAL.name} poached ${t.p.name} with a fat offer — the ${t.kind === 'manager' ? `${t.st.name} manager` : ROLES[t.role].name} seat is empty.`);
+      } else {
+        t.p.salary = Math.round(t.p.salary * 1.15);
+        this.log('🦈', `${t.p.name} turned down a ${RIVAL.name} offer — and their salary just went up 15% to ${Math.round(t.p.salary)}/day.`);
+      }
+      return;
+    }
+    if (roll < 0.85) {
+      // Eye a lot: buy it before week's end or they will.
+      if (this.rival.stores.length >= DIFFICULTY[this.diffId].rivalMax) return;
+      const vacant = SITES.filter((s) => !this.storeAt(s.id) && !this.rivalAt(s.id));
+      if (!vacant.length) return;
+      const pick = vacant[Math.floor(Math.random() * vacant.length)];
+      this.rival.eyeing = { siteId: pick.id, deadline: day + 7 };
+      this.log('🦈', `${RIVAL.name} is eyeing the ${this.district(pick.district).name} lot — buy it this week or lose it.`);
+      return;
+    }
+    // Price raid on your top-revenue store's district.
+    const top = [...this.stores].sort((a, b) =>
+      (this.week.stores?.[b.siteId]?.rev ?? 0) - (this.week.stores?.[a.siteId]?.rev ?? 0))[0]
+      ?? this.stores[0];
+    if (!top) return;
+    const district = this.site(top.siteId).district;
+    this.rival.raid = { district, until: day + 7 };
+    this.log('🦈', `${RIVAL.name} launched a price raid in ${this.district(district).name} — demand −15% there this week unless your prices are ≤ 95%.`);
   }
 
   // Leave the planning stop and let the new week play out at the speed the
@@ -1846,6 +2000,7 @@ export class Game {
       s.stockoutLogged ??= {};
       s.slots ??= START_SLOTS;
       s.remodels ??= 0;
+      s.format ??= 'corner';
       s.delegate ??= { staffing: true, pricing: true };
       s.upgrades ??= {};
       s.range ??= {};
@@ -1874,6 +2029,9 @@ export class Game {
     this.rival = d.rival ?? this.rival;
     this.rival.openedDay ??= {};
     this.rival.plus ??= {};
+    this.rival.eyeing ??= null;
+    this.rival.raid ??= null;
+    this.rival.courting ??= null;
     this.debtDays = d.debtDays ?? 0;
     this.gameOver = !!d.gameOver;
     this.goalIndex = d.goalIndex ?? 0;

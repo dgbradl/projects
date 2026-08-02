@@ -1356,3 +1356,20 @@ input[type="checkbox"] { accent-color: var(--accent); }
 .rev-day { color: var(--dim); flex: 0 0 auto; font-variant-numeric: tabular-nums; }
 .rev-good { color: var(--good); }
 .rev-bad { color: #f0a8ae; }
+#feed { display: none; }
+#side-events { cursor: pointer; }
+#side-events:hover { border-color: rgba(255, 255, 255, 0.14); }
+.fmt-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 4px; border-radius: 8px; font-size: 12.5px;
+}
+.fmt-row.current { background: rgba(242, 193, 78, 0.08); border: 1px solid rgba(242, 193, 78, 0.3); }
+.fmt-row .fmt-info { flex: 1; }
+.fmt-row .pos { color: var(--good); font-size: 11px; }
+.fmt-row .neg { color: var(--bad); font-size: 11px; }
+.fmt-row button { white-space: nowrap; padding: 3px 10px; font-size: 12px; }
+.wr-incoming {
+  margin-top: 8px; padding: 7px 10px; border-radius: 9px; font-size: 12px;
+  background: rgba(127, 178, 229, 0.08); border: 1px solid rgba(127, 178, 229, 0.3);
+  color: #cfe0f5;
+}

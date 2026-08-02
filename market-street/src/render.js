@@ -2206,11 +2206,17 @@ export class Renderer {
     // Window mullions.
     this.wallRect(sx, sy, fp, 1, 0.24, 0.253, 3.6, 10.8, 'rgba(238, 234, 222, 0.7)');
     this.wallRect(sx, sy, fp, 1, 0.748, 0.76, 3.6, 10.8, 'rgba(238, 234, 222, 0.7)');
-    // Scalloped striped awning over the shopfront.
+    // Scalloped striped awning over the shopfront — colored by format.
+    const AWNING = {
+      corner: ['#eee9dd', '#c95f52', '#d9d4c6', '#b04d42'],
+      supermarket: ['#e8eef5', '#4a7ab0', '#d5dde8', '#3d6694'],
+      gourmet: ['#f0e8f5', '#7a4f9e', '#ded2ea', '#654183'],
+    };
+    const aw = AWNING[store.format ?? 'corner'] ?? AWNING.corner;
     for (let i = 0; i < 8; i++) {
       const t0 = 0.06 + i * 0.11;
-      this.wallRect(sx, sy, fp, 1, t0, t0 + 0.11, 11.5, 14.2, i % 2 === 0 ? '#eee9dd' : '#c95f52');
-      this.wallRect(sx, sy, fp, 1, t0 + 0.01, t0 + 0.10, 11.0, 11.5, i % 2 === 0 ? '#d9d4c6' : '#b04d42');
+      this.wallRect(sx, sy, fp, 1, t0, t0 + 0.11, 11.5, 14.2, i % 2 === 0 ? aw[0] : aw[1]);
+      this.wallRect(sx, sy, fp, 1, t0 + 0.01, t0 + 0.10, 11.0, 11.5, i % 2 === 0 ? aw[2] : aw[3]);
     }
     // Awning shade line on the glass below.
     this.wallRect(sx, sy, fp, 1, 0.06, 0.94, 10.4, 11.5, 'rgba(20, 26, 30, 0.25)');
@@ -2245,7 +2251,7 @@ export class Renderer {
     ctx.fillText(`MARKET #${num}`, sx, sy - 22 * this.scale - 4.5);
 
     const totalInv = PROD_IDS.reduce((s, p) => s + (store.range[p] ? store.inv[p] : 0), 0);
-    const capTotal = SHELF_CAP * Math.max(1, g.rangeCount(store));
+    const capTotal = (g.shelfCap?.(store) ?? SHELF_CAP) * Math.max(1, g.rangeCount(store));
     const fill = totalInv / capTotal;
     this.bar(sx, sy + 4, fill, fill > 0.45 ? '#6fd08c' : fill > 0.18 ? '#f2c14e' : '#e8828c');
 
