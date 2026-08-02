@@ -120,14 +120,15 @@ test('weekly planning loop: stop, plan, run', async ({ page }) => {
   const stopped = await page.evaluate(() => ({ planning: window.game.planning, speed: window.game.speed }));
   expect(stopped).toEqual({ planning: true, speed: 0 });
 
-  // Closing the report keeps the planning pause with the plan bar up.
+  // Closing the report keeps the planning pause with the week strip armed.
   await page.click('#btn-week-close');
-  await expect(page.locator('#plan-bar')).toBeVisible();
+  await expect(page.locator('#week-strip.planning')).toBeVisible();
+  await expect(page.locator('#btn-run-week')).toBeVisible();
   expect(await page.evaluate(() => window.game.speed)).toBe(0);
 
   // Running the week resumes at the pre-stop cruise speed.
   await page.click('#btn-run-week');
-  await expect(page.locator('#plan-bar')).toBeHidden();
+  await expect(page.locator('#btn-run-week')).toBeHidden();
   const running = await page.evaluate(() => ({ planning: window.game.planning, speed: window.game.speed }));
   expect(running).toEqual({ planning: false, speed: 3 });
 });

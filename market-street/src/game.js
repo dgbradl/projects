@@ -1358,11 +1358,21 @@ export class Game {
     this.today.wages = wages;
     this.today.salaries = salaries;
     const t = this.today;
+    // Chain KPIs for the dashboard: fill rate, shelf stock, warehouse use.
+    let served = 0, lost = 0, shelfInv = 0, shelfCap = 0;
+    for (const st of this.stores) {
+      served += st.servedToday;
+      lost += st.lostToday;
+      for (const p of PROD_IDS) if (st.range[p]) { shelfInv += st.inv[p]; shelfCap += SHELF_CAP; }
+    }
     this.history.push({
       day: day - 1,
       revenue: t.revenue, cogs: t.cogs, rent, wages, salaries, fines: t.fines,
       interest: t.interest,
       profit: t.revenue - t.cogs - rent - wages - salaries - t.fines - t.interest,
+      fill: served + lost > 0 ? served / (served + lost) : 1,
+      shelf: shelfCap > 0 ? shelfInv / shelfCap : 0,
+      wh: this.warehouseUsed() / this.warehouse.cap,
     });
     if (this.history.length > 60) this.history.shift();
     this.today = this.blankLedger();

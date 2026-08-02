@@ -1543,20 +1543,31 @@ export class UI {
     const reportOpen = !document.getElementById('week-report').classList.contains('hidden');
     const ph = document.getElementById('paused-hint');
     if (ph) ph.classList.toggle('hidden', g.speed !== 0 || g.gameOver || g.planning || reportOpen);
-    const pb = document.getElementById('plan-bar');
-    if (pb) {
-      const show = g.planning && !g.gameOver && !reportOpen;
-      pb.classList.toggle('hidden', !show);
-      if (show) {
-        const lbl = document.getElementById('plan-label');
-        const txt = `📋 Planning week ${g.weekNum()} — adjust orders, prices & people, then`;
-        if (lbl.dataset.txt !== txt) {
-          lbl.dataset.txt = txt;
-          lbl.innerHTML = `📋 <b>Planning week ${g.weekNum()}</b> — adjust orders, prices &amp; people, then`;
-        }
-      }
+    // Persistent week strip: shows progress while running, arms while planning.
+    const ws = document.getElementById('week-strip');
+    if (ws) {
+      const planning = g.planning && !g.gameOver;
+      ws.classList.toggle('planning', planning);
+      const dayInWeek = ((g.day() - 1) % 7) + 1;
+      const txt = planning
+        ? `📋 Planning week ${g.weekNum()} — adjust orders, prices & people`
+        : `Week ${g.weekNum()} · day ${dayInWeek}/7`;
+      const lbl = document.getElementById('ws-label');
+      if (lbl.textContent !== txt) lbl.textContent = txt;
+      const prog = document.getElementById('ws-prog');
+      if (prog) prog.style.width = planning ? '0%' : `${(((dayInWeek - 1) + g.dayFrac()) / 7) * 100}%`;
+      document.getElementById('btn-run-week').classList.toggle('hidden', !planning || reportOpen);
     }
+    this.refreshDashboard();
     setText('stat-stores', `${g.stores.length} store${g.stores.length === 1 ? '' : 's'}`);
+    const h7 = g.history.slice(-7);
+    if (h7.length) {
+      const p7 = h7.reduce((s, h) => s + h.profit, 0);
+      const s7 = h7.reduce((s, h) => s + h.revenue, 0);
+      setText('stat-profit7', signFmt(Math.round(p7)));
+      document.getElementById('stat-profit7').className = p7 >= 0 ? 'pos' : 'neg';
+      setText('stat-sales7', fmt(Math.round(s7)));
+    }
     const net = g.profitToday();
     const netEl = document.getElementById('stat-net');
     const netTxt = `${signFmt(net)} today`;
@@ -1683,6 +1694,96 @@ export class UI {
       const bh = (d.profit / max) * (h / 2 - 4);
       if (bh >= 0) ctx.fillRect(i * bw, zero - bh, Math.max(1, bw - 1), Math.max(1, bh));
       else ctx.fillRect(i * bw, zero, Math.max(1, bw - 1), Math.max(1, -bh));
+    });
+  }
+
+  // ---- dashboard overlays ------------------------------------------------
+
+  refreshDashboard() {
+    const g = this.game;
+    // Network summary (once a second is plenty).
+    const now = performance.now();
+    if (!this._dashAt || now - this._dashAt > 900) {
+      this._dashAt = now;
+      const net = document.getElementById('net-body');
+      if (net) {
+        const skus = PROD_IDS.filter((p) => g.stores.some((s) => s.range[p])).length;
+        const disc = Object.values(g.vendors).filter((v) => v.discount > 0 || v.contract).length;
+        const html = [
+          ['🏪 Stores', `${g.stores.length} / ${14 - g.rival.stores.length}`],
+          ['🚚 Trucks', g.trucks.length],
+          ['🤝 Vendor deals', `${disc} / ${Object.keys(VENDORS).length}`],
+          ['📦 Lines carried', `${skus} / ${PROD_IDS.length}`],
+          ['🪑 Meetings left', g.meetingsLeft],
+        ].map(([k, v]) => `<div class="net-row"><span>${k}</span><b>${v}</b></div>`).join('');
+        if (net.dataset.k !== html) { net.dataset.k = html; net.innerHTML = html; }
+      }
+      // Alerts: live conditions that deserve a glance.
+      const alerts = [];
+      const outStores = g.stores.filter((s) => Object.values(s.stockoutLogged ?? {}).some(Boolean)).length;
+      if (outStores) alerts.push(['warn', `Stockouts · ${outStores} store${outStores > 1 ? 's' : ''}`]);
+      if (g.cash < 3000) alerts.push(['bad', 'Low cash — watch the balance']);
+      if (g.cash < 0) alerts.push(['bad', 'In debt — interest accruing']);
+      if (g.warehouseUsed() / g.warehouse.cap > 0.92) alerts.push(['warn', 'Warehouse nearly full']);
+      const tu = g.week?.truckSamples > 200 ? g.week.truckBusy / g.week.truckSamples : 0;
+      if (tu > 0.95 && g.trucks.length < g.stores.length) alerts.push(['warn', `Fleet saturated · ${Math.round(tu * 100)}%`]);
+      for (const vid of Object.keys(VENDORS)) {
+        if (g.vendorStruck(vid)) alerts.push(['bad', `${VENDORS[vid].name} on strike`]);
+      }
+      if (g.rival.courting) alerts.push(['warn', `BuyLow courting ${VENDORS[g.rival.courting.vendor].name}`]);
+      const card = document.getElementById('alerts-card');
+      const list = document.getElementById('alerts-list');
+      if (card && list) {
+        card.classList.toggle('hidden', !alerts.length);
+        const html = alerts.slice(0, 5).map(([sev, txt]) =>
+          `<div class="alert-row ${sev}"><i></i>${txt}</div>`).join('');
+        if (list.dataset.k !== html) { list.dataset.k = html; list.innerHTML = html; }
+      }
+      const ver = document.getElementById('rail-version');
+      if (ver && !ver.textContent) ver.textContent = 'v0.15';
+    }
+    // Performance strip: rebuilt when a new day lands in history.
+    const strip = document.getElementById('perf-strip');
+    if (!strip) return;
+    const hist = g.history;
+    const dayKey = hist.length ? String(hist[hist.length - 1].day) : 'none';
+    if (strip.dataset.day === dayKey) return;
+    strip.dataset.day = dayKey;
+    if (hist.length < 2) { strip.innerHTML = ''; return; }
+    const last7 = hist.slice(-7);
+    const prev7 = hist.slice(-14, -7);
+    const avg = (arr, k) => arr.reduce((s, h) => s + h[k], 0) / Math.max(1, arr.length);
+    const latest = hist[hist.length - 1];
+    const cards = [
+      { label: 'Sales /d', val: fmt(Math.round(avg(last7, 'revenue'))), k: 'revenue', delta: prev7.length ? avg(last7, 'revenue') / Math.max(1, avg(prev7, 'revenue')) - 1 : null },
+      { label: 'Profit /d', val: signFmt(Math.round(avg(last7, 'profit'))), k: 'profit', delta: null, signed: true },
+      { label: 'Demand filled', val: `${Math.round((latest.fill ?? 1) * 100)}%`, k: 'fill', delta: prev7.length ? avg(last7, 'fill') - avg(prev7, 'fill') : null, pp: true },
+      { label: 'Shelf stock', val: `${Math.round((latest.shelf ?? 0) * 100)}%`, k: 'shelf' },
+      { label: 'Warehouse', val: `${Math.round((latest.wh ?? 0) * 100)}%`, k: 'wh' },
+    ];
+    strip.innerHTML = cards.map((c, i) => `
+      <div class="perf-card">
+        <span class="pc-label">${c.label}</span>
+        <span class="pc-row"><b class="pc-val">${c.val}</b>${c.delta != null
+    ? `<em class="pc-delta ${c.delta >= 0 ? 'pos' : 'neg'}">${c.delta >= 0 ? '▲' : '▼'}${c.pp ? `${Math.abs(c.delta * 100).toFixed(0)}pp` : `${Math.abs(c.delta * 100).toFixed(0)}%`}</em>` : ''}</span>
+        <canvas class="pc-spark" data-spark="${i}" width="86" height="20"></canvas>
+      </div>`).join('');
+    cards.forEach((c, i) => {
+      const cv = strip.querySelector(`[data-spark="${i}"]`);
+      const ctx = cv.getContext('2d');
+      const data = hist.slice(-14).map((h) => h[c.k] ?? 0);
+      const min = Math.min(...data), max = Math.max(...data);
+      const span = max - min || 1;
+      ctx.strokeStyle = c.signed && avg(last7, 'profit') < 0 ? 'rgba(232,130,140,0.9)' : 'rgba(111,208,140,0.9)';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      data.forEach((v, j) => {
+        const x = (j / (data.length - 1)) * 82 + 2;
+        const y = 17 - ((v - min) / span) * 14;
+        if (j === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
     });
   }
 

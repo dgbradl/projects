@@ -26,12 +26,14 @@
     </div>
   </div>
   <header id="topbar">
-    <div class="brand">🛒 Market Street</div>
-    <div class="stat" id="stat-cash">$0</div>
-    <div class="stat" id="stat-day-wrap"><span id="stat-day">Day 1</span><i id="day-progress"></i></div>
-    <div class="stat hidden" id="stat-holiday"></div>
-    <div class="stat" id="stat-stores">2 stores</div>
-    <div class="stat" id="stat-net">+$0 today</div>
+    <div class="brand"><span class="brand-mark">🛒</span><span class="brand-txt">Market Street<em>Grocery Tycoon</em></span></div>
+    <div class="kpi"><span>Cash</span><b id="stat-cash">$0</b></div>
+    <div class="kpi"><span>Profit (7d)</span><b id="stat-profit7">—</b></div>
+    <div class="kpi"><span>Sales (7d)</span><b id="stat-sales7">—</b></div>
+    <div class="kpi"><span>Today</span><b id="stat-net">+$0</b></div>
+    <div class="kpi" id="stat-day-wrap"><span>Calendar</span><b id="stat-day">Day 1</b><i id="day-progress"></i></div>
+    <div class="kpi hidden" id="stat-holiday"></div>
+    <div class="kpi"><span>Chain</span><b id="stat-stores">2 stores</b></div>
     <div class="spacer"></div>
     <button id="btn-sound" data-tip="Toggle sound" aria-label="Toggle sound" aria-pressed="false">🔊</button>
     <div class="speeds">
@@ -45,6 +47,20 @@
   </header>
 
   <div id="main">
+    <nav id="rail">
+      <nav id="tabs">
+        <button data-tab="stores"><span class="tab-ico">🏪</span><span class="tab-lbl">Stores</span></button>
+        <button data-tab="supply"><span class="tab-ico">🚚</span><span class="tab-lbl">Supply</span></button>
+        <button data-tab="vendors"><span class="tab-ico">🤝</span><span class="tab-lbl">Vendors</span></button>
+        <button data-tab="hq"><span class="tab-ico">🏢</span><span class="tab-lbl">HQ</span></button>
+        <button data-tab="books"><span class="tab-ico">📒</span><span class="tab-lbl">Books</span></button>
+      </nav>
+      <div id="alerts-card" class="hidden">
+        <div class="ac-head">Alerts</div>
+        <div id="alerts-list"></div>
+      </div>
+      <div class="rail-foot fine" id="rail-version"></div>
+    </nav>
     <div id="canvas-wrap">
       <canvas id="game"></canvas>
       <canvas id="minimap" width="160" height="100"></canvas>
@@ -59,10 +75,16 @@
       <div id="modal-backdrop" class="hidden"></div>
       <div id="map-tip" class="hidden"></div>
       <div id="paused-hint" class="hidden">⏸ Paused — press Space or a speed button to resume</div>
-      <div id="plan-bar" class="hidden">
-        <span id="plan-label">📋 <b>Planning week 2</b> — adjust orders, prices &amp; people, then</span>
-        <button id="btn-run-week">▶ Run the week</button>
+      <div id="week-strip">
+        <span id="ws-label">Week 1</span>
+        <span class="ws-track"><i id="ws-prog"></i></span>
+        <button id="btn-run-week" class="hidden">▶ Run the week</button>
       </div>
+      <div id="net-card">
+        <div class="ac-head">Network</div>
+        <div id="net-body"></div>
+      </div>
+      <div id="perf-strip"></div>
       <div id="hint">Click stores &amp; FOR SALE lots on the map · manage the chain from the panels on the right</div>
       <div id="win-banner" class="hidden">
         <h2>🏆 Regional powerhouse!</h2>
@@ -158,14 +180,6 @@
         <div id="goal-title"></div>
         <div id="goal-desc" class="fine"></div>
       </div>
-      <nav id="tabs">
-        <button data-tab="stores"><span class="tab-ico">🏪</span>Stores</button>
-        <button data-tab="supply"><span class="tab-ico">🚚</span>Supply</button>
-        <button data-tab="vendors"><span class="tab-ico">🤝</span>Vendors</button>
-        <button data-tab="hq"><span class="tab-ico">🏢</span>HQ</button>
-        <button data-tab="books"><span class="tab-ico">📒</span>Books</button>
-      </nav>
-
       <div class="tab-page" id="tab-stores">
         <div class="panel">
           <h3>Your stores</h3>

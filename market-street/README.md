@@ -126,6 +126,7 @@ and pull request.
 - **Actionable events**: one-click "match prices" during price wars; optional auto-pause on events
 - **BuyLow+**: rival stores that survive 20 days upgrade into stronger superstores
 - **Books**: per-product margins expose which lines earn their shelf slots
+- **Dashboard shell**: left nav rail with live alert feed, labeled KPI cards (cash, 7-day profit/sales, calendar), a floating network summary, a persistent week strip with run-the-week control, and a performance band with 14-day sparklines over the map
 - **Weekly report**: per-store scorecards — profit with week-over-week trend, a daily revenue sparkline, shelf/staff/reputation meters, and plain statements of where problems occurred (missed sales by product, empty-depot vs delivery gaps, fleet saturation)
 - **Achievements & records**: 8 trophies plus lifetime stats in HQ
 - **Juice**: confetti, truck exhaust, animated event chips

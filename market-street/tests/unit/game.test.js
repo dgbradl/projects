@@ -797,3 +797,15 @@ describe('negotiation economy: meetings, memory, riders, courtship', () => {
     expect(g.unitCost('seafood', 'harborfresh')).toBeGreaterThan(base * 1.02);
   });
 });
+
+describe('dashboard KPIs', () => {
+  it('history entries carry fill, shelf, and warehouse ratios', () => {
+    for (let i = 0; i < 600 * 2 + 5; i++) g.tick(1 / 600);
+    const h = g.history[g.history.length - 1];
+    expect(h.fill).toBeGreaterThan(0);
+    expect(h.fill).toBeLessThanOrEqual(1);
+    expect(h.shelf).toBeGreaterThan(0);
+    expect(h.shelf).toBeLessThanOrEqual(1);
+    expect(h.wh).toBeGreaterThanOrEqual(0);
+  });
+});
