@@ -159,7 +159,68 @@ export const NEGO = {
   perkFreight: 60,     // "free pallet" perk: units delivered gratis
 };
 
+// Planning-stop offers: one-off decision cards dealt at the weekly wrap-up.
+// Half temptation, half trap — every accept has a cost or a risk.
+export const OPPORTUNITIES = {
+  bulk_deal: {
+    icon: '📦', title: 'Overstock windfall',
+    desc: (x) => `${x.vendorName} overbought ${x.productName} — 200 units at half price ($${x.cost}). Warehouse space permitting.`,
+    accept: 'Buy the pallets', decline: 'Pass',
+  },
+  charity_drive: {
+    icon: '❤️', title: 'Food bank drive',
+    desc: () => 'The food bank asks for 120 units of pantry stock from the warehouse. Costs goods, buys goodwill: +5 reputation at every store.',
+    accept: 'Donate', decline: 'Not this week',
+  },
+  critic_tour: {
+    icon: '📰', title: 'The critic calls',
+    desc: (x) => `The Gazette's food critic wants to tour ${x.storeName}. A glowing review is gold — a bad one stings. (Reputation decides.)`,
+    accept: 'Welcome them in', decline: 'Politely decline',
+  },
+  landlord_deal: {
+    icon: '🏠', title: 'Landlord renegotiation',
+    desc: (x) => `${x.storeName}'s landlord will cut rent 25% for 28 days — for $800 up front.`,
+    accept: 'Pay $800', decline: 'Keep the lease as is',
+  },
+  equipment_sale: {
+    icon: '🧊', title: 'Equipment liquidation',
+    desc: (x) => `A closing restaurant is selling cold storage at 40% off ($${x.cost}) — installed at ${x.storeName} this week only.`,
+    accept: 'Buy it', decline: 'Pass',
+  },
+  buylow_truce: {
+    icon: '🕊️', title: 'A quiet week, for a price',
+    desc: () => 'A BuyLow fixer offers a "distribution courtesy": pay $1,200 and they sit out their next move. Paying them feels bad. Being raided feels worse.',
+    accept: 'Pay $1,200', decline: 'Tell them where to put it',
+  },
+};
+
+// Weekly challenges: opt-in bounties measured over the coming week.
+export const CHALLENGES = [
+  { id: 'sell_product', icon: '🛒', productPick: true, targetPerStore: 120, reward: 700,
+    desc: (x) => `Sell ${x.target} units of ${x.productName} this week` },
+  { id: 'revenue', icon: '💰', targetPerStore: 3200, reward: 900,
+    desc: (x) => `Ring up $${x.target.toLocaleString()} in sales this week` },
+  { id: 'fill', icon: '🧺', target: 90, reward: 800,
+    desc: (x) => `Serve ${x.target}% of all demand this week` },
+  { id: 'deals', icon: '🤝', target: 2, reward: 600,
+    desc: (x) => `Close ${x.target} winning negotiations this week` },
+];
+
+// Catering jackpots: a big order walks in mid-week — stocked shelves cash in.
+export const JACKPOT = {
+  chance: 0.10,          // per day, chain-wide
+  units: [25, 45],       // stock consumed
+  premium: 1.5,          // paid over retail
+};
+
 // The rival discount chain contesting the city.
+export const RIVAL_TAUNTS = [
+  '"Nothing personal. It\'s just groceries." — BuyLow regional manager',
+  '"Cute little chain you\'ve got." — BuyLow spokesperson',
+  '"We price to win." — BuyLow shareholder letter',
+  '"Tell Market Street we said hi." — note left at the depot',
+];
+
 export const RIVAL = {
   name: 'BuyLow',
   firstBuyDay: 14,       // when they open their first store

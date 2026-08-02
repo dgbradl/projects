@@ -9,7 +9,8 @@ import {
   DELEGATIONS, PEOPLE_NAMES, RIVAL, DEBT_INTEREST, DEBT_GRACE_DAYS,
   DEBT_HARD_LIMIT, WAGE_DRIFT, GOALS, DIFFICULTY, CONTRACT, STORE_UPGRADES,
   CAMPAIGN, ACHIEVEMENTS, SEASONS, SEASON_DAYS, YEAR_DAYS, HOLIDAYS,
-  HOLIDAY_ANNOUNCE, NEGO, FORMATS,
+  HOLIDAY_ANNOUNCE, NEGO, FORMATS, OPPORTUNITIES, CHALLENGES, JACKPOT,
+  RIVAL_TAUNTS,
 } from './defs.js';
 
 const SAVE_KEY = 'market-street-save-v2';
@@ -95,6 +96,9 @@ export class Game {
     this.planning = false;
     this.preWeekSpeed = 1;
     this.meetingsLeft = NEGO.meetingsPerWeek;
+    this.weekOffer = null;       // this planning stop's decision card
+    this.challenge = null;       // active weekly bounty
+    this.bestWeekProfit = 0;
 
     // The rival chain, and the stakes.
     this.rival = { stores: [], nextBuyDay: D.rivalFirst, openedDay: {}, plus: {} };
@@ -189,6 +193,11 @@ export class Game {
   // the district share the pie, and rival stores siphon shoppers — worse if
   // your prices are high, softened by strong reputation.
   format(store) { return FORMATS[store.format ?? 'corner']; }
+
+  storeRent(store) {
+    const base = this.site(store.siteId).rent;
+    return this.day() < (store.rentDiscUntil ?? 0) ? Math.round(base * 0.75) : base;
+  }
 
   shelfCap(store) { return Math.round(SHELF_CAP * this.format(store).shelfMult); }
 
@@ -312,7 +321,7 @@ export class Game {
     const w = this.wageMult();
     let c = 0;
     for (const store of this.stores) {
-      c += this.site(store.siteId).rent + store.staff * STAFF_WAGE * w;
+      c += this.storeRent(store) + store.staff * STAFF_WAGE * w;
       if (store.manager) c += store.manager.salary * w;
     }
     for (const role of Object.keys(ROLES)) {
@@ -707,6 +716,7 @@ export class Game {
       total: vs.discount,
     };
     this.stats.negotiations = (this.stats.negotiations ?? 0) + 1;
+    if (won && this.challenge?.id === 'deals') this.challenge.progress++;
     return n.result;
   }
 
@@ -969,6 +979,11 @@ export class Game {
         store.today.cogs += cogs;
         this.soldToday[p] += sold;
         this.revToday[p] += revenue;
+        const ch = this.challenge;
+        if (ch) {
+          if (ch.id === 'sell_product' && ch.product === p) ch.progress += sold;
+          else if (ch.id === 'revenue') ch.progress += revenue;
+        }
         servedTick += sold;
         lostTick += want - sold;
         if (want - sold > 0.0001) {
@@ -1393,7 +1408,7 @@ export class Game {
     const w = this.wageMult();
     let rent = 0, wages = 0, salaries = 0;
     for (const store of this.stores) {
-      rent += this.site(store.siteId).rent;
+      rent += this.storeRent(store);
       wages += store.staff * STAFF_WAGE * w;
       if (store.manager) salaries += store.manager.salary * w;
     }
@@ -1463,7 +1478,7 @@ export class Game {
     }
     for (const store of this.stores) {
       const dayProfit = store.today.revenue - store.today.cogs
-        - this.site(store.siteId).rent - store.staff * STAFF_WAGE * this.wageMult()
+        - this.storeRent(store) - store.staff * STAFF_WAGE * this.wageMult()
         - (store.manager ? store.manager.salary * this.wageMult() : 0);
       this.week.storeProfit[store.siteId] =
         (this.week.storeProfit[store.siteId] ?? 0) + dayProfit;
@@ -1494,6 +1509,48 @@ export class Game {
       store.servedToday = 0;
       store.lostToday = 0;
       store.stockoutLogged = {};
+    }
+
+    // Catering jackpot: a big order walks into a random store. Stocked
+    // shelves cash in at a premium; empty ones watch the caterer leave.
+    if (this.stores.length && Math.random() < JACKPOT.chance) {
+      const st = this.stores[Math.floor(Math.random() * this.stores.length)];
+      const carried = PROD_IDS.filter((p) => st.range[p]);
+      const p = carried[Math.floor(Math.random() * carried.length)];
+      const want = JACKPOT.units[0] + Math.floor(Math.random() * (JACKPOT.units[1] - JACKPOT.units[0] + 1));
+      if (st.inv[p] >= want) {
+        const pay = Math.round(want * PRODUCTS[p].retail * JACKPOT.premium);
+        st.inv[p] -= want;
+        this.cash += pay;
+        this.today.revenue += pay;
+        this.today.cogs += want * this.avgCost[p];
+        st.today.revenue += pay;
+        st.today.cogs += want * this.avgCost[p];
+        const site = this.site(st.siteId);
+        this.addFloater(site.x, site.y, `Catering order +$${pay}!`, '#6fd08c');
+        this.log('🎉', `A caterer cleaned out ${want} ${PRODUCTS[p].name} at ${st.name} — +$${pay} at premium prices.`);
+      } else {
+        this.log('💬', `A caterer wanted ${want} ${PRODUCTS[p].name} at ${st.name} — shelves couldn't cover it. They went to ${RIVAL.name}.`);
+      }
+    }
+
+    // Customer vignettes: the city talks about your stores.
+    if (this.stores.length && Math.random() < 0.07) {
+      const st = this.stores[Math.floor(Math.random() * this.stores.length)];
+      if (st.rep > 0.75) {
+        const nice = [
+          `A regular at ${st.name} says it's "the only place that never lets me down."`,
+          `Someone drove across town just to shop at ${st.name}.`,
+          `A local blog called ${st.name} "the neighborhood's living room."`,
+        ];
+        this.log('💬', nice[Math.floor(Math.random() * nice.length)]);
+      } else if (st.rep < 0.35) {
+        const grumble = [
+          `Overheard at ${st.name}: "empty shelves again?"`,
+          `A one-star review of ${st.name} is making the rounds.`,
+        ];
+        this.log('💬', grumble[Math.floor(Math.random() * grumble.length)]);
+      }
     }
 
     // Volume riders come due: honored builds trust, blown ones sting.
@@ -1705,6 +1762,30 @@ export class Game {
         this.log('🦈', `${RIVAL.name} signed a supply deal with ${VENDORS[vid].name} — your prices there are +${Math.round((NEGO.courtPriceMult - 1) * 100)}% for ${NEGO.courtDays} days.`);
         this.rival.courting = null;
       }
+      // Resolve the week's bounty.
+      if (this.challenge) {
+        const ch = this.challenge;
+        if (ch.id === 'fill') {
+          const ws = Object.values(this.week.stores);
+          const served = ws.reduce((s, w) => s + w.served, 0);
+          const lost = ws.reduce((s, w) => s + w.lost, 0);
+          ch.progress = served + lost > 0 ? Math.round((served / (served + lost)) * 100) : 0;
+        }
+        if (ch.progress >= ch.target) {
+          this.cash += ch.reward;
+          this.log('🎲', `Bounty landed: ${ch.text}. +$${ch.reward}!`);
+        } else {
+          this.log('🎲', `Bounty missed: ${ch.text} — finished at ${Math.round(ch.progress)}/${ch.target}. No harm done.`);
+        }
+        this.challenge = null;
+      }
+      // Best week ever?
+      if (profit > this.bestWeekProfit && this.bestWeekProfit > 0) {
+        this.log('🏆', `Best week in company history: $${Math.round(profit).toLocaleString()} profit!`);
+        this.recordWeek = this.weekReportId + 1;
+      }
+      this.bestWeekProfit = Math.max(this.bestWeekProfit, profit);
+      this.rollWeekOffer();
       this.rivalWeeklyMove(day);
       this.prevWeekStores = {};
       for (const [sid, ws] of Object.entries(this.week.stores)) {
@@ -1861,6 +1942,140 @@ export class Game {
     return out;
   }
 
+  // ---- planning-stop offers & weekly challenges --------------------------
+  // Each wrap-up can deal one card: a temptation to accept or decline, or a
+  // bounty to chase over the coming week.
+
+  rollWeekOffer() {
+    this.weekOffer = null;
+    if (Math.random() < 0.30) return;            // some weeks are just quiet
+    if (Math.random() < 0.45) {
+      // A challenge bounty, scaled to chain size.
+      const def = CHALLENGES[Math.floor(Math.random() * CHALLENGES.length)];
+      const n = Math.max(1, this.stores.length);
+      const ch = { id: def.id, icon: def.icon, reward: def.reward + (n - 1) * 150, progress: 0 };
+      if (def.productPick) {
+        const carried = this.carriedProducts();
+        if (!carried.length) return;
+        ch.product = carried[Math.floor(Math.random() * carried.length)];
+        ch.target = def.targetPerStore * n;
+        ch.text = def.desc({ target: ch.target, productName: PRODUCTS[ch.product].name });
+      } else if (def.targetPerStore) {
+        ch.target = def.targetPerStore * n;
+        ch.text = def.desc({ target: ch.target });
+      } else {
+        ch.target = def.target;
+        ch.text = def.desc({ target: ch.target });
+      }
+      this.weekOffer = { kind: 'challenge', challenge: ch, icon: ch.icon, title: 'Weekly bounty', text: `${ch.text} — +$${ch.reward}.`, accept: 'Take the bounty', decline: 'Skip it' };
+      return;
+    }
+    // An opportunity card with a real cost or risk.
+    const pool = Object.keys(OPPORTUNITIES).filter((id) => {
+      if (id === 'critic_tour') return this.stores.some((s) => s.format === 'gourmet');
+      if (id === 'buylow_truce') return this.rival.stores.length > 0;
+      if (id === 'equipment_sale') return this.stores.some((s) => !s.upgrades?.coldstorage);
+      if (id === 'charity_drive') return (this.warehouse.inv.pantry ?? 0) >= 120;
+      return true;
+    });
+    if (!pool.length) return;
+    const id = pool[Math.floor(Math.random() * pool.length)];
+    const def = OPPORTUNITIES[id];
+    const offer = { kind: 'opportunity', id, icon: def.icon, accept: def.accept, decline: def.decline, title: def.title };
+    if (id === 'bulk_deal') {
+      const p = this.carriedProducts()[0] ? this.carriedProducts()[Math.floor(Math.random() * this.carriedProducts().length)] : 'pantry';
+      const vendor = this.cheapestVendor(p);
+      offer.product = p;
+      offer.cost = Math.round(200 * this.unitCost(p, vendor) * 0.5);
+      offer.text = def.desc({ vendorName: VENDORS[vendor].name, productName: PRODUCTS[p].name, cost: offer.cost });
+    } else if (id === 'critic_tour') {
+      const st = this.stores.find((s) => s.format === 'gourmet');
+      offer.siteId = st.siteId;
+      offer.text = def.desc({ storeName: st.name });
+    } else if (id === 'landlord_deal' || id === 'equipment_sale') {
+      const cands = id === 'equipment_sale'
+        ? this.stores.filter((s) => !s.upgrades?.coldstorage) : this.stores;
+      const st = cands[Math.floor(Math.random() * cands.length)];
+      offer.siteId = st.siteId;
+      offer.cost = id === 'landlord_deal' ? 800 : Math.round(STORE_UPGRADES.coldstorage.cost * 0.6);
+      offer.text = def.desc({ storeName: st.name, cost: offer.cost });
+    } else {
+      offer.text = def.desc({});
+    }
+    this.weekOffer = offer;
+  }
+
+  acceptOffer() {
+    const o = this.weekOffer;
+    if (!o) return null;
+    this.weekOffer = null;
+    if (o.kind === 'challenge') {
+      this.challenge = { ...o.challenge, weekStart: this.day() };
+      this.log('🎲', `Bounty accepted: ${o.challenge.text} for $${o.challenge.reward}.`);
+      return { ok: true, note: 'Bounty on. Progress shows under the objective.' };
+    }
+    switch (o.id) {
+      case 'bulk_deal': {
+        if (this.cash < o.cost) return { ok: false, note: 'Not enough cash.' };
+        const space = this.warehouse.cap - this.warehouseUsed();
+        const qty = Math.min(200, Math.floor(space));
+        if (qty < 50) return { ok: false, note: 'No warehouse space for the pallets.' };
+        this.cash -= o.cost;
+        this.warehouse.inv[o.product] += qty;
+        this.log('📦', `Bought ${qty} discounted ${PRODUCTS[o.product].name} — a steal.`);
+        return { ok: true, note: `${qty} units landed in the warehouse.` };
+      }
+      case 'charity_drive': {
+        if ((this.warehouse.inv.pantry ?? 0) < 120) return { ok: false, note: 'Not enough pantry stock left.' };
+        this.warehouse.inv.pantry -= 120;
+        for (const st of this.stores) st.rep = Math.min(1, st.rep + 0.05);
+        this.log('❤️', 'Food bank drive: 120 pantry units donated. The city noticed.');
+        return { ok: true, note: 'Reputation up at every store.' };
+      }
+      case 'critic_tour': {
+        const st = this.storeAt(o.siteId);
+        if (!st) return { ok: false, note: 'That store is gone.' };
+        if (st.rep >= 0.65) {
+          st.rep = Math.min(1, st.rep + 0.12);
+          this.log('📰', `The Gazette raves about ${st.name}: "the best cheese counter in the city." Reputation soars.`);
+          return { ok: true, note: 'A glowing review!' };
+        }
+        st.rep = Math.max(0, st.rep - 0.08);
+        this.log('📰', `The Gazette's review of ${st.name} is... not kind. "Ambitions above its shelves."`);
+        return { ok: true, note: 'Ouch. The review stung.' };
+      }
+      case 'landlord_deal': {
+        if (this.cash < o.cost) return { ok: false, note: 'Not enough cash.' };
+        this.cash -= o.cost;
+        const st = this.storeAt(o.siteId);
+        if (st) st.rentDiscUntil = this.day() + 28;
+        this.log('🏠', `Rent cut locked in at ${st?.name} for 28 days.`);
+        return { ok: true, note: 'Rent −25% for 28 days.' };
+      }
+      case 'equipment_sale': {
+        if (this.cash < o.cost) return { ok: false, note: 'Not enough cash.' };
+        const st = this.storeAt(o.siteId);
+        if (!st || st.upgrades?.coldstorage) return { ok: false, note: 'No longer available.' };
+        this.cash -= o.cost;
+        st.upgrades.coldstorage = true;
+        this.log('🧊', `Discounted cold storage installed at ${st.name}.`);
+        return { ok: true, note: 'Cold storage installed.' };
+      }
+      case 'buylow_truce': {
+        if (this.cash < 1200) return { ok: false, note: 'Not enough cash.' };
+        this.cash -= 1200;
+        this.rival.truceUntil = this.day() + 8;
+        this.log('🕊️', 'You paid BuyLow\'s "distribution courtesy". A quiet week — and a bad taste.');
+        return { ok: true, note: 'BuyLow sits out its next move.' };
+      }
+      default: return null;
+    }
+  }
+
+  declineOffer() {
+    this.weekOffer = null;
+  }
+
   // ---- BuyLow's weekly move ----------------------------------------------
   // Once it has a foothold, the rival plays one card per week: courting a
   // vendor, poaching your people, eyeing a lot, or raiding a district.
@@ -1875,7 +2090,7 @@ export class Game {
         const site = this.site(eye.siteId);
         this.rival.stores.push(eye.siteId);
         this.rival.openedDay[eye.siteId] = day;
-        this.log('🦈', `${RIVAL.name} closed on the ${this.district(site.district).name} lot it was eyeing.`);
+        this.log('🦈', `${RIVAL.name} closed on the ${this.district(site.district).name} lot it was eyeing. ${RIVAL_TAUNTS[Math.floor(Math.random() * RIVAL_TAUNTS.length)]}`);
         this.addFloater(site.x, site.y, `${RIVAL.name} opens!`, '#e8828c');
       }
     }
@@ -1883,6 +2098,7 @@ export class Game {
     if (this.rival.raid && day >= this.rival.raid.until) this.rival.raid = null;
 
     if (!this.rival.stores.length) return;
+    if (day < (this.rival.truceUntil ?? 0)) return;   // bought silence
     const roll = Math.random();
     if (roll < 0.30) return;                                   // a quiet week
     if (roll < 0.50) {
@@ -1906,7 +2122,7 @@ export class Game {
       if (t.p.skill >= 2 && Math.random() < 0.45) {
         if (t.kind === 'manager') t.st.manager = null;
         else this.hq[t.role] = null;
-        this.log('🦈', `${RIVAL.name} poached ${t.p.name} with a fat offer — the ${t.kind === 'manager' ? `${t.st.name} manager` : ROLES[t.role].name} seat is empty.`);
+        this.log('🦈', `${RIVAL.name} poached ${t.p.name} with a fat offer — the ${t.kind === 'manager' ? `${t.st.name} manager` : ROLES[t.role].name} seat is empty. ${RIVAL_TAUNTS[Math.floor(Math.random() * RIVAL_TAUNTS.length)]}`);
       } else {
         t.p.salary = Math.round(t.p.salary * 1.15);
         this.log('🦈', `${t.p.name} turned down a ${RIVAL.name} offer — and their salary just went up 15% to ${Math.round(t.p.salary)}/day.`);
@@ -1972,6 +2188,9 @@ export class Game {
       planning: this.planning,
       preWeekSpeed: this.preWeekSpeed,
       meetingsLeft: this.meetingsLeft,
+      weekOffer: this.weekOffer ?? null,
+      challenge: this.challenge ?? null,
+      bestWeekProfit: this.bestWeekProfit,
       prevWeekStores: this.prevWeekStores ?? null,
       prevWeekProfit: this.prevWeekProfit ?? null,
       lastWeekReport: this.lastWeekReport ?? null,
@@ -2042,6 +2261,9 @@ export class Game {
     this.planning = d.planning ?? false;
     this.preWeekSpeed = d.preWeekSpeed ?? 1;
     this.meetingsLeft = d.meetingsLeft ?? NEGO.meetingsPerWeek;
+    this.weekOffer = d.weekOffer ?? null;
+    this.challenge = d.challenge ?? null;
+    this.bestWeekProfit = d.bestWeekProfit ?? 0;
     this.prevWeekStores = d.prevWeekStores ?? null;
     this.prevWeekProfit = d.prevWeekProfit ?? null;
     this.lastWeekReport = d.lastWeekReport ?? this.lastWeekReport;

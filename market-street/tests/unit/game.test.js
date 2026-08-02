@@ -895,3 +895,82 @@ describe('weekly events, rival moves, and store formats', () => {
     expect(g2.stores[0].servedToday).toBeGreaterThan(0);
   });
 });
+
+describe('fun layer: offers, bounties, jackpots, records', () => {
+  let realRandom;
+  beforeEach(() => { realRandom = Math.random; });
+  afterEach(() => { Math.random = realRandom; });
+  const week = (gg) => { for (let i = 0; i < 600 * 7 + 5; i++) gg.tick(1 / 600); };
+
+  it('a planning stop can deal an offer card', () => {
+    Math.random = () => 0.5;      // rolls: offer happens, challenge branch skipped -> opportunity
+    g.rollWeekOffer();
+    expect(g.weekOffer).toBeTruthy();
+    expect(['challenge', 'opportunity']).toContain(g.weekOffer.kind);
+  });
+
+  it('accepting a bulk deal costs cash and fills the warehouse', () => {
+    g.weekOffer = { kind: 'opportunity', id: 'bulk_deal', product: 'pantry', cost: 100 };
+    const cash = g.cash;
+    const inv = g.warehouse.inv.pantry;
+    const res = g.acceptOffer();
+    expect(res.ok).toBe(true);
+    expect(g.cash).toBe(cash - 100);
+    expect(g.warehouse.inv.pantry).toBeGreaterThan(inv);
+    expect(g.weekOffer).toBeNull();
+  });
+
+  it('the critic gamble swings on reputation', () => {
+    const st = g.storeAt('s1');
+    st.rep = 0.9;
+    g.weekOffer = { kind: 'opportunity', id: 'critic_tour', siteId: 's1' };
+    g.acceptOffer();
+    expect(st.rep).toBeGreaterThan(0.9);
+    st.rep = 0.3;
+    g.weekOffer = { kind: 'opportunity', id: 'critic_tour', siteId: 's1' };
+    g.acceptOffer();
+    expect(st.rep).toBeLessThan(0.3);
+  });
+
+  it('a truce buys a quiet rival week', () => {
+    g.rival.stores = ['s10'];
+    g.cash = 5000;
+    g.weekOffer = { kind: 'opportunity', id: 'buylow_truce' };
+    g.acceptOffer();
+    expect(g.rival.truceUntil).toBe(g.day() + 8);
+    Math.random = () => 0.9;      // would be a raid...
+    g.rivalWeeklyMove(g.day());
+    expect(g.rival.raid).toBeFalsy();   // ...but the truce holds
+  });
+
+  it('a revenue bounty tracks sales and pays out', () => {
+    g.challenge = { id: 'revenue', target: 1, progress: 0, reward: 500, text: 'test bounty' };
+    const cash0 = g.cash;
+    week(g);
+    // Revenue far exceeds $1 target; payout happened at the wrap-up.
+    expect(g.challenge).toBeNull();
+    expect(g.cash).toBeGreaterThan(cash0 - 5000);   // sanity: game kept running
+    expect(g.logEntries.some((e) => e.text.includes('Bounty landed'))).toBe(true);
+  });
+
+  it('landlord deal cuts that store\'s rent for a while', () => {
+    const st = g.storeAt('s1');
+    const base = g.storeRent(st);
+    g.cash = 5000;
+    g.weekOffer = { kind: 'opportunity', id: 'landlord_deal', siteId: 's1', cost: 800 };
+    g.acceptOffer();
+    expect(g.storeRent(st)).toBe(Math.round(base * 0.75));
+  });
+
+  it('a stocked shelf catches the catering jackpot', async () => {
+    const { JACKPOT } = await import('../../src/defs.js');
+    const st = g.storeAt('s1');
+    for (const p of Object.keys(st.inv)) st.inv[p] = 60;
+    const saved = JACKPOT.chance;
+    JACKPOT.chance = 1;               // guarantee the caterer shows up
+    g.time = Math.floor(g.time) + 0.999;
+    for (let i = 0; i < 5; i++) g.tick(1 / 600);   // cross a day boundary
+    JACKPOT.chance = saved;
+    expect(g.logEntries.some((e) => e.text.includes('caterer'))).toBe(true);
+  });
+});

@@ -60,6 +60,20 @@ export class UI {
       document.getElementById('welcome-banner').classList.add('hidden');
     });
     document.getElementById('btn-week-close').addEventListener('click', () => this.closeWeeklyReport());
+    document.getElementById('wr-body').addEventListener('click', (e) => {
+      const card = document.getElementById('wr-offer');
+      if (!card) return;
+      if (e.target.closest('[data-offer-accept]')) {
+        const res = this.game.acceptOffer();
+        card.innerHTML = `<div class="wr-offer-head">✅ <b>${res?.ok === false ? 'Couldn\'t do it' : 'Done'}</b></div><p>${res?.note ?? ''}</p>`;
+        sfx.dealYes?.();
+        this.game.save();
+      } else if (e.target.closest('[data-offer-decline]')) {
+        this.game.declineOffer();
+        card.innerHTML = '<div class="wr-offer-head">🚪 <b>Passed</b></div><p>Maybe next week.</p>';
+        this.game.save();
+      }
+    });
     document.getElementById('btn-week-run').addEventListener('click', () => this.runWeek());
     document.getElementById('btn-run-week').addEventListener('click', () => this.runWeek());
     document.getElementById('btn-nego-roll').addEventListener('click', () => {
@@ -1373,6 +1387,28 @@ export class UI {
     }
   }
 
+  refreshChallenge() {
+    const g = this.game;
+    let el = document.getElementById('goal-challenge');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'goal-challenge';
+      document.getElementById('goal-panel').appendChild(el);
+    }
+    const ch = g.challenge;
+    if (!ch) { el.classList.add('hidden'); return; }
+    el.classList.remove('hidden');
+    const prog = Math.min(ch.target, Math.round(ch.progress));
+    const txt = `🎲 ${ch.text} — <b>${prog.toLocaleString()}/${ch.target.toLocaleString()}</b> · +$${ch.reward}`;
+    if (el.dataset.k !== txt) {
+      el.dataset.k = txt;
+      el.innerHTML = `${txt}<span class="ch-track"><i style="width:${Math.min(100, (ch.progress / ch.target) * 100)}%"></i></span>`;
+    } else {
+      const bar = el.querySelector('.ch-track i');
+      if (bar) bar.style.width = `${Math.min(100, (ch.progress / ch.target) * 100)}%`;
+    }
+  }
+
   refreshGoal() {
     const g = this.game;
     if (this.lastGoalIndex === undefined) this.lastGoalIndex = g.goalIndex;
@@ -1453,6 +1489,17 @@ export class UI {
     lines.push(`<div class="pl-row"><span>BuyLow stores</span><b>${r.rivalStores}</b></div>`);
     for (const f of r.chain ?? []) {
       lines.push(`<div class="wr-issue chain">⚠ ${f.text}</div>`);
+    }
+    const offer = this.game.weekOffer;
+    if (offer && this.game.planning) {
+      lines.push(`<div class="wr-offer" id="wr-offer">
+        <div class="wr-offer-head">${offer.icon} <b>${offer.title}</b></div>
+        <p>${offer.text}</p>
+        <div class="wr-actions">
+          <button data-offer-decline>${offer.decline}</button>
+          <button data-offer-accept class="primary">${offer.accept}</button>
+        </div>
+      </div>`);
     }
     if (r.incoming?.length) {
       const g2 = this.game;
@@ -1601,6 +1648,7 @@ export class UI {
       document.getElementById('btn-run-week').classList.toggle('hidden', !planning || reportOpen);
     }
     this.refreshDashboard();
+    this.refreshChallenge();
     setText('stat-stores', `${g.stores.length} store${g.stores.length === 1 ? '' : 's'}`);
     const repEl = document.getElementById('stat-rep');
     if (repEl && g.stores.length) {
@@ -1791,7 +1839,7 @@ export class UI {
         if (list.dataset.k !== html) { list.dataset.k = html; list.innerHTML = html; }
       }
       const ver = document.getElementById('rail-version');
-      if (ver && !ver.textContent) ver.textContent = 'v0.17';
+      if (ver && !ver.textContent) ver.textContent = 'v0.18';
     }
     // Performance strip: rebuilt when a new day lands in history.
     const strip = document.getElementById('perf-strip');

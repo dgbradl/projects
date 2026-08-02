@@ -40,6 +40,13 @@ link can be the bottleneck.
 | **Stakes** | BuyLow plays one card a week: courting your vendors, poaching your best people, eyeing lots (buy first or lose them), and price-raiding your top district. Sister stores cannibalize; wages drift; the bank has limits |
 | **Formats** | Convert stores: Corner / Supermarket / Gourmet — shelves, traffic, margins, staffing and spoilage all shift, and each district's crowd has a favorite |
 
+Every planning stop can deal an **offer card** — bulk-buy windfalls, food-bank
+drives, a food critic's tour (a reputation gamble), landlord deals, equipment
+sales, or BuyLow's oily truce — and **weekly bounties** you can chase for cash.
+Mid-week, caterers walk in with jackpot orders that only stocked shelves can
+catch, the city gossips about your stores, and beating your best-ever week
+makes the papers.
+
 **Win:** 8 stores and $200k banked. **Lose:** the bank calls your debt.
 A goal ladder walks you through the systems on the way.
 
