@@ -1320,3 +1320,39 @@ input[type="checkbox"] { accent-color: var(--accent); }
   #stat-profit7, #stat-sales7 { display: none; }
   #stat-profit7 { display: none; }
 }
+
+/* map label chips */
+#map-labels { position: absolute; inset: 0; pointer-events: none; z-index: 2; overflow: hidden; }
+.map-chip {
+  position: absolute; left: 0; top: 0; pointer-events: auto;
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(14, 19, 29, 0.88); backdrop-filter: blur(6px);
+  border: 1px solid rgba(160, 190, 255, 0.14); border-radius: 999px;
+  padding: 2px 9px 2px 6px; font-size: 10.5px; color: #dbe4f0;
+  white-space: nowrap; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+  cursor: pointer; will-change: transform;
+}
+.map-chip i { width: 6px; height: 6px; border-radius: 50%; }
+.map-chip b { font-variant-numeric: tabular-nums; }
+.map-chip.store i { background: var(--good); box-shadow: 0 0 5px rgba(111, 208, 140, 0.7); }
+.map-chip.store b { color: var(--good); }
+.map-chip.store:hover { border-color: rgba(242, 193, 78, 0.6); }
+.map-chip.wh { cursor: default; }
+.map-chip.wh i { background: #7fd8e0; box-shadow: 0 0 5px rgba(127, 216, 224, 0.7); }
+.map-chip.wh b { color: #7fd8e0; }
+.map-chip.rival { cursor: default; }
+.map-chip.rival i { background: var(--bad); box-shadow: 0 0 5px rgba(232, 130, 140, 0.7); }
+@media (max-width: 860px) { #map-labels { display: none; } }
+
+/* ranked store list + recent events */
+.srank {
+  width: 16px; height: 16px; border-radius: 5px; flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(255, 255, 255, 0.07); border: 1px solid var(--edge);
+  font-size: 10px; font-weight: 700; color: var(--dim);
+}
+.store-row:first-child .srank { color: var(--accent); border-color: rgba(242, 193, 78, 0.4); }
+.rev-row { display: flex; gap: 7px; padding: 3px 0; line-height: 1.35; }
+.rev-day { color: var(--dim); flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+.rev-good { color: var(--good); }
+.rev-bad { color: #f0a8ae; }

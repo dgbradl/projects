@@ -30,6 +30,7 @@
     <div class="kpi"><span>Cash</span><b id="stat-cash">$0</b></div>
     <div class="kpi"><span>Profit (7d)</span><b id="stat-profit7">—</b></div>
     <div class="kpi"><span>Sales (7d)</span><b id="stat-sales7">—</b></div>
+    <div class="kpi"><span>Reputation</span><b id="stat-rep">—</b></div>
     <div class="kpi"><span>Today</span><b id="stat-net">+$0</b></div>
     <div class="kpi" id="stat-day-wrap"><span>Calendar</span><b id="stat-day">Day 1</b><i id="day-progress"></i></div>
     <div class="kpi hidden" id="stat-holiday"></div>
@@ -64,6 +65,7 @@
     <div id="canvas-wrap">
       <canvas id="game"></canvas>
       <canvas id="minimap" width="160" height="100"></canvas>
+      <div id="map-labels"></div>
       <div id="toast" class="hidden"></div>
       <div id="zoom-controls">
         <button id="zoom-in" data-tip="Zoom in" aria-label="Zoom in">＋</button>
@@ -186,6 +188,10 @@
           <div id="store-list"></div>
         </div>
         <div class="panel" id="store-detail"></div>
+        <div class="panel">
+          <h3>Recent events</h3>
+          <div id="recent-events" class="fine"></div>
+        </div>
         <div class="panel">
           <h3>How it works</h3>
           <p class="fine">

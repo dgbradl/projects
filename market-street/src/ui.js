@@ -571,16 +571,26 @@ export class UI {
 
   // ---- stores tab -------------------------------------------------------
 
+  rankedStores() {
+    const g = this.game;
+    return [...g.stores].sort((a, b) =>
+      ((g.week.stores?.[b.siteId]?.rev ?? 0) + b.today.revenue)
+      - ((g.week.stores?.[a.siteId]?.rev ?? 0) + a.today.revenue));
+  }
+
   renderStoreList() {
     const g = this.game;
     const wrap = document.getElementById('store-list');
     wrap.innerHTML = '';
-    for (const store of g.stores) {
+    let rank = 0;
+    for (const store of this.rankedStores()) {
+      rank++;
       const site = g.site(store.siteId);
       const row = document.createElement('button');
       row.className = 'store-row' + (this.selectedSite === site.id ? ' selected' : '');
       row.innerHTML = `
         <span class="drow">
+          <span class="srank">${rank}</span>
           <span class="ddot" style="background:${DISTRICT_COLOR[site.district]}"></span>
           <span class="sname">${store.name}</span>
           <span class="sdist">${g.district(site.district).name}</span>
@@ -1560,6 +1570,13 @@ export class UI {
     }
     this.refreshDashboard();
     setText('stat-stores', `${g.stores.length} store${g.stores.length === 1 ? '' : 's'}`);
+    const repEl = document.getElementById('stat-rep');
+    if (repEl && g.stores.length) {
+      const avgRep = g.stores.reduce((s, st) => s + st.rep, 0) / g.stores.length;
+      const txt = `${Math.round(avgRep * 100)}% ●`;
+      if (repEl.textContent !== txt) repEl.textContent = txt;
+      repEl.style.color = avgRep > 0.6 ? 'var(--good)' : avgRep > 0.35 ? 'var(--accent)' : 'var(--bad)';
+    }
     const h7 = g.history.slice(-7);
     if (h7.length) {
       const p7 = h7.reduce((s, h) => s + h.profit, 0);
@@ -1570,7 +1587,7 @@ export class UI {
     }
     const net = g.profitToday();
     const netEl = document.getElementById('stat-net');
-    const netTxt = `${signFmt(net)} today`;
+    const netTxt = signFmt(net);
     if (netEl.textContent !== netTxt) netEl.textContent = netTxt;
     netEl.classList.toggle('pos', net >= 0);
     netEl.classList.toggle('neg', net < 0);
@@ -1626,6 +1643,7 @@ export class UI {
     this.syncBackdrop();
 
     if (this.tab === 'stores') this.refreshStores();
+    if (this.tab === 'stores') this.refreshRecentEvents();
     if (this.tab === 'supply') this.refreshSupply();
     if (this.tab === 'vendors') this.refreshVendors();
     if (this.tab === 'hq') { this.refreshRoles(); this.refreshMilestones(); this.refreshDelegations(); this.refreshRecords(); }
@@ -1701,6 +1719,7 @@ export class UI {
 
   refreshDashboard() {
     const g = this.game;
+    this.refreshMapLabels();
     // Network summary (once a second is plenty).
     const now = performance.now();
     if (!this._dashAt || now - this._dashAt > 900) {
@@ -1740,7 +1759,7 @@ export class UI {
         if (list.dataset.k !== html) { list.dataset.k = html; list.innerHTML = html; }
       }
       const ver = document.getElementById('rail-version');
-      if (ver && !ver.textContent) ver.textContent = 'v0.15';
+      if (ver && !ver.textContent) ver.textContent = 'v0.16';
     }
     // Performance strip: rebuilt when a new day lands in history.
     const strip = document.getElementById('perf-strip');
@@ -1787,10 +1806,79 @@ export class UI {
     });
   }
 
+  // Floating chips pinned to buildings on the map, like the reference mock:
+  // player stores with live sales, the warehouse with capacity, BuyLow in red.
+  refreshMapLabels() {
+    const g = this.game;
+    const r = window.renderer;
+    const layer = document.getElementById('map-labels');
+    if (!layer || !r) return;
+    const wanted = [
+      ...g.stores.map((st) => ({ id: st.siteId, kind: 'store' })),
+      { id: 'wh', kind: 'wh' },
+      ...g.rival.stores.map((sid) => ({ id: `r-${sid}`, kind: 'rival', sid })),
+    ];
+    const key = wanted.map((w) => w.id).join('|');
+    if (layer.dataset.k !== key) {
+      layer.dataset.k = key;
+      layer.innerHTML = '';
+      for (const w of wanted) {
+        const chip = document.createElement('button');
+        chip.className = `map-chip ${w.kind}`;
+        chip.dataset.chip = w.id;
+        if (w.kind === 'store') {
+          chip.addEventListener('click', () => {
+            this.selectedSite = w.id;
+            this.setTab?.('stores');
+            document.querySelector('[data-tab="stores"]')?.click();
+            this.renderStoreList();
+          });
+        }
+        layer.appendChild(chip);
+      }
+    }
+    const pad = 40;
+    for (const w of wanted) {
+      const chip = layer.querySelector(`[data-chip="${w.id}"]`);
+      if (!chip) continue;
+      let x, y, html;
+      if (w.kind === 'store') {
+        const st = g.storeAt(w.id);
+        const site = g.site(w.id);
+        if (!st || !site) { chip.style.display = 'none'; continue; }
+        ({ sx: x, sy: y } = r.toScreen(site.x, site.y));
+        y -= 34 * r.scale;
+        const sales = st.yesterday?.revenue || st.today.revenue;
+        html = `<i></i>${st.name}<b>${fmt(sales)}</b>`;
+        chip.title = st.yesterday?.revenue ? "Yesterday's sales" : "Today's sales so far";
+      } else if (w.kind === 'wh') {
+        ({ sx: x, sy: y } = r.toScreen(11, 11));
+        y -= 38 * r.scale;
+        html = `<i></i>Warehouse<b>${Math.round((g.warehouseUsed() / g.warehouse.cap) * 100)}%</b>`;
+      } else {
+        const site = g.site(w.sid);
+        if (!g.rivalAt(w.sid)) { chip.style.display = 'none'; continue; }
+        ({ sx: x, sy: y } = r.toScreen(site.x, site.y));
+        y -= 30 * r.scale;
+        html = `<i></i>BuyLow${g.rival.plus?.[w.sid] ? '+' : ''}`;
+      }
+      const off = x < -pad || x > r.w + pad || y < 10 || y > r.h + pad;
+      chip.style.display = off ? 'none' : '';
+      if (!off) {
+        if (chip.dataset.h !== html) { chip.dataset.h = html; chip.innerHTML = html; }
+        chip.style.transform = `translate(-50%, -100%) translate(${x}px, ${y}px)`;
+      }
+    }
+  }
+
   refreshStores() {
     const g = this.game;
     const wrap = document.getElementById('store-list');
-    if (wrap.children.length !== g.stores.length) this.renderStoreList();
+    const order = this.rankedStores().map((s) => s.siteId).join('|');
+    if (wrap.children.length !== g.stores.length || wrap.dataset.order !== order) {
+      wrap.dataset.order = order;
+      this.renderStoreList();
+    }
     for (const store of g.stores) {
       const el = wrap.querySelector(`[data-rev="${store.siteId}"]`);
       if (el) {
@@ -1854,6 +1942,24 @@ export class UI {
       const n = box.querySelector(`[data-invn="${p}"]`);
       if (n) setEl(n, `${Math.round(store.inv[p])}/${SHELF_CAP}`);
     }
+  }
+
+  refreshRecentEvents() {
+    const g = this.game;
+    const wrap = document.getElementById('recent-events');
+    if (!wrap) return;
+    const entries = g.logEntries.slice(-5).reverse();
+    const key = entries.length ? `${g.logEntries.length}-${entries[0].text}` : 'none';
+    if (wrap.dataset.k === key) return;
+    wrap.dataset.k = key;
+    const GOOD = ['🤝', '🎉', '🏆', '📜', '🎯', '💼', '🏗️'];
+    const BAD = ['💢', '🫙', '⚠️', '✊', '🦈', '💥', '🧊'];
+    wrap.innerHTML = entries.length
+      ? entries.map((e) => `<div class="rev-row">
+          <span class="rev-day">D${e.day}</span>
+          <span class="${GOOD.includes(e.icon) ? 'rev-good' : BAD.includes(e.icon) ? 'rev-bad' : ''}">${e.icon} ${e.text}</span>
+        </div>`).join('')
+      : 'Quiet so far.';
   }
 
   refreshSupply() {
