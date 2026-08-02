@@ -69,6 +69,20 @@ canvas.addEventListener('wheel', (e) => {
 }, { passive: false });
 canvas.addEventListener('dblclick', () => renderer.resetView());
 
+// Minimap: click (or drag) to fly the camera.
+const minimap = document.getElementById('minimap');
+function miniJump(e) {
+  const r = minimap.getBoundingClientRect();
+  renderer.minimapJump(e.clientX - r.left, e.clientY - r.top);
+}
+minimap.addEventListener('pointerdown', (e) => {
+  minimap.setPointerCapture(e.pointerId);
+  miniJump(e);
+});
+minimap.addEventListener('pointermove', (e) => {
+  if (e.buttons) miniJump(e);
+});
+
 // On-screen zoom controls (important on touch devices).
 document.getElementById('zoom-in').addEventListener('click', () => renderer.setZoom(renderer.zoom * 1.25));
 document.getElementById('zoom-out').addEventListener('click', () => renderer.setZoom(renderer.zoom / 1.25));

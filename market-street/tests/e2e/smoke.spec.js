@@ -8,7 +8,11 @@ test('boots clean and simulates', async ({ page }) => {
 
   await page.goto('/');
   await expect(page.locator('#game')).toBeVisible();
-  await page.click('#btn-welcome-close');   // fresh profile shows the welcome card
+  // Fresh profile lands on the title screen; pick a difficulty and start.
+  await expect(page.locator('#title-screen')).toBeVisible();
+  await page.click('.diff-card[data-diff="standard"]');
+  await page.click('#btn-title-start');
+  await expect(page.locator('#title-screen')).toBeHidden();
   await expect(page.locator('#stat-cash')).toContainText('$');
 
   // Fast-forward 10 game days in-page; the chain should function.
@@ -32,8 +36,8 @@ test('boots clean and simulates', async ({ page }) => {
 test('map click selects a store and tabs switch', async ({ page }) => {
   await page.goto('/');
   await page.waitForTimeout(300);
-  const welcome = page.locator('#btn-welcome-close');
-  if (await welcome.isVisible()) await welcome.click();
+  const start = page.locator('#btn-title-start');
+  if (await start.isVisible()) await start.click();
   await expect(page.locator('#modal-backdrop')).toBeHidden();   // backdrop clears next frame
 
   // Click store #1's tile via the renderer's own projection.
@@ -56,8 +60,8 @@ test('layout adapts to a phone viewport', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
   await page.waitForTimeout(400);
-  const welcome2 = page.locator('#btn-welcome-close');
-  if (await welcome2.isVisible()) await welcome2.click();
+  const start2 = page.locator('#btn-title-start');
+  if (await start2.isVisible()) await start2.click();
   const widths = await page.evaluate(() => ({
     canvas: document.getElementById('game').getBoundingClientRect().width,
     sidebar: document.getElementById('sidebar').getBoundingClientRect().width,
@@ -69,8 +73,8 @@ test('layout adapts to a phone viewport', async ({ page }) => {
 
 test('new systems are reachable from the UI', async ({ page }) => {
   await page.goto('/');
-  const welcome = page.locator('#btn-welcome-close');
-  if (await welcome.isVisible()) await welcome.click();
+  const start = page.locator('#btn-title-start');
+  if (await start.isVisible()) await start.click();
 
   // Settings modal round-trip.
   await page.click('#btn-settings');
@@ -101,8 +105,8 @@ test('new systems are reachable from the UI', async ({ page }) => {
 test('weekly planning loop: stop, plan, run', async ({ page }) => {
   await page.goto('/');
   await page.waitForTimeout(300);
-  const welcome = page.locator('#btn-welcome-close');
-  if (await welcome.isVisible()) await welcome.click();
+  const start = page.locator('#btn-title-start');
+  if (await start.isVisible()) await start.click();
 
   // Fast-forward to the end of week 1 — the game must stop into planning.
   await page.evaluate(() => {

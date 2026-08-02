@@ -115,7 +115,8 @@ and pull request.
   port congestion (+1 day on all lead times), farmers markets (cheap produce —
   a buying opportunity); weather events now respect the season
 
-- **Camera**: wheel/pinch-button zoom anchored at the cursor, drag to pan, double-click to reset
+- **Camera**: wheel/pinch-button zoom anchored at the cursor, drag to pan, double-click to reset, and a corner minimap — click it to fly anywhere
+- **Title screen**: pick your difficulty at the door; Reset takes you back without losing the running game until you commit
 - **Sound**: procedural WebAudio SFX (deals, deliveries, events, fanfares) with a persisted mute
 - **Settings**: pause-on-event, weekly report toggle, difficulty presets (Relaxed / Standard / Ruthless), save export/import
 - **Vendor contracts**: commit to weekly volume for a locked 20% discount — breach and pay

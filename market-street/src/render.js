@@ -813,6 +813,101 @@ export class Renderer {
       ctx.fillText(f.text, sx, sy - 40 * this.scale - f.age * 16 - (f.stack || 0) * 15);
     }
     ctx.globalAlpha = 1;
+
+    this.drawMinimap();
+  }
+
+  // ---- minimap ------------------------------------------------------------
+  // A little glass diamond in the corner: districts, stores, trucks, and the
+  // current viewport. Click to fly the camera there (wired in main.js).
+
+  miniProject(x, y) {
+    const s = this.mmScale, cx = this.mmW / 2, top = 6;
+    return { mx: cx + (x - y) * s, my: top + (x + y) * s * 0.5 };
+  }
+
+  miniUnproject(mx, my) {
+    const s = this.mmScale, cx = this.mmW / 2, top = 6;
+    const a = (mx - cx) / s, b = (my - top) / (s * 0.5);
+    return { x: (b + a) / 2, y: (b - a) / 2 };
+  }
+
+  drawMinimap() {
+    const el = document.getElementById('minimap');
+    if (!el || el.offsetParent === null) return;
+    const mm = this.mmCtx ??= el.getContext('2d');
+    const g = this.game;
+    this.mmW = el.width; this.mmH = el.height;
+    this.mmScale = (this.mmW - 14) / (GRID * 2);
+    mm.clearRect(0, 0, this.mmW, this.mmH);
+
+    const MINI_RGB = {
+      oldtown: '242, 193, 78', westside: '127, 178, 229',
+      riverside: '111, 208, 140', downtown: '178, 138, 224',
+    };
+    for (const d of DISTRICTS) {
+      const [x0, y0, x1, y1] = d.rect;
+      const unlocked = g.districtUnlocked(d.id);
+      const c0 = this.miniProject(x0 - 0.5, y0 - 0.5);
+      const c1 = this.miniProject(x1 - 0.5, y0 - 0.5);
+      const c2 = this.miniProject(x1 - 0.5, y1 - 0.5);
+      const c3 = this.miniProject(x0 - 0.5, y1 - 0.5);
+      mm.fillStyle = `rgba(${MINI_RGB[d.id]}, ${unlocked ? 0.22 : 0.07})`;
+      mm.beginPath();
+      mm.moveTo(c0.mx, c0.my); mm.lineTo(c1.mx, c1.my);
+      mm.lineTo(c2.mx, c2.my); mm.lineTo(c3.mx, c3.my);
+      mm.closePath(); mm.fill();
+      mm.strokeStyle = `rgba(${MINI_RGB[d.id]}, ${unlocked ? 0.4 : 0.14})`;
+      mm.lineWidth = 1;
+      mm.stroke();
+    }
+    // Warehouse, stores, rival stores.
+    const wh = this.miniProject(WAREHOUSE.x, WAREHOUSE.y);
+    mm.fillStyle = '#7fd8e0';
+    mm.fillRect(wh.mx - 2, wh.my - 2, 4, 4);
+    for (const st of g.stores) {
+      const site = g.site(st.siteId);
+      const p = this.miniProject(site.x, site.y);
+      mm.fillStyle = '#f2c14e';
+      mm.beginPath(); mm.arc(p.mx, p.my, 2.4, 0, Math.PI * 2); mm.fill();
+    }
+    for (const sid of g.rival.stores) {
+      const site = g.site(sid);
+      const p = this.miniProject(site.x, site.y);
+      mm.fillStyle = '#e8828c';
+      mm.beginPath(); mm.arc(p.mx, p.my, 2.2, 0, Math.PI * 2); mm.fill();
+    }
+    // Trucks on the road.
+    mm.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    for (const t of g.trucks) {
+      if (t.state === 'idle' || !t.path?.length) continue;
+      const i = Math.min(t.path.length - 1, Math.floor(t.pos ?? 0));
+      const tile = t.path[i];
+      const p = this.miniProject(tile.x, tile.y);
+      mm.fillRect(p.mx - 1, p.my - 1, 2, 2);
+    }
+    // Viewport outline.
+    const corners = [
+      this.toGrid(0, 0), this.toGrid(this.w, 0),
+      this.toGrid(this.w, this.h), this.toGrid(0, this.h),
+    ].map((c) => this.miniProject(
+      Math.max(-2, Math.min(GRID + 2, c.x)),
+      Math.max(-2, Math.min(GRID + 2, c.y))));
+    mm.strokeStyle = 'rgba(242, 193, 78, 0.85)';
+    mm.lineWidth = 1.2;
+    mm.beginPath();
+    mm.moveTo(corners[0].mx, corners[0].my);
+    for (const c of corners.slice(1)) mm.lineTo(c.mx, c.my);
+    mm.closePath();
+    mm.stroke();
+  }
+
+  // Center the main camera on a minimap click point.
+  minimapJump(mx, my) {
+    const { x, y } = this.miniUnproject(mx, my);
+    const t = { x: Math.max(0, Math.min(GRID - 1, x)), y: Math.max(0, Math.min(GRID - 1, y)) };
+    const { sx, sy } = this.toScreen(t.x, t.y);
+    this.pan(this.w / 2 - sx, this.h / 2 - sy);
   }
 
 

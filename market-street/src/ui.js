@@ -50,7 +50,8 @@ export class UI {
     this.buildHqTab();
     this.buildBooksTab();
     this.renderStoreList();
-    if (fresh) document.getElementById('welcome-banner').classList.remove('hidden');
+    this.bindTitle();
+    if (fresh) this.showTitle('fresh');
     document.getElementById('btn-welcome-close').addEventListener('click', () => {
       document.getElementById('welcome-banner').classList.add('hidden');
     });
@@ -80,6 +81,42 @@ export class UI {
     this.game.save();
     const el = document.getElementById('week-report');
     if (!el.classList.contains('hidden')) el.classList.add('hidden');
+  }
+
+  // ---- title screen ------------------------------------------------------
+
+  bindTitle() {
+    document.querySelectorAll('.diff-card').forEach((b) => {
+      b.addEventListener('click', () => {
+        document.querySelectorAll('.diff-card').forEach((x) => x.classList.remove('selected'));
+        b.classList.add('selected');
+        this.settings.difficulty = b.dataset.diff;
+        this.saveSettings();
+      });
+    });
+    document.getElementById('btn-title-start').addEventListener('click', () => {
+      document.getElementById('title-screen').classList.add('hidden');
+      this.newGame();
+      this.game.speed = 1;
+      sfx.goal?.();
+    });
+    document.getElementById('btn-title-continue').addEventListener('click', () => {
+      document.getElementById('title-screen').classList.add('hidden');
+      this.game.speed = this.titlePrevSpeed || 1;
+    });
+  }
+
+  showTitle(mode) {
+    this.titlePrevSpeed = this.game.speed || 1;
+    this.game.speed = 0;
+    document.querySelectorAll('.diff-card').forEach((x) =>
+      x.classList.toggle('selected', x.dataset.diff === this.settings.difficulty));
+    // "Keep playing" only makes sense over a live, unfinished game.
+    document.getElementById('btn-title-continue').classList.toggle(
+      'hidden', mode === 'fresh' || this.game.gameOver);
+    document.getElementById('btn-title-start').textContent =
+      mode === 'fresh' ? 'Open the doors' : 'Start a new chain';
+    document.getElementById('title-screen').classList.remove('hidden');
   }
 
   saveSettings() {
@@ -195,14 +232,14 @@ export class UI {
           .forEach((b) => b.classList.toggle('active', b === btn));
       });
     });
-    document.getElementById('btn-reset').addEventListener('click', () => {
-      if (!confirm('Wipe the save and start a new chain?')) return;
-      this.newGame();
-    });
+    document.getElementById('btn-reset').addEventListener('click', () => this.showTitle('reset'));
     document.getElementById('btn-win-close').addEventListener('click', () => {
       document.getElementById('win-banner').classList.add('hidden');
     });
-    document.getElementById('btn-lose-reset').addEventListener('click', () => this.newGame());
+    document.getElementById('btn-lose-reset').addEventListener('click', () => {
+      document.getElementById('lose-banner').classList.add('hidden');
+      this.showTitle('reset');
+    });
   }
 
   syncBackdrop() {
@@ -1090,19 +1127,19 @@ export class UI {
     // Rent/wages/salaries accrue at day end, so "today" shows — for them.
     const body = document.getElementById('pl-body');
     const lines = [
-      ['Revenue', t.revenue, y?.revenue],
-      ['Cost of goods', -t.cogs, y !== undefined ? -y.cogs : undefined],
-      ['Fines', -t.fines, y !== undefined ? -y.fines : undefined],
-      ['Debt interest', -t.interest, y !== undefined ? -(y.interest ?? 0) : undefined],
-      ['Rent (accrues nightly)', null, y !== undefined ? -y.rent : undefined],
-      ['Wages (accrues nightly)', null, y !== undefined ? -y.wages : undefined],
-      ['Salaries (accrues nightly)', null, y !== undefined ? -y.salaries : undefined],
+      ['Revenue', t.revenue, y?.revenue, 'Everything rung up at the tills across the chain.'],
+      ['Cost of goods', -t.cogs, y !== undefined ? -y.cogs : undefined, 'What the sold goods cost you, at weighted-average purchase price.'],
+      ['Fines', -t.fines, y !== undefined ? -y.fines : undefined, 'Inspection penalties and contract breach fees.'],
+      ['Debt interest', -t.interest, y !== undefined ? -(y.interest ?? 0) : undefined, '2%/day on a negative balance. The bank has limits — watch it.'],
+      ['Rent (accrues nightly)', null, y !== undefined ? -y.rent : undefined, 'Per-store rent, charged at day end.'],
+      ['Wages (accrues nightly)', null, y !== undefined ? -y.wages : undefined, 'Store staff pay ($28/day each, drifting up with cost of living).'],
+      ['Salaries (accrues nightly)', null, y !== undefined ? -y.salaries : undefined, 'Store managers and HQ department heads.'],
     ];
     let html = '<div class="pl-row"><span></span><span><b>Today</b> · Yesterday</span></div>';
-    for (const [label, today, yest] of lines) {
+    for (const [label, today, yest, tip] of lines) {
       const tv = today === null ? '—' : signFmt(today);
       const yv = yest === undefined ? '—' : signFmt(yest);
-      html += `<div class="pl-row"><span>${label}</span><span><b>${tv}</b> · ${yv}</span></div>`;
+      html += `<div class="pl-row" title="${tip}"><span>${label}</span><span><b>${tv}</b> · ${yv}</span></div>`;
     }
     const profitNow = g.profitToday();
     const yProfit = y ? y.profit : undefined;

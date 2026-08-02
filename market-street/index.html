@@ -9,6 +9,22 @@
 </head>
 <body>
 <div id="app">
+  <div id="title-screen" class="hidden">
+    <div class="title-card">
+      <div class="title-logo">🛒</div>
+      <h1>Market Street</h1>
+      <p class="tagline">Two corner stores. One hungry city. Keep the shelves full,
+      work the vendors, and out-grow <b>BuyLow</b> before it eats the town.</p>
+      <div class="diff-row">
+        <button class="diff-card" data-diff="relaxed"><b>🌱 Relaxed</b><span>More cash, a sleepy rival, calmer city.</span></button>
+        <button class="diff-card" data-diff="standard"><b>🏙️ Standard</b><span>The intended experience.</span></button>
+        <button class="diff-card" data-diff="ruthless"><b>🔥 Ruthless</b><span>Lean cash, an aggressive BuyLow, wild weeks.</span></button>
+      </div>
+      <button id="btn-title-start" class="primary">Open the doors</button>
+      <button id="btn-title-continue" class="hidden">Keep playing</button>
+      <p class="fine title-hints">Drag to pan · scroll to zoom · Space pauses · every week ends in a planning stop</p>
+    </div>
+  </div>
   <header id="topbar">
     <div class="brand">🛒 Market Street</div>
     <div class="stat" id="stat-cash">$0</div>
@@ -30,6 +46,7 @@
   <div id="main">
     <div id="canvas-wrap">
       <canvas id="game"></canvas>
+      <canvas id="minimap" width="160" height="100"></canvas>
       <div id="toast" class="hidden"></div>
       <div id="zoom-controls">
         <button id="zoom-in" data-tip="Zoom in" aria-label="Zoom in">＋</button>
