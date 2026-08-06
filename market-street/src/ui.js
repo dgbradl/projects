@@ -1479,19 +1479,30 @@ export class UI {
     el.querySelector('#btn-week-run').classList.toggle('hidden', !this.game.planning);
     el.querySelector('#btn-week-close').textContent =
       this.game.planning ? 'Make some moves first' : 'Back to work';
+    const g = this.game;
     const lines = [];
-    lines.push(`<div class="pl-row"><span>Revenue</span><b>${fmt(r.revenue)}</b></div>`);
-    const chainTrend = r.prevProfit != null && Math.abs(r.prevProfit) > 1
-      ? ` <span class="fine">(${r.profit >= r.prevProfit ? '▲' : '▼'} vs ${signFmt(Math.round(r.prevProfit))} last wk)</span>`
-      : '';
-    lines.push(`<div class="pl-row"><span>Profit</span><b class="${r.profit >= 0 ? 'pos' : 'neg'}">${signFmt(r.profit)}${chainTrend}</b></div>`);
-    lines.push(`<div class="pl-row"><span>Team decisions</span><b>${r.staffActions}</b></div>`);
-    lines.push(`<div class="pl-row"><span>BuyLow stores</span><b>${r.rivalStores}</b></div>`);
+    // Headline band: the three numbers that matter, big.
+    const wow = r.prevProfit != null && Math.abs(r.prevProfit) > 1
+      ? (r.profit - r.prevProfit) / Math.max(1, Math.abs(r.prevProfit)) : null;
+    const fillAgg = r.stores?.length
+      ? r.stores.reduce((s, x) => s + x.fill, 0) / r.stores.length : null;
+    const isRecord = g.recordWeek === g.weekReportId;
+    lines.push(`<div class="wr-hero">
+      <div class="wr-hcell"><span>Revenue</span><b>${fmt(r.revenue)}</b></div>
+      <div class="wr-hcell"><span>Profit</span><b class="${r.profit >= 0 ? 'pos' : 'neg'}">${signFmt(r.profit)}</b>
+        ${wow != null && Math.abs(wow) >= 0.01 ? `<em class="${wow >= 0 ? 'pos' : 'neg'}">${wow >= 0 ? '▲' : '▼'}${Math.abs(Math.round(wow * 100))}% wk</em>` : ''}
+        ${isRecord ? '<em class="wr-record">🏆 best week ever</em>' : ''}</div>
+      <div class="wr-hcell"><span>Demand filled</span><b>${fillAgg != null ? `${Math.round(fillAgg * 100)}%` : '—'}</b></div>
+    </div>`);
+    // Chain notices, only when there are any.
     for (const f of r.chain ?? []) {
       lines.push(`<div class="wr-issue chain">⚠ ${f.text}</div>`);
     }
-    const offer = this.game.weekOffer;
-    if (offer && this.game.planning) {
+    if (r.staffActions > 0) {
+      lines.push(`<div class="wr-note">💼 Your team made ${r.staffActions} decision${r.staffActions === 1 ? '' : 's'} on its own this week.</div>`);
+    }
+    const offer = g.weekOffer;
+    if (offer && g.planning) {
       lines.push(`<div class="wr-offer" id="wr-offer">
         <div class="wr-offer-head">${offer.icon} <b>${offer.title}</b></div>
         <p>${offer.text}</p>
@@ -1502,41 +1513,57 @@ export class UI {
       </div>`);
     }
     if (r.incoming?.length) {
-      const g2 = this.game;
       lines.push(`<div class="wr-incoming"><b>Coming this week:</b> ${r.incoming.map((e) => {
         const d = EVENTS[e.type];
-        const where = e.district ? ` in ${g2.district(e.district).name}` : e.product ? ` — ${PRODUCTS[e.product].name}` : e.vendor ? ` — ${VENDORS[e.vendor].name}` : '';
+        const where = e.district ? ` in ${g.district(e.district).name}` : e.product ? ` — ${PRODUCTS[e.product].name}` : e.vendor ? ` — ${VENDORS[e.vendor].name}` : '';
         return `${d.icon} ${d.name}${where}`;
       }).join(' · ')}</div>`);
     }
-    // Per-store scorecards: what happened, and where the problems were.
+    // Store cards, two-up: meters as labeled bars, problems as chips.
+    const meter = (label, v, cls) => `
+      <div class="wm"><span>${label}</span>
+        <i class="wm-bar"><b class="${cls}" style="width:${Math.round(v * 100)}%"></b></i>
+        <em>${Math.round(v * 100)}%</em></div>`;
+    const cls3 = (v, hi, mid) => (v >= hi ? 'ok' : v >= mid ? 'mid' : 'bad');
+    lines.push('<div class="wr-grid">');
     for (const s of r.stores ?? []) {
-      const arrow = s.repDelta > 0.02 ? '↗' : s.repDelta < -0.02 ? '↘' : '→';
-      const fillCls = s.fill >= 0.9 ? 'pos' : s.fill >= 0.75 ? 'mid' : 'neg';
-      const staffCls = s.staff >= 0.95 ? 'pos' : s.staff >= 0.85 ? 'mid' : 'neg';
-      const wow = s.prevRevenue != null && s.prevRevenue > 0
-        ? Math.round((s.revenue / s.prevRevenue - 1) * 100) : null;
-      const wowTxt = wow == null ? ''
-        : `<span class="wr-wow ${wow >= 0 ? 'pos' : 'neg'}" title="Revenue vs last week">${wow >= 0 ? '▲' : '▼'}${Math.abs(wow)}%</span>`;
+      const arrow = s.repDelta > 0.02 ? '↗' : s.repDelta < -0.02 ? '↘' : '';
+      const swow = s.prevRevenue ? Math.round((s.revenue / s.prevRevenue - 1) * 100) : null;
+      const chips = [];
+      if (s.missed) {
+        chips.push(`<div class="wr-chipline">
+          <span class="cause ${s.missed.cause}">${s.missed.cause === 'depot' ? '🏭 depot empty' : '🚚 delivery gap'}</span>
+          ${s.missed.items.map((m) => `<span class="pchip" title="${m.dry ? `dry ${m.dry} day${m.dry === 1 ? '' : 's'}` : 'ran low'}">
+            <i style="background:${PRODUCTS[m.p].color}"></i>${PRODUCTS[m.p].name} −${m.units}</span>`).join('')}
+        </div>`);
+      }
+      for (const i of s.issues) {
+        if (i.id === 'dry-depot' || i.id === 'dry-delivery') continue;
+        const short = {
+          understaffed: `🧍 staff covered ${Math.round(s.staff * 100)}% of traffic`,
+          unprofitable: `📉 lost ${fmt(Math.abs(s.profit))} this week`,
+          'rep-slide': `⭐ reputation slid to ${Math.round(s.rep * 100)}%`,
+        }[i.id] ?? i.text;
+        chips.push(`<div class="wr-chipline"><span class="cause warn">${short}</span></div>`);
+      }
       lines.push(`<div class="wr-store">
         <div class="wr-store-head">
           <b>${s.name}</b><span class="fine">${s.district}</span>
-          ${wowTxt}
+          ${swow != null && Math.abs(swow) >= 1 ? `<span class="wr-wow ${swow >= 0 ? 'pos' : 'neg'}">${swow >= 0 ? '▲' : '▼'}${Math.abs(swow)}%</span>` : '<span class="wr-wow"></span>'}
           <b class="${s.profit >= 0 ? 'pos' : 'neg'}">${signFmt(s.profit)}</b>
         </div>
-        <div class="wr-meters">
-          <span class="wr-spark" title="Daily revenue, Mon→Sun">${this.sparkline(s.revDaily)}</span>
-          <span title="Demand served / total demand">shelves <b class="${fillCls}">${Math.round(s.fill * 100)}%</b></span>
-          <span title="Staff coverage of the rush">staff <b class="${staffCls}">${Math.round(s.staff * 100)}%</b></span>
-          <span title="Reputation now (arrow = this week's trend)">rep <b>${Math.round(s.rep * 100)}% ${arrow}</b></span>
+        <div class="wr-meterrow">
+          ${meter('Shelves', s.fill, cls3(s.fill, 0.9, 0.75))}
+          ${meter('Staff', s.staff, cls3(s.staff, 0.95, 0.85))}
+          ${meter(`Rep ${arrow}`, s.rep, cls3(s.rep, 0.6, 0.4))}
         </div>
-        ${s.issues.length
-    ? s.issues.map((i) => `<div class="wr-issue">⚠ ${i.text}</div>`).join('')
-    : '<div class="wr-issue ok">✓ Steady week — no problems recorded.</div>'}
+        <div class="wr-sparkrow"><span class="wr-spark">${this.sparkline(s.revDaily)}</span><span class="fine">daily revenue</span></div>
+        ${chips.length ? chips.join('') : '<div class="wr-chipline"><span class="cause ok">✓ steady week</span></div>'}
       </div>`);
     }
+    lines.push('</div>');
     if (r.events.length) {
-      lines.push(`<div class="fine" style="margin-top:6px"><b>This week:</b><br>${r.events.map((e) => `· ${e}`).join('<br>')}</div>`);
+      lines.push(`<div class="fine wr-week-notes"><b>This week:</b> ${r.events.map((e) => e).join(' · ')}</div>`);
     }
     el.querySelector('#wr-body').innerHTML = lines.join('');
     el.classList.remove('hidden');
@@ -1839,7 +1866,7 @@ export class UI {
         if (list.dataset.k !== html) { list.dataset.k = html; list.innerHTML = html; }
       }
       const ver = document.getElementById('rail-version');
-      if (ver && !ver.textContent) ver.textContent = 'v0.18';
+      if (ver && !ver.textContent) ver.textContent = 'v0.19';
     }
     // Performance strip: rebuilt when a new day lands in history.
     const strip = document.getElementById('perf-strip');

@@ -1879,11 +1879,17 @@ export class Game {
     const dry = Object.entries(ws.lostByP)
       .filter(([, units]) => units >= 25)
       .sort((a, b) => b[1] - a[1]);
+    let missed = null;
     if (dry.length) {
       const depotToo = dry.filter(([p]) => (this.week.whShort[p] ?? 0) >= 2);
       const list = dry.slice(0, 3)
         .map(([p, units]) => `${PRODUCTS[p].name} (~${Math.round(units)} missed${ws.so[p] ? `, dry ${ws.so[p]}d` : ''})`)
         .join(', ');
+      // Structured form for the report UI; text form for the log & tests.
+      missed = {
+        items: dry.slice(0, 4).map(([p, units]) => ({ p, units: Math.round(units), dry: ws.so[p] ?? 0 })),
+        cause: depotToo.length ? 'depot' : 'delivery',
+      };
       issues.push({
         id: depotToo.length ? 'dry-depot' : 'dry-delivery',
         text: depotToo.length
@@ -1909,6 +1915,7 @@ export class Game {
       revenue: Math.round(ws.rev),
       fill, staff, repDelta, rep: store.rep,
       revDaily: ws.revDaily.slice(),
+      missed,
       prevRevenue: prev ? Math.round(prev.rev) : null,
       prevProfit: prev ? Math.round(prev.profit) : null,
       issues,
